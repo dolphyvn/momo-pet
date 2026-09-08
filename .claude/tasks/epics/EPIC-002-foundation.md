@@ -49,4 +49,4 @@ Full acceptance criteria per task live in the task files (first batch materializ
 All four tasks DONE per CLAUDE.md §18 (implemented → independently reviewed → findings addressed → atomic TASK-ID commits on `feature/EPIC-002-foundation` → pushed). Epic slice increment demonstrable: both placeholder shells launch. Tests green with evidence. Epic branch merged to `main`. `.claude/tasks/status.md` updated by the orchestrator.
 
 ## Status
-IN_PROGRESS — TASK-008 DONE (`172bc11` on `feature/EPIC-002-foundation`, pushed; ADR-008 pins recorded; review chain REVIEW-TASK-008 → fix pass → VERIFY all clean). TASK-009–011 TODO pending dispatch.
+IN_PROGRESS (2/4) — TASK-008 DONE (`172bc11`; ADR-008 pins; review chain REVIEW-TASK-008 → fix pass → VERIFY all clean). TASK-009 DONE (`b28ccb4`; package + app targets + placeholder shells; REVIEW-TASK-009 APPROVED 0/0/3; build baseline green, swift-test hostability resolved). TASK-010/011 TODO pending dispatch.
