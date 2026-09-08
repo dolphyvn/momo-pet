@@ -47,10 +47,10 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 - `2cfba30` — E2 record — Direction C gate resolution + ADR-001 + TASK-006 task file READY
 - `8fb9653` — TASK-006 — docs(architecture): TASK-006 technical architecture and ADRs
 - `95e7649` — owner decisions — OPEN-1 §5.5 rule-1 + I-2/OPEN-5 nibble applied (PRD amended; 05/ADR-004 owner-confirmed)
-- (this commit) — TASK-007 — docs(product): TASK-007 delivery plan with Phase 1 epics and task breakdown
+- `71a510b` — TASK-007 — docs(product): TASK-007 delivery plan with Phase 1 epics and task breakdown
 
 ## Recent Pushes
-- main → origin — success (…, 8fb9653, 95e7649; TASK-007 push verified immediately post-commit and recorded here)
+- main → origin — success (95e7649, 71a510b verified: `95e7649..71a510b main -> main`)
 
 ## Architecture / Product Decisions
 - Binding decision log: `docs/product/01-product-review.md` §6 (D1–D20).
