@@ -1,16 +1,16 @@
 # Momo Project Status
 
-Last Updated: 2026-09-08 20:05 UTC
+Last Updated: 2026-09-08 20:48 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
-**Phase 1 — Step 7 Engineering** (project.md §40). **EPIC-002 COMPLETE (4/4 tasks DONE)** on `feature/EPIC-002-foundation` (fully pushed to `2973eb8`). Main integration is the **owner's**, via GitHub PRs (PRs #1–#3 observed) — awaiting the next owner merge, then EPIC-003 (Domain Model) begins.
+**Phase 1 — Step 7 Engineering** (project.md §40). **EPIC-002 COMPLETE and merged to `main`** (`eb82184`, direct merge per the owner's 2026-09-08 no-PR rule — now recorded in CLAUDE.md §14). **EPIC-003 — Pet Domain Model** begins on `feature/EPIC-003-domain-model`.
 
 ## Current Epic
-EPIC-002 — Foundation & Build Baseline (`.claude/tasks/epics/EPIC-002-foundation.md`) — **DONE (4/4 tasks)**; branch fully pushed — owner PR merge to `main` pending (owner PRs #1–#3 already integrated earlier branch states).
+EPIC-003 — Pet Domain Model (`.claude/tasks/epics/EPIC-003-domain-model.md`) — **IN_PROGRESS (0/2 tasks DONE)** on `feature/EPIC-003-domain-model`. EPIC-002 is DONE and fully merged to `main` (`eb82184`).
 
 ## Overall Progress
-Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four tasks DONE**: TASK-008 (`172bc11`, ADR-008 pins) · TASK-009 (`b28ccb4`, package + app targets + shells) · TASK-010 (`a9b9993`, test harness + scanners) · **TASK-011 (`a2a36b7`, design tokens + String Catalog scaffolding; REVIEW-TASK-011 APPROVED_WITH_MINOR_NOTES 0/1/2, disposition applied)**. Epic DoD met; branch fully pushed (`2973eb8`). **The owner merges epic branches to `main` via GitHub PRs** (PRs #1–#3, 2026-09-08, integrated through `5389af1`) — the orchestrator must NOT self-merge. Then EPIC-003 per delivery plan §3/§4.1 (backlog of record).
+Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four tasks DONE and merged to `main`** (`eb82184`): TASK-008 (`172bc11`, ADR-008 pins) · TASK-009 (`b28ccb4`, package + app targets + shells) · TASK-010 (`a9b9993`, test harness + scanners) · TASK-011 (`a2a36b7`, design tokens + String Catalog scaffolding; REVIEW-TASK-011 APPROVED_WITH_MINOR_NOTES 0/1/2, disposition applied). **Merge rule (owner, 2026-09-08): reviewed code merges directly to `main` — no PR — then continue immediately to the next epic (recorded in CLAUDE.md §14).** EPIC-003 is the current epic per delivery plan §3/§4.1 (backlog of record).
 
 ## Completed Work
 - TASK-001 — Repository & orchestration bootstrap (`557c936`)
@@ -31,14 +31,15 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - None (between tasks).
 
 ## Next Tasks
-1. **Owner PR merge** of `feature/EPIC-002-foundation` (tip `2973eb8`) into `main` — the owner runs this step (PRs #1–#3 pattern); the orchestrator pushes and waits, never self-merges.
-2. **EPIC-003 — Domain Model** begins once `main` contains the epic tip: cut `feature/EPIC-003-domain-model` from `main`, materialize the first batch of task files from delivery plan §3 (starting TASK-012), dispatch fresh agents per task. (If the owner's merge lags and work must proceed, cut from the epic tip `2973eb8` instead and record that base here.)
+1. **TASK-012 — Define MomoCore domain model (05 §3.1)** — first EPIC-003 task; task file staged in `.claude/tasks/active/`, fresh Jupiter agent to dispatch.
+2. TASK-013 — Domain-model property tests (FR-9 AC-1; exhaustive 0…100 band sweep, stage thresholds 149/399/749) — after TASK-012.
 3. Follow-up candidates (no urgency, recorded per REVIEW-TASK-011): extend `TokenPurityTests` to component initializers (`Color(red:)`-class) + SwiftUI named colors outside the token module; optionally pin the four body-text contrast pairs with a test luminance helper (full audit remains TASK-047).
 
 ## Blocked Tasks
 - None. Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
+- `eb82184` — merge — EPIC-002 Foundation & Build Baseline (TASK-008–011) into `main` — direct merge per owner rule 2026-09-08
 - `2973eb8` — housekeeping — record TASK-011 commit; EPIC-002 DONE (4/4), task file to completed
 - `a2a36b7` — TASK-011 — feat(design): TASK-011 design-system token pass and String Catalog scaffolding
 - `a9b9993` — TASK-010 — test(bootstrap): scaffold test targets with import-whitelist and banned-vocabulary scans
@@ -56,7 +57,8 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - `557c936` — TASK-001 — chore(orchestration): bootstrap Momo agent team contracts and task structure
 
 ## Recent Pushes
-- `feature/EPIC-002-foundation` → origin — **success** (`a2a36b7..2973eb8`, housekeeping)
+- `main` → origin — **success** (`4929348..eb82184`, EPIC-002 integration merge)
+- `feature/EPIC-002-foundation` → origin — success (`a2a36b7..2973eb8`, housekeeping)
 - `feature/EPIC-002-foundation` → origin — success (`5389af1..a2a36b7`)
 - `feature/EPIC-002-foundation` → origin — success (`983d94d..a9b9993`)
 - `feature/EPIC-002-foundation` → origin — success (`81be80b..b28ccb4`)
@@ -94,16 +96,16 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - **Design system landed (TASK-011, `a2a36b7`):** both builds green; both UI smoke tests green; rendering pixel-verified exact against token hex on both canvases (iPhone light+dark, watch). Reviewer reproduced all of it independently.
 
 ## Repository Status
-- Branch: `feature/EPIC-002-foundation` @ `2973eb8` + this reconciliation commit (pushed); `main` @ `4929348` (owner PR #3 — integrated through `5389af1`; lags the epic branch by TASK-011 + housekeeping).
-- Clean/Dirty: clean after this reconciliation commit.
-- Uncommitted files: none.
-- Remote sync: epic branch tracking origin, in sync.
+- Branch: `feature/EPIC-003-domain-model` (cut from `main` at this housekeeping commit); `main` @ `eb82184` + this housekeeping commit (pushed).
+- Clean/Dirty: clean after this housekeeping commit.
+- Uncommitted files: none (EPIC-003 epic + task files land in the next record commit on the new branch).
+- Remote sync: `main` in sync; new branch pushed with its record commit.
 
 ## Important Context for Next Agent
 - Read first: `CLAUDE.md`, `project.md`, `docs/product/06-delivery-plan.md` (§3 tables = backlog of record), then doc chain 01→02 (amended)→03→04→05 + ADR-001…008.
 - Per-task cycle: fresh Jupiter agent → implement (no commit) → fresh adversarial reviewer (writes review file, replies confirmation-only) → fix loop (fresh fixer + fresh verifier when material) → atomic commit with TASK-ID → push → status update. Agents inherit Jupiter by omitting the model override (an explicit `fable` override fails in this environment — discovered 2026-09-08).
 - **git mv gotcha:** `git mv` moves the index blob, NOT working-tree edits — always `git add` the moved file explicitly after any post-edit rename.
-- **Main integration belongs to the OWNER, via GitHub PRs** (discovered 2026-09-08: PRs #1–#3 merged `feature/EPIC-002-foundation` into `main` after each housekeeping push — the owner reviews/integrates through GitHub). NEVER `git merge` to `main` or push `main` directly. Keep the epic branch pushed; wait for the owner's PR. Cut the next epic's branch from `main` only once it contains the prior epic's tip (fallback: cut from the prior tip and record the base in status.md).
+- **Merge rule (owner authorization, 2026-09-08, recorded in CLAUDE.md §14):** after a task/epic passes its independent review and findings are addressed, merge the feature/epic branch **directly into `main`** and push — **no PR** — then continue into the next epic without waiting for the owner. Never merge unreviewed code; never merge before required tests pass (§19). (Supersedes the owner's earlier PR-based integrations, PRs #1–#3.)
 - "(this commit)" convention: task files record `(this commit)` in Completion Evidence; the real hash lands in status.md's Recent Commits via the housekeeping commit (see `39d6bab`/`1746a98` precedent).
 - Branch model: each epic on `feature/EPIC-00X-slug` cut from `main`; one atomic commit per task, pushed after each task; epic merges to `main` at DoD (delivery plan §1.5, §6.1). EPIC-002's branch now exists with TASK-008 as its first commit.
 - EPIC-002 is DONE — downstream tasks inherit: package (`Sources/<Module>` + `Tests/<Module>Tests`), pbxproj with TestAction-equipped schemes, live scanners (import whitelist + banned-vocabulary, now actively scanning `Apps/Shared/MomoCopy.xcstrings`), design tokens in `MomoCharacter` (hex ONLY in the 2 palette files — keep it that way; `TokenPurityTests` enforces), copy lookup via `CopyKey`/`MomoCopy` with injected bundle (new UI code must not touch `Bundle.main` for copy or hardcode hex). Engine/read-model tasks own real copy pools (index ≥ 01). Known watchOS lesson: `xcodebuild build` does NOT install to the simulator — `simctl install` before `simctl launch`/screenshots; flexible aspect-ratio shapes can collapse in tight watch VStacks (use deterministic frames). All five ADR-008 matrix simulators are provisioned and available.
@@ -111,4 +113,4 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§22/§24); scope-creep proposals route to KEEP/LATER/REJECT with the orchestrator (plan R10).
 
 ## Exact Next Action
-Observe for the owner's PR merge bringing `main` to the epic tip (`2973eb8`). Once `main` contains it: cut `feature/EPIC-003-domain-model` from `main`, write the EPIC-003 task files (TASK-012+ per delivery plan §3/§4.1), and dispatch the first fresh Jupiter implementation agent.
+Dispatch a fresh Jupiter implementation agent for **TASK-012** (MomoCore domain model, 05 §3.1) on `feature/EPIC-003-domain-model` → fresh adversarial reviewer → disposition → commit `feat(domain): TASK-012 ...` → push → then TASK-013, then EPIC-003 merge to `main` per the §14 rule.
