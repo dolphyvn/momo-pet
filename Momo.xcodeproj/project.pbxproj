@@ -20,11 +20,32 @@
 		8A4000000000000000000031 /* MomoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000001 /* MomoCore */; };
 		8A4000000000000000000032 /* MomoCharacter in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000002 /* MomoCharacter */; };
 		8A4000000000000000000033 /* MomoKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000003 /* MomoKit */; };
+		8A4000000000000000000041 /* MomoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000031 /* MomoUITests.swift */; };
+		8A4000000000000000000042 /* MomoWatchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000032 /* MomoWatchUITests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8A8000000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8A1000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A2000000000000000000001;
+			remoteInfo = Momo;
+		};
+		8A8800000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8A1000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8A3000000000000000000001;
+			remoteInfo = MomoWatch;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		8A200000000000000000000F /* Momo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Momo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A300000000000000000000F /* MomoWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MomoWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A800000000000000000000F /* MomoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8A880000000000000000000F /* MomoWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MomoWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A5000000000000000000001 /* MomoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoApp.swift; sourceTree = "<group>"; };
 		8A5000000000000000000002 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000003 /* PlaceholderHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderHomeView.swift; sourceTree = "<group>"; };
@@ -34,6 +55,8 @@
 		8A5000000000000000000012 /* PlaceholderGlanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderGlanceView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000022 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8A5000000000000000000031 /* MomoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoUITests.swift; sourceTree = "<group>"; };
+		8A5000000000000000000032 /* MomoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				8A6000000000000000000003 /* Apps */,
+				8A6000000000000000000006 /* UITests */,
 				8A6000000000000000000002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -73,6 +97,8 @@
 			children = (
 				8A200000000000000000000F /* Momo.app */,
 				8A300000000000000000000F /* MomoWatch.app */,
+				8A800000000000000000000F /* MomoUITests.xctest */,
+				8A880000000000000000000F /* MomoWatchUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -107,6 +133,31 @@
 				8A5000000000000000000022 /* Info.plist */,
 			);
 			path = MomoWatch;
+			sourceTree = "<group>";
+		};
+		8A6000000000000000000006 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				8A6000000000000000000007 /* MomoUITests */,
+				8A6000000000000000000008 /* MomoWatchUITests */,
+			);
+			name = UITests;
+			sourceTree = "<group>";
+		};
+		8A6000000000000000000007 /* MomoUITests */ = {
+			isa = PBXGroup;
+			children = (
+				8A5000000000000000000031 /* MomoUITests.swift */,
+			);
+			path = MomoUITests;
+			sourceTree = "<group>";
+		};
+		8A6000000000000000000008 /* MomoWatchUITests */ = {
+			isa = PBXGroup;
+			children = (
+				8A5000000000000000000032 /* MomoWatchUITests.swift */,
+			);
+			path = MomoWatchUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -154,6 +205,42 @@
 			productReference = 8A300000000000000000000F /* MomoWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		8A8000000000000000000001 /* MomoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A800000000000000000000C /* Build configuration list for PBXNativeTarget "MomoUITests" */;
+			buildPhases = (
+				8A800000000000000000000D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8A8000000000000000000004 /* PBXTargetDependency */,
+			);
+			name = MomoUITests;
+			packageProductDependencies = (
+			);
+			productName = MomoUITests;
+			productReference = 8A800000000000000000000F /* MomoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		8A8800000000000000000002 /* MomoWatchUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8A880000000000000000000C /* Build configuration list for PBXNativeTarget "MomoWatchUITests" */;
+			buildPhases = (
+				8A880000000000000000000D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8A8800000000000000000004 /* PBXTargetDependency */,
+			);
+			name = MomoWatchUITests;
+			packageProductDependencies = (
+			);
+			productName = MomoWatchUITests;
+			productReference = 8A880000000000000000000F /* MomoWatchUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -169,6 +256,14 @@
 					};
 					8A3000000000000000000001 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					8A8000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 8A2000000000000000000001;
+					};
+					8A8800000000000000000002 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 8A3000000000000000000001;
 					};
 				};
 			};
@@ -189,6 +284,8 @@
 			targets = (
 				8A2000000000000000000001 /* Momo */,
 				8A3000000000000000000001 /* MomoWatch */,
+				8A8000000000000000000001 /* MomoUITests */,
+				8A8800000000000000000002 /* MomoWatchUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -215,7 +312,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8A800000000000000000000D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A4000000000000000000041 /* MomoUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8A880000000000000000000D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8A4000000000000000000042 /* MomoWatchUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8A8000000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A2000000000000000000001 /* Momo */;
+			targetProxy = 8A8000000000000000000003 /* PBXContainerItemProxy */;
+		};
+		8A8800000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8A3000000000000000000001 /* MomoWatch */;
+			targetProxy = 8A8800000000000000000003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		8A100000000000000000000A /* Debug */ = {
@@ -359,6 +485,96 @@
 			};
 			name = Release;
 		};
+		8A800000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.momo.app.MomoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Momo;
+			};
+			name = Debug;
+		};
+		8A800000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.momo.app.MomoUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Momo;
+			};
+			name = Release;
+		};
+		8A880000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.momo.app.MomoWatchUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = MomoWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		8A880000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.momo.app.MomoWatchUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = MomoWatch;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -385,6 +601,24 @@
 			buildConfigurations = (
 				8A300000000000000000000A /* Debug */,
 				8A300000000000000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A800000000000000000000C /* Build configuration list for PBXNativeTarget "MomoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A800000000000000000000A /* Debug */,
+				8A800000000000000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8A880000000000000000000C /* Build configuration list for PBXNativeTarget "MomoWatchUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A880000000000000000000A /* Debug */,
+				8A880000000000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
