@@ -1,0 +1,42 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "momo.line.day.00" : {
+      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves catalog lookup in the iPhone Home placeholder surface. Replaced by the tone-guide day pool in the engine/read-model tasks (04 §10.3); not product copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placeholder line — real lines arrive with the engine."
+          }
+        }
+      }
+    },
+    "momo.line.moment.00" : {
+      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.moment namespace (M2 stage banner / M3 all-done). Replaced by the engine tasks (FR-10 AC-4); not product copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placeholder moment line."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.00" : {
+      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.react namespace; wired as the VoiceOver accessibility label of the watch glance's pat capsule (UX-8: announced, never rendered). Replaced by the §6 reaction pools in engine tasks; not product copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placeholder reaction line for VoiceOver."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
