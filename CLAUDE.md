@@ -477,6 +477,8 @@ fix/TASK-XXX-short-name
 
 Do not invent a complicated GitFlow model unless the project requires it.
 
+**Epic merge to main (owner authorization, 2026-09-08):** Once code has passed its mandatory independent review (§10) and its findings are addressed, the orchestration agent merges the feature/epic branch directly into `main` and pushes — no pull request is required, and the orchestration agent should continue straight into the next epic without waiting for the owner. This authorization is valid through project completion. Never merge unreviewed code, and never merge before the required tests pass (§19).
+
 The orchestration agent must avoid parallel agents editing the same files on conflicting branches without explicit coordination.
 
 15. PROGRESS UPDATE RULE
