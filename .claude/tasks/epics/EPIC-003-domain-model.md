@@ -44,4 +44,4 @@ Branch: `feature/EPIC-003-domain-model` (from `main`).
 Both tasks DONE per CLAUDE.md §18 (implemented → independently reviewed → findings addressed → atomic TASK-ID commits on `feature/EPIC-003-domain-model` → pushed). Domain demonstrable headlessly: `swift test` proves the model against the PRD tables. Epic branch merged to `main` (direct merge per CLAUDE.md §14 owner rule). `.claude/tasks/status.md` updated.
 
 ## Status
-IN_PROGRESS (1/2) — TASK-012 DONE (`bc95cb9`, REVIEW-TASK-012 APPROVED_WITH_MINOR_NOTES 0/1/3, disposition applied; swift test 64/11 green). TASK-013 next (task file READY in `.claude/tasks/active/`).
+**DONE (2/2)** — TASK-012 (`bc95cb9`, REVIEW-TASK-012 APPROVED_WITH_MINOR_NOTES 0/1/3) · TASK-013 (`5bbdd72`, REVIEW-TASK-013 CHANGES_REQUIRED → fix round 1 → REVISED APPROVED_WITH_MINOR_NOTES; Probe D now fails the build by design). `swift test` 80 tests / 14 suites green (1203 sweep cases). Epic branch merges to `main` directly per the §14 owner rule.
