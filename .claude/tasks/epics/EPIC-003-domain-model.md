@@ -33,7 +33,7 @@ Branch: `feature/EPIC-003-domain-model` (from `main`).
 2. Pure derivations match PRD §3 tables exactly (band cut-offs 20/45/75; bond stages 149/399/749).
 3. `dayKey` derives via an injected calendar — deterministic, no ambient clock.
 4. Invariants INV-1…11 enforced at type boundaries or pinned by tests.
-5. Exhaustive property tests (0…100 bands, 0…1000 bond) green headlessly; no numeric leakage types exist (FR-9 AC-1).
+5. Exhaustive property tests (0…100 bands, 0…1000 bond) green headlessly; no numeric leakage types exist (FR-9 core rule + FR-9 AC-4 domain half; citation corrected per REVIEW-TASK-013 NITPICK-1 — AC-1 itself is the band-matching property).
 
 ## Test Requirements
 - Focused unit tests in-task (TASK-012: name invariant, `dayKey` derivation).
@@ -44,4 +44,4 @@ Branch: `feature/EPIC-003-domain-model` (from `main`).
 Both tasks DONE per CLAUDE.md §18 (implemented → independently reviewed → findings addressed → atomic TASK-ID commits on `feature/EPIC-003-domain-model` → pushed). Domain demonstrable headlessly: `swift test` proves the model against the PRD tables. Epic branch merged to `main` (direct merge per CLAUDE.md §14 owner rule). `.claude/tasks/status.md` updated.
 
 ## Status
-IN_PROGRESS (0/2) — branch cut 2026-09-08; TASK-012/013 task files materialized; TASK-012 next to dispatch.
+**DONE (2/2)** — TASK-012 (`bc95cb9`, REVIEW-TASK-012 APPROVED_WITH_MINOR_NOTES 0/1/3) · TASK-013 (`5bbdd72`, REVIEW-TASK-013 CHANGES_REQUIRED → fix round 1 → REVISED APPROVED_WITH_MINOR_NOTES; Probe D now fails the build by design). `swift test` 80 tests / 14 suites green (1203 sweep cases). Epic branch merges to `main` directly per the §14 owner rule.
