@@ -155,3 +155,9 @@ All 13 findings were applied by a fresh fix agent (`task-006-fixer`) under expli
 ### Final review status
 
 **APPROVED** — all CHANGES_REQUIRED findings resolved and independently verified per CLAUDE.md §11; residuals closed as mechanical one-liners by the orchestrator. Task cleared for commit. Owner decisions pending (non-blocking, batched): I-2/OPEN-5 nibble class; OPEN-1 §5.5 cascade rule-1 fix.
+
+### Owner decisions — RESOLVED (2026-09-08, after commit `8fb9653`)
+
+Both batched questions went to the owner and were approved:
+- **OPEN-1: PRD fix APPROVED** — PRD §5.5 rule 1 amended to "(local time ≥ 20:00 or local time < 07:00)"; the cascade in 05 §4.8 implements the amended rule; the named unit test now asserts the fixed behavior.
+- **I-2/OPEN-5: nibble ACCEPTED** — PRD FR-6 and the §4 matrix amended (0–30 min politely-full refusal, zero effects; 30–90 min nibble, ×0.25); 05 §0/§4.4/§4.5/Appendix B and ADR-004 updated from "proposed" to "owner-confirmed".

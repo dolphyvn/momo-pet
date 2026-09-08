@@ -164,7 +164,7 @@ Product-level semantics; exact engine curves/rates are TASK-006's. Normative rul
 | Interaction | Energetic / Relaxed | Drowsy | Exhausted | Sleeping (night window) | Just fed (full) |
 |---|---|---|---|---|---|
 | **Pet / touch** (tap, double-tap, long-press, stroke) | Distinct happy reactions per gesture; eyes-follow where technically appropriate | Soft, slower reaction | Soft, slower reaction | Momo stirs, tiny heart; stays asleep | (unaffected) |
-| **Feed** | Enjoys the meal (mood+, energy+) | Nibbles happily, smaller effect | Sleepy nibbles, small effect | Gently declines, sleepy ("zzz…") | Politely full — cute refusal, zero penalty |
+| **Feed** | Enjoys the meal (mood+, energy+) | Nibbles happily, smaller effect | Sleepy nibbles, small effect | Gently declines, sleepy ("zzz…") | Politely full — cute refusal, zero penalty (0–30 min fed); **recently fed 30–90 min: small contented nibble — shortened eating animation, ×0.25 state effects** (owner decision 2026-09-08, I-2) |
 | **Play** (one simple play interaction, ~15–30 s per round) | Full round | Short low-key round, ends in a yawn | Gentle stir only | Gentle stir only | (unaffected) |
 | **Care — Tuck in** | — | — | — | Offered from **20:00 local** through the night window; eases Momo toward sleep (mood+, small energy+); if already asleep, a blanket-adjust moment (still counts) | (unaffected) |
 | **Care — Nap** | Not offered | Offered; restores energy | Offered; restores energy | (asleep) | (unaffected) |
@@ -214,7 +214,7 @@ Every interaction in the matrix is countable and feeds DailyProgress counters (f
 
 The Watch shows **one** quest, chosen deterministically at render time by relevance:
 
-1. Q6 Tuck-in, if Q6 is in today's set and local time ≥ 20:00 and incomplete;
+1. Q6 Tuck-in, if Q6 is in today's set and (local time ≥ 20:00 **or local time < 07:00**) and incomplete; *(rule 1 widened to Q6's full 20:00–07:00 window — owner-approved fix 2026-09-08, closing the 00:00–07:00 tail gap surfaced by TASK-006 as OPEN-1)*
 2. else Q1 Morning hello, if local time < 12:00 and incomplete;
 3. else the first incomplete feed-family quest;
 4. else the first incomplete play-family quest;
@@ -266,7 +266,7 @@ Tap, double-tap, long-press, and stroke/pet (where technically appropriate) each
 - AC-4: Touch zones include at least head and belly with different response characters (D9 anatomy constraint; exact zones finalized with the character in TASK-005 — OPEN-DECISION E2).
 
 **FR-6 — Feeding (§4, D18).**
-One feed interaction. Response is state-gated per §4: hungry → enjoys meal (mood+, energy+); recently fed → politely full, zero penalty. Countable for quests/DailyProgress.
+One feed interaction. Response is state-gated per §4: hungry → enjoys meal (mood+, energy+); recently fed → politely full, zero penalty. **Refinement (owner decision 2026-09-08, I-2):** within the recently-fed span, 0–30 min keeps the politely-full refusal (zero state effects); 30–90 min after a meal gets a small contented nibble — shortened eating animation, ×0.25 state effects — instead of refusing (anti-gaming preserved: the §4 repetition curve multiplies repeated feeds toward ~0). Countable for quests/DailyProgress.
 - AC-1: Feeding a full Momo shows a gentle "I'm full" class of response and changes no state negatively.
 - AC-2: Feeding is available at any time; no cooldown exists.
 - AC-3: Each feed increments the day's feedCount (persisted across relaunch).

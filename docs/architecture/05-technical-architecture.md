@@ -23,7 +23,7 @@
 | 4 | Module packaging = local Swift Package (`MomoCore`, `MomoCharacter`, `MomoKit`) + two app targets; enforced purity boundary; zero external dependencies | ADR-005 | §2 |
 | 5 | Deployment targets pinned at EPIC-002 bootstrap to the current shipping OS generation; N-1 evaluated at release only | ADR-006 | §2.4, §12 |
 | 6 | Animation runtime = SwiftUI-native parametric vector rig (ratifies 04 §8.2; no new decision) | ADR-007 | §2.2 |
-| 7 | Satiety window = 90 min (window value PRD-delegated), three satiety phases (0–30 min "full" refusal; 30–90 min "recently fed" nibble — proposed response class, I-2/OPEN-5, pending owner confirmation) | — (engine-owned tunable; value PRD-delegated, response classes PRD-owned) | §4.5 |
+| 7 | Satiety window = 90 min (window value PRD-delegated), three satiety phases (0–30 min "full" refusal; 30–90 min "recently fed" nibble — owner-confirmed 2026-09-08, I-2/OPEN-5 resolved; PRD FR-6/§4 amended) | — (engine-owned tunable; value PRD-delegated, response classes PRD-owned) | §4.5 |
 | 8 | Play-round effects applied at the single instant the round ceases (confirm 04 §9.6 item 4) | ADR-004 | §4.7 |
 | 9 | Interactions during settling **decline warm, never queue** (confirm 04 §9.6 item 8) | ADR-004 | §4.7 |
 
@@ -318,23 +318,23 @@ The engine evaluates every interaction against the **state** (bands + wakefulnes
 |---|---|---|
 | Play round | energy −10, mood +6 *(starting)* | repetition curve (§4.5) |
 | Feed (hungry meal) | energy +6, mood +4 *(starting)* | repetition curve × satiety phase |
-| Feed (recently-fed nibble) — *I-2: proposed class, pending owner confirmation* | effects × 0.25 *(starting)* | — |
+| Feed (recently-fed nibble) — *I-2 class, owner-confirmed 2026-09-08; PRD FR-6/§4 amended* | effects × 0.25 *(starting)* | — |
 | Feed (full refusal) | zero state effect | — |
 | Pet/touch | mood +2 *(starting; zero bond ever — G2)* | repetition curve |
 | Tuck-in | mood +3, energy +2 *(starting)* | — |
 | Nap | energy +20 over the nap *(starting)* | — |
 | Mood ceiling | normal play clamps ≤ **92**; complete-quest-set and stage moments may reach top of Joyful | §3.1 |
 
-*I-2 — proposed response class (pending owner confirmation; Appendix B OPEN-5):* FR-6's letter assigns the politely-full refusal, zero state effect, to the entire 0–90-minute "recently fed" span; the nibble row above is this document's proposal beyond that letter — surfaced, not silent (§0 #7, §4.5, ADR-004). Tuck-in and nap carry no repetition-curve multiplier because care is window/band-gated (counting rules above) — the curve's grind-protection purpose does not apply to it.
+*I-2 — response class (Appendix B OPEN-5):* FR-6's letter originally assigned the politely-full refusal, zero state effect, to the entire 0–90-minute "recently fed" span; the nibble row above was this document's proposal beyond that letter — surfaced, not silent (§0 #7, §4.5, ADR-004). **Owner confirmed the nibble 2026-09-08; PRD FR-6 and the §4 matrix are amended accordingly — the nibble is now normative.** Tuck-in and nap carry no repetition-curve multiplier because care is window/band-gated (counting rules above) — the curve's grind-protection purpose does not apply to it.
 
 ### 4.5 Satiety window — DECISION
 
-**The window is 90 minutes, three satiety phases** *(engine-owned starting value; PRD §4 delegates the window VALUE — the response classes themselves are PRD-owned, and the 30–90-min class below is this document's proposal, flagged I-2 / OPEN-5)*:
+**The window is 90 minutes, three satiety phases** *(engine-owned starting value; PRD §4 delegates the window VALUE — the response classes are PRD-owned, and the 30–90-min class below was confirmed by the owner on 2026-09-08, I-2 / OPEN-5 resolved; PRD FR-6/§4 amended)*:
 
 | Phase | Since last feed | `SatietyHint` to character | Feed response class | Effects |
 |---|---|---|---|---|
 | Full | 0–30 min | `.full` | Politely full — the cute-refusal beat (04 §6.2 "sated sigh") | zero (counts per §4.4) |
-| Recently fed | 30–90 min | `.recentlyFed` | Small contented nibble (shortened eating animation) — **I-2: proposed class, pending owner confirmation** | × 0.25 *(starting)* |
+| Recently fed | 30–90 min | `.recentlyFed` | Small contented nibble (shortened eating animation) — **I-2 class, owner-confirmed 2026-09-08; PRD amended** | × 0.25 *(starting)* |
 | Hungry | > 90 min | `.hungry` | Full meal | full, × repetition curve |
 
 Justification: 90 minutes keeps the refusal beat honest (a meal is not forgotten in five minutes) yet clearable inside one ordinary return visit, so both response classes are reachable in normal use; it never gates availability (D18 — the button never changes); and since refused feeds count (§4.4, I-1), no quest window is hostage to the value. Alternatives considered: 30 min (refusal beat nearly unreachable; "full" reads as evaporated); 3 h ("recently fed" dominates daytime sessions, thinning the eating state's presence). The value is a single constant in MomoCore with this table as its spec — the window value is tunable without PRD change; changing the response-class split is PRD-owned and requires the owner's I-2 confirmation or a PRD revision.
@@ -387,14 +387,14 @@ legal transitions (INV-8):
 
 **Watch quest cascade** (PRD §5.5 — one shared pure function in MomoCore; the Watch renders its output; Phase 2 widgets reuse it, §8):
 
-1. Q6, if in today's set ∧ incomplete ∧ **local time ≥ 20:00**;
+1. Q6, if in today's set ∧ incomplete ∧ **local time ∈ Q6's window (≥ 20:00 ∨ < 07:00)** *(owner-approved PRD fix 2026-09-08 — OPEN-1 resolved; PRD §5.5 rule 1 amended)*;
 2. else Q1, if local time < 12:00 ∧ incomplete;
 3. else first incomplete feed-family quest (catalog order Q2 → Q3);
 4. else first incomplete play-family quest (Q4 → Q5);
 5. else Q7, if in today's set ∧ incomplete;
 6. else the all-complete state ("All done — see you soon").
 
-> **PRD FIX CANDIDATE — §5.5 rule 1 gap (flagged to the owner, per intake; NOT silently re-interpreted).** Rule 1 triggers on `local time ≥ 20:00`, but Q6's window is 20:00–07:00. In the 00:00–07:00 tail — e.g., a 02:00 tuck-in with Q1 already complete — rule 1 is false, and the cascade can select a daytime wish (e.g., "playtime") while Momo is asleep and Q6 is open, incomplete, and in-set. **Suggested one-line fix:** rule 1 becomes "Q6, if in today's set ∧ incomplete ∧ local time ∈ Q6's window (≥ 20:00 ∨ < 07:00)". **Phase 1 implements the PRD's letter as written above**; the cascade carries a named unit test documenting the letter's behavior, marked to flip when the PRD is revised. Escalated as a documentation fix — no product behavior is changed unilaterally.
+> **RESOLVED — §5.5 rule 1 gap (OPEN-1; owner approved the fix 2026-09-08).** The gap: rule 1 triggered on `local time ≥ 20:00` only, so in the 00:00–07:00 tail — e.g., a 02:00 tuck-in with Q1 already complete — the cascade could select a daytime wish while Q6 was open, incomplete, and in-set. **Owner approved the one-line PRD fix:** rule 1 is "Q6, if in today's set ∧ incomplete ∧ local time ∈ Q6's window (≥ 20:00 ∨ < 07:00)". **PRD §5.5 rule 1 is amended accordingly, and the cascade above implements the amended rule.** The named unit test now asserts the fixed behavior (a 02:00 tuck-in with Q1 done selects Q6).
 
 ### 4.9 Copy selection & tone constraints (FR-12 bound at the type level)
 
@@ -601,7 +601,7 @@ Strategy: **test the pure core headlessly and exhaustively; test the thin platfo
 | Bond progression | cap-by-construction property over random sequences (FR-10 AC-1); monotonicity incl. replay (AC-2); 1000-pats-zero-bond (AC-3); stage crossing once (AC-4/5) — Core |
 | Daily reset | midnight rollover exactly once across folded spans; absent-day ledger emptiness (FR-11 AC-2, FR-12 AC-1) — Core |
 | Quest progression | generator 30-day simulation + by-construction candidates; window checks (Q1/Q6); completion auto-tick; cascade rules incl. the letter-of-PRD gap test (§4.8) — Core |
-| State-engine rules | response-matrix table test (PRD §4 rows × bands × wakefulness), satiety rows carrying the I-2 flip-marker — conformance = delete the nibble row, 30–90 min → politely-full (OPEN-5); satiety phases; settling + waking decline-warm cells; repetition curve; handshakes incl. late/duplicate/cancelled reports; play single-instant application — Core |
+| State-engine rules | response-matrix table test (PRD §4 rows × bands × wakefulness), satiety rows asserting the nibble as normative (owner-confirmed 2026-09-08, I-2/OPEN-5 resolved); satiety phases; settling + waking decline-warm cells; repetition curve; handshakes incl. late/duplicate/cancelled reports; play single-instant application — Core |
 | Deterministic randomness | seed stability (same day ⇒ same seed); sequencer schedule purity (FR-4 AC-1) — Core/Character |
 
 ### 10.4 §32 Sync matrix → concrete tests
@@ -693,7 +693,7 @@ Standing rule inherited from 04 §7.4: every animation ships with a battery note
 | Watch snapshot restore ≤ ~2 s | §5.6, §6.3, §10.4, §12 |
 | Invisible corruption-recovery cadence | §5.3, §10.2 |
 | ResponsePlan per PRD §4 matrix (engine decides what/when) | §4.4 |
-| Satiety window value | §4.5 (DECISION: 90 min, three phases; nibble class proposed via I-2/OPEN-5) |
+| Satiety window value | §4.5 (DECISION: 90 min, three phases; nibble class owner-confirmed 2026-09-08, I-2/OPEN-5 resolved) |
 | Settle/wake/play handshakes + `handshakeCancelled` | §4.7 |
 | Play effects at the single instant the round ceases | §4.7 (confirmed 04 §9.6 item 4) |
 | Single CharacterClock pause authority | §4.1/§4.2 (engine never pauses; presentation owns pause per 04 §9.3/9.5) |
@@ -705,11 +705,11 @@ Standing rule inherited from 04 §7.4: every animation ships with a battery note
 
 ## Appendix B — Open Items & VERIFY-AT-BUILD Register
 
-**OPEN-1 (owner, doc fix):** PRD §5.5 cascade rule 1 gap — the 00:00–07:00 Q6 tail (§4.8). One-line fix drafted; Phase 1 implements the PRD letter with a flip-ready test.
+**OPEN-1 — RESOLVED (owner approved the PRD fix 2026-09-08):** PRD §5.5 cascade rule 1 gap — the 00:00–07:00 Q6 tail (§4.8). PRD §5.5 rule 1 is amended to "(≥ 20:00 ∨ < 07:00)"; the cascade implements the amended rule; the named unit test asserts the fixed behavior (02:00 tuck-in with Q1 done selects Q6).
 **OPEN-2 (reviewer confirmation):** interpretation I-1 — refused/declined feeds increment `feedCount` and quest progress (PRD FR-6 AC-3 letter; required for Q3's ≤ 2-min completability). §4.4.
 **OPEN-3 (bootstrap):** exact deployment-target versions, device-matrix device names, test-framework idioms pinned with ADR-006. §2.4, §12.
 **OPEN-4 (noted placement decision):** idle sequencer lives in MomoCharacter (04 owns choreography) as pure Foundation-only files, not in MomoCore; alternative was Core placement for one-stop determinism tests — rejected to respect the 04 §9.4 ownership split. §2.2.
-**OPEN-5 (owner confirmation):** interpretation I-2 — the 30–90-min "recently fed" nibble (§4.4, §4.5) is a proposed third response class, not PRD letter. **PRD FIX CANDIDATE:** FR-6's wording ("recently fed → politely full, zero penalty") and the §4 matrix assign the politely-full refusal, zero effects, to all of 0–90 min; only the window VALUE is delegated (TASK-006 intake). **Flip-ready test:** the §10.3 response-matrix table test carries the satiety rows marked to flip — conformance = delete the nibble row; 30–90 min maps to politely-full (zero effects). **Disposition:** proposed, pending owner confirmation; Phase 1 implements §4.5 as specified until ruled.
+**OPEN-5 — RESOLVED (owner confirmed the nibble 2026-09-08):** interpretation I-2 — the 30–90-min "recently fed" nibble (§4.4, §4.5) was a proposed third response class beyond FR-6's letter. **PRD FR-6 and the §4 matrix are amended accordingly: 0–30 min = politely-full refusal (zero effects); 30–90 min = small contented nibble (shortened eating animation, ×0.25 state effects)** — anti-gaming preserved by the repetition curve. The §10.3 response-matrix test asserts the nibble as normative.
 
 **VERIFY-AT-BUILD consolidated:** deployment-target versions and iOS↔watchOS pairing rules (§2.4); WatchConnectivity transport behaviors (background delivery latency, context coalescing/launch delivery, any required background capability, system retention of undelivered transfers across iPhone reinstall) (§6.1, §6.6, §11.4); Swift `Clock`/concurrency idioms (§4.10); `swift test` hostability of the package targets (§10); privacy-manifest required-reason API list (§11.2); WidgetKit budgets and app-group/file-protection interaction (§8 — Phase 2); HealthKit background mode (§7 — Phase 2); watchOS memory norms (§12); device-matrix composition (§12).
 
