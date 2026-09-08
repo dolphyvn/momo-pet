@@ -22,6 +22,8 @@
 		8A4000000000000000000033 /* MomoKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000003 /* MomoKit */; };
 		8A4000000000000000000041 /* MomoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000031 /* MomoUITests.swift */; };
 		8A4000000000000000000042 /* MomoWatchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000032 /* MomoWatchUITests.swift */; };
+		8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
+		8A4000000000000000000052 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +59,7 @@
 		8A5000000000000000000022 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000031 /* MomoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000032 /* MomoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchUITests.swift; sourceTree = "<group>"; };
+		8A5000000000000000000041 /* MomoCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = MomoCopy.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +111,7 @@
 			children = (
 				8A6000000000000000000004 /* Momo */,
 				8A6000000000000000000005 /* MomoWatch */,
+				8A6000000000000000000009 /* Shared */,
 			);
 			path = Apps;
 			sourceTree = "<group>";
@@ -158,6 +162,14 @@
 				8A5000000000000000000032 /* MomoWatchUITests.swift */,
 			);
 			path = MomoWatchUITests;
+			sourceTree = "<group>";
+		};
+		8A6000000000000000000009 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				8A5000000000000000000041 /* MomoCopy.xcstrings */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -300,6 +312,7 @@
 				8A4000000000000000000003 /* PlaceholderHomeView.swift in Sources */,
 				8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */,
 				8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */,
+				8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -309,6 +322,7 @@
 			files = (
 				8A4000000000000000000011 /* MomoWatchApp.swift in Sources */,
 				8A4000000000000000000012 /* PlaceholderGlanceView.swift in Sources */,
+				8A4000000000000000000052 /* MomoCopy.xcstrings in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
