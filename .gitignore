@@ -1,4 +1,10 @@
 # macOS
 .DS_Store
 
-# Swift/Xcode entries are added by TASK-009 (build baseline) — keep this file minimal until then.
+# Swift package (TASK-009)
+.build/
+
+# Xcode (TASK-009) — the hand-authored Momo.xcodeproj IS committed; only user state is ignored
+DerivedData/
+xcuserdata/
+*.xcuserstate
