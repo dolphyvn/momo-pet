@@ -1,6 +1,6 @@
 # Momo Project Status
 
-Last Updated: 2026-09-08 12:40 UTC
+Last Updated: 2026-09-08 14:55 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
@@ -11,7 +11,7 @@ Phase 0 — Product Definition (project.md §40, Steps 1–6).
 EPIC-001 — Product Definition & Delivery Plan
 
 ## Overall Progress
-5/7 tasks complete (TASK-001…005). E2 owner gate RESOLVED (Direction C — Round Rabbit, ADR-001). TASK-006 in progress (fresh agent spawned).
+6/7 tasks complete (TASK-001…006). Two owner decisions batched (nibble I-2/OPEN-5; §5.5 OPEN-1). TASK-007 next.
 
 ## Completed Work
 - TASK-001 — Repository & orchestration bootstrap (commit `557c936`, pushed)
@@ -19,19 +19,17 @@ EPIC-001 — Product Definition & Delivery Plan
 - TASK-003 — Step 2 MVP PRD (CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED; `c766ffe`, pushed; `docs/product/02-mvp-prd.md`)
 - TASK-004 — Step 3 UX Architecture (APPROVED_WITH_MINOR_NOTES → 11 fixes → APPROVED; `40c4b77`, pushed; `docs/design/03-ux-architecture.md`)
 - TASK-005 — Step 4 Character System (CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED; `ce84811`, pushed; `docs/design/04-character-system.md`)
-- E2 — Character direction: owner picked **C "Round Rabbit"**; recorded in ADR-001 + 04 §1.4 gate box.
+- E2 — Character direction: owner picked **C "Round Rabbit"**; ADR-001 + 04 §1.4 gate box (`39d6bab` record fix, `2cfba30` E2 record, both pushed)
+- TASK-006 — Step 5 Technical Architecture (CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED; `docs/architecture/05-technical-architecture.md` + ADR-002…007)
 
 ## Work In Progress
-- TASK-006 — Step 5 Technical Architecture + ADRs
-  - Status: IN_PROGRESS — fresh Jupiter agent `task-006-arch` spawned.
-  - Scope: `docs/architecture/05-technical-architecture.md` (12 sections) + ADR-002…00n under `.claude/tasks/decisions/` (ADR-001 taken by E2 record).
-  - Intake obligations are baked into the task file (DisplayState, hello/Q1 split, handshakes + cancellation, PRD §5.5 rule-1 flag to owner, OBS-1/OBS-2).
+- None (between tasks). Owner decisions being surfaced, then TASK-007 spawns.
 
 ## Next Tasks
-1. TASK-007 — Step 6 Delivery Plan (blocked by TASK-006)
+1. TASK-007 — Step 6 Delivery Plan (blocked by TASK-006 ✅ → READY once owner decisions are recorded or deferred)
 
 ## Blocked Tasks
-- None. Owner escalations E1 (monetization), E3 (location), E4 (name) remain pending; none blocks Phase 0. E2 is RESOLVED.
+- None. Owner escalations E1 (monetization), E3 (location), E4 (name) remain pending; none blocks Phase 0. **New batched owner decisions (non-blocking for the TASK-006 commit, resolved before/during TASK-007):** I-2/OPEN-5 nibble class; OPEN-1 §5.5 cascade fix.
 
 ## Recent Commits
 - `557c936` — TASK-001 — chore(orchestration): bootstrap Momo agent team contracts and task structure
@@ -39,15 +37,17 @@ EPIC-001 — Product Definition & Delivery Plan
 - `c766ffe` — TASK-003 — docs(product): TASK-003 MVP product requirements document
 - `40c4b77` — TASK-004 — docs(design): TASK-004 UX architecture for Phase 1
 - `ce84811` — TASK-005 — docs(design): TASK-005 character system specification
-- (housekeeping) — TASK-005 record completion: the `ce84811` rename captured the task file's pre-task bootstrap content (git mv moves the index blob); the true task record (implementation notes, findings, handoff, hash) was committed in a follow-up orchestration commit
-- (this commit) — E2 record: Direction C gate resolution in 04 §1.4 + ADR-001; TASK-006 task file made READY with intake obligations
+- `39d6bab` — housekeeping — TASK-005 record completion (rename in `ce84811` captured stale index-blob content)
+- `2cfba30` — E2 record — Direction C gate resolution + ADR-001 + TASK-006 task file READY
+- (this commit) TASK-006 — docs(architecture): TASK-006 technical architecture and ADRs
 
 ## Recent Pushes
-- main → origin — success (557c936, f72b78b, c766ffe, 40c4b77, ce84811)
+- main → origin — success (557c936, f72b78b, c766ffe, 40c4b77, ce84811, 39d6bab, 2cfba30)
 
 ## Architecture / Product Decisions
 - Binding decision log: `docs/product/01-product-review.md` §6 (D1–D20).
-- **ADR-001 (owner, E2): Character direction = C "Round Rabbit"** — `.claude/tasks/decisions/ADR-001-character-direction-round-rabbit.md`; 04 §1.3 deltas + ~11-part rig + ear-thickness rule now normative; A/B subsections are decision-trail only. ADR numbering continues at ADR-002 for TASK-006.
+- **ADR-001 (owner, E2): Character direction = C "Round Rabbit"** — `.claude/tasks/decisions/ADR-001-character-direction-round-rabbit.md`; 04 §1.3 deltas + ~11-part rig + ear-thickness rule now normative.
+- **ADR-002–007 (TASK-006, all under `.claude/tasks/decisions/`):** plain Codable atomic file store over SwiftData (envelope+checksum, 3-generation recovery, additive-first migrations); WatchConnectivity-only sync (context latest-wins iPhone→Watch, FIFO journal Watch→iPhone, `sendMessage` = optimization only; dual idempotency guards scoped per `watchSessionEpoch` — re-pair/reinstall self-heals); pure event-driven engine `reduce(state, event, clock, rng)` with catch-up folding, no timers; satiety window 90 min (0–30 full / 30–90 recently-fed nibble ×0.25 — **nibble class PROPOSED, I-2/OPEN-5, pending owner**); module packaging = local SPM package `MomoCore`/`MomoCharacter`/`MomoKit` + app targets; deployment targets pinned at EPIC-002 bootstrap to current shipping OS generation, N-1 non-committed; SwiftUI-native rig ratified (ADR-007).
 - PRD-normative numbers (`docs/product/02-mvp-prd.md`): Bond 0–1000 monotonic, stages 149/399/749, +8 hello / +4 quest / +6 variety / +20 day cap, touches bank zero; Mood bands 20/45/75 (attractor 60, floor 25, ceiling 92); Energy bands 20/45/75 (start 85, play −10, feed +6, nap +20); quests Q1–Q7, daily set = Q1 + 2 seeded, Q1 ≤ 12:00, Q6 20:00–07:00.
 - **TASK-004 UX decisions (UX-1–UX-14, `docs/design/03-ux-architecture.md` §11.1):** 3 native tabs Home·Room·Settings (erase alert = only modal); bond = stage word + descriptor, NO within-stage meter (resolves PR8); play = fingertip-follow ≤ 30 s, 3-phase shell; quest card = per-wish soft marks, no aggregate bar; wish lines render inside windows (UX-5, reviewer-legitimated); Watch pat = daily hello, device-agnostic idempotent (UX-6); no sync-freshness indicator (UX-9); zero permissions Phase 1, Phase 2 contextual-ask strategy only; DisplayState read-model reserved for TASK-006.
 - **TASK-004 review clarifications (binding on TASK-006):** hello and Q1 share a trigger but not a window — hello (+8) awarded once per local day whenever the first touch occurs (iPhone or Watch), Q1 ticks only before 12:00; the hello must never be window-gated. AC-1a budget assumes single-line wish rows at default Dynamic Type (wish copy is length-constrained; TASK-005 tone guide owns it).
@@ -55,14 +55,13 @@ EPIC-001 — Product Definition & Delivery Plan
 - Orchestration: docs under `docs/{product,design,architecture}/`; ADRs under `.claude/tasks/decisions/`; direct-to-main during Phase 0; feature branches from EPIC-002; all agents Jupiter.
 
 ## Known Issues
-- **PRD §5.5 cascade rule 1 gap (TASK-006 intake, found by TASK-004 reviewer):** rule 1's "local time ≥ 20:00" misses Q6's 00:00–07:00 tail when Q1 is already complete (e.g., 02:00 tuck-in with Q1 done). The UX doc inherits the cascade's output without error; TASK-006 implementing the cascade must flag it to the PRD owner (one-line PRD fix candidate).
-- **OBS-1 (TASK-005 verifier, non-blocking):** 03-ux-architecture.md:428's VoiceOver template hard-codes "…and has {energy phrase}." while 04 §3.5's binding formula uses a verb-phrase slot — FR-20 audit string agrees verbatim in all three docs (the actual AC); one clause in 04 §3.5 closes it if TASK-006 wants belt-and-braces.
-- **OBS-2 (TASK-005 verifier, non-blocking):** tone rule 2's 12-word max vs. M2 banner template (~13 words) — TASK-006 copy pass should exempt the banner explicitly or scope rule 2 to visual lines.
-- Xcode availability not yet verified (TR10) — must verify before EPIC-002 build work.
-- 2026 fall OS churn: all API availability claims VERIFY-AT-BUILD (TASK-006 ADRs).
+- **Owner decision 1 (OPEN-1):** PRD §5.5 cascade rule 1's "local time ≥ 20:00" misses Q6's 00:00–07:00 tail when Q1 is already complete (e.g., 02:00 tuck-in). Architecture implements the PRD letter with a flip-ready test; one-line PRD fix drafted (05 Appendix B). Owner to approve/decline the PRD edit.
+- **Owner decision 2 (I-2/OPEN-5):** nibble response class for 30–90 min post-feed (×0.25 effects) vs FR-6 letter's politely-full-zero-effects for the whole recently-fed span. Architecture flags it as proposed with a flip-ready test; owner to confirm or conform.
+- Xcode availability not yet verified (TR10) — must verify before EPIC-002 build work; bootstrap pins (OPEN-3) resolve there.
+- 2026 fall OS churn: all API availability claims VERIFY-AT-BUILD, consolidated in 05 Appendix B.
 
 ## Test Status
-- Phase 0: review gates only. REVIEW-TASK-002 = APPROVED_WITH_MINOR_NOTES. REVIEW-TASK-003 = APPROVED (after fix+verify). REVIEW-TASK-004 = APPROVED_WITH_MINOR_NOTES → fixes → APPROVED. REVIEW-TASK-005 = CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED.
+- Phase 0: review gates only. REVIEW-TASK-002 = APPROVED_WITH_MINOR_NOTES. REVIEW-TASK-003 = APPROVED (after fix+verify). REVIEW-TASK-004 = APPROVED_WITH_MINOR_NOTES → fixes → APPROVED. REVIEW-TASK-005 = CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED. REVIEW-TASK-006 = CHANGES_REQUIRED → fix → ALL_FIXES_VERIFIED → APPROVED.
 
 ## Build Status
 - Not applicable yet.
@@ -73,13 +72,12 @@ EPIC-001 — Product Definition & Delivery Plan
 - Remote sync: in sync with origin/main after push
 
 ## Important Context for Next Agent
-- Read first: `CLAUDE.md`, `project.md`, `docs/product/01-product-review.md` (D1–D20 binding), `docs/product/02-mvp-prd.md` (normative), `docs/design/03-ux-architecture.md` (UX contract), `docs/design/04-character-system.md` (character contract), `.claude/tasks/decisions/ADR-001-character-direction-round-rabbit.md`.
-- Dependency chain: 001–005 ✅ → 006 (IN_PROGRESS) → 007.
-- Per-task cycle: fresh agent → implement (no commit) → fresh review agent → fix loop → commit → push → status update. Review records: `.claude/tasks/reviews/REVIEW-TASK-0XX.md`. Reviewer agents should WRITE their full review record directly to the review file and reply with only a confirmation (message truncation workaround, established pattern).
-- **git mv gotcha (learned this session):** `git mv` moves the index blob, NOT working-tree edits — always `git add` the moved file explicitly after any post-edit rename, or the commit captures stale content (cost a housekeeping commit for TASK-005).
-- TASK-006 intake obligations are baked into `.claude/tasks/active/TASK-006-technical-architecture.md` (Intake Obligations section) — including the PRD §5.5 cascade rule-1 Q6-tail gap that must be flagged to the owner, not silently re-interpreted.
-- E2 RESOLVED (Direction C). ADR numbering continues at ADR-002.
+- Read first: `CLAUDE.md`, `project.md`, `docs/product/01-product-review.md` (D1–D20 binding), `docs/product/02-mvp-prd.md` (normative), `docs/design/03-ux-architecture.md`, `docs/design/04-character-system.md`, `docs/architecture/05-technical-architecture.md` (+ ADR-001…007).
+- Dependency chain: 001–006 ✅ → 007 (last Phase 0 task).
+- Per-task cycle: fresh agent → implement (no commit) → fresh review agent → fix loop → commit → push → status update. Review records: `.claude/tasks/reviews/REVIEW-TASK-0XX.md`. Reviewer agents WRITE the full record to the review file and reply with only a confirmation (truncation workaround).
+- **git mv gotcha:** `git mv` moves the index blob, NOT working-tree edits — always `git add` the moved file explicitly after any post-edit rename (cost a housekeeping commit for TASK-005).
+- **TASK-007 intake:** produce the delivery plan converting the approved MVP into EPIC-002+ epics/stories with ACs, dependencies, implementation order, test requirements, release gates. Carry in: the two pending owner decisions (record outcomes in the decision log + flip the docs if owner chooses conformance); EPIC-002 bootstrap obligations from ADR-006/OPEN-3 (deployment pins, device names, Xcode verify, import-whitelist scan); test-target structure from 05 §10; performance budgets from 05 §12 as release gates; ADR numbering continues at ADR-008+.
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§27–28).
 
 ## Exact Next Action
-Monitor `task-006-arch`; on completion spawn fresh reviewer `task-006-reviewer` (write record to `.claude/tasks/reviews/REVIEW-TASK-006.md`, reply confirmation only) → fix loop → commit `docs(architecture): TASK-006 technical architecture and ADRs` → push → then TASK-007.
+Commit + push TASK-006 → batch owner decisions (OPEN-1 §5.5 fix; I-2/OPEN-5 nibble) via AskUserQuestion → record outcomes → update TASK-007 task file with intake → spawn fresh Jupiter agent (Step 6 Delivery Plan).
