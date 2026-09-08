@@ -33,7 +33,7 @@ Branch: `feature/EPIC-003-domain-model` (from `main`).
 2. Pure derivations match PRD §3 tables exactly (band cut-offs 20/45/75; bond stages 149/399/749).
 3. `dayKey` derives via an injected calendar — deterministic, no ambient clock.
 4. Invariants INV-1…11 enforced at type boundaries or pinned by tests.
-5. Exhaustive property tests (0…100 bands, 0…1000 bond) green headlessly; no numeric leakage types exist (FR-9 AC-1).
+5. Exhaustive property tests (0…100 bands, 0…1000 bond) green headlessly; no numeric leakage types exist (FR-9 core rule + FR-9 AC-4 domain half; citation corrected per REVIEW-TASK-013 NITPICK-1 — AC-1 itself is the band-matching property).
 
 ## Test Requirements
 - Focused unit tests in-task (TASK-012: name invariant, `dayKey` derivation).
