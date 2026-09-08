@@ -47,4 +47,4 @@ Dependency chain: 002 → 003 → {004 ∥ 005} → 006 → 007.
 - All tasks DONE (implemented, reviewed, committed, pushed), `status.md` accurate, and a new orchestration agent could resume from the repository alone.
 
 ## Status
-IN_PROGRESS (TASK-001–004 ✅; TASK-005 in review — see .claude/tasks/status.md)
+IN_PROGRESS (TASK-001–005 ✅; TASK-006 next — see .claude/tasks/status.md)
