@@ -104,7 +104,7 @@
 
 Rationale: it is the only option that is simultaneously distinctive, behaviorally coherent with the product's morning/evening energy model, and natively premium — mood expressed through ear angle and posture is quiet body language, which is the "calm × premium" register, while the cat reads as familiar-but-generic and the spirit reads as ownable-but-technically thin on the required ear/tail movement channel (V1) and expression range (V7). Its one real weakness (glance-size ears) is closed by a hard design rule and a glyph variant, at near-zero cost. If the owner weighs glance legibility above all, Direction B is the fallback; if the owner weighs instant universal warmth, Direction A. **The pick is the owner's (E2).**
 
-> **OWNER SIGN-OFF GATE (E2 — D9).** Direction A, B, or C — pick one. Until sign-off: TASK-004 and TASK-006 consume only the direction-agnostic contracts (§2–§9), which are stable regardless of the pick. After sign-off, only §1's per-direction deltas and the rig part counts (§8.5) become concrete.
+> **OWNER SIGN-OFF GATE (E2 — D9): RESOLVED.** The owner picked **Direction C — "The Round Rabbit"** (2026-09-08). Recorded as ADR-001 (`.claude/tasks/decisions/ADR-001-character-direction-round-rabbit.md`). Sections §2–§9 were written direction-agnostic and required no rework; with sign-off, §1.3's deltas and the §8.5 part counts (~11 rig parts, per-ear rotation channels) are now concrete. Downstream documents consume C's values; A/B subsections remain as the recorded decision record.
 
 ---
 

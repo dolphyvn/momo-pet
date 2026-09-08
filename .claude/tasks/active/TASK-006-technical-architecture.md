@@ -23,10 +23,10 @@ Read `CLAUDE.md`, `project.md`, `docs/product/01-product-review.md`, `docs/produ
 10. Testing architecture (per-target test plan mapping §32's domain/persistence/sync/UI/edge matrices to concrete test targets)
 11. Privacy architecture (data inventory, on-device stance, privacy manifest implications, deletion story; §25)
 12. Performance budget (launch, animation frame target, Watch battery stance, §33)
-Also create ADRs under `.claude/tasks/decisions/` (format per CLAUDE.md §21), minimum:
-- ADR-001-local-first-persistence.md
-- ADR-002-watch-sync-strategy.md
-- ADR-003-pet-state-engine.md
+Also create ADRs under `.claude/tasks/decisions/` (format per CLAUDE.md §21). **ADR-001 is already taken** (character direction, E2 owner decision) — continue the sequence, minimum:
+- ADR-002-local-first-persistence.md
+- ADR-003-watch-sync-strategy.md
+- ADR-004-pet-state-engine.md
 Plus any additional ADRs for decisions with real alternatives (e.g., module packaging, animation runtime).
 Rules:
 - Verify API/deployment claims against current official Apple documentation knowledge; where uncertain, mark VERIFY-AT-BUILD rather than asserting (project.md §21, §25 "no fake completion").
@@ -38,7 +38,16 @@ Rules:
 - Creates `.claude/tasks/decisions/ADR-001…00n.md`
 
 ## Dependencies
-- TASK-004 AND TASK-005 (both DONE required).
+- TASK-004 ✅ DONE (`40c4b77`) and TASK-005 ✅ DONE (`ce84811`) — both satisfied. E2 owner gate RESOLVED: **Direction C — Round Rabbit** (ADR-001).
+
+## Intake Obligations (accumulated from TASK-004/005 reviews — binding)
+- DisplayState read-model (UX §7); FR-2 AC-1a device matrix (UX §5.1 budget).
+- Hello idempotency + the hello/Q1 window split: hello (+8) once per local day on first touch from either device, never window-gated; Q1 ticks only before 12:00 (UX §11.3).
+- Haptics sync to Watch (UX-13 reduces to haptics — no sound in Phase 1 per 04 §11).
+- Watch snapshot restore ≤ ~2 s (protects FR-17 ≤ 5 s); invisible corruption-recovery cadence (FR-13 AC-2).
+- From 04 §9: ResponsePlan per PRD §4 matrix (engine decides what/when, never warm/cold); satiety window value (open — TASK-006 decides); settle/wake/play handshakes with idempotent completion reports AND `handshakeCancelled(HandshakeKind)` cancellation reports; play effects applied at the single instant the round ceases (completion or preemption, §9.6 item 4); single CharacterClock pause authority; day-stable idle seed = hash(petID, localDay, choreographyEpoch); copy-class namespace (`momo.line.<slot>.<nn>`, `momo.line.react.<family>.<nn>`, `momo.line.moment.<nn>`) with M2 banner + M3 all-done surfaces.
+- OBS-1: 04 §3.5's VoiceOver formula governs wording (03:428's literal template hard-codes "has {energy phrase}"); OBS-2: exempt the M2 banner from tone rule 2's 12-word max or scope rule 2 to visual lines — resolve in the copy/engine sections as appropriate.
+- **PRD §5.5 cascade rule 1 gap — flag to owner:** rule 1's "local time ≥ 20:00" misses Q6's 00:00–07:00 tail when Q1 is already complete (e.g., 02:00 tuck-in). TASK-006 must surface this as a one-line PRD fix candidate, not silently re-interpret it.
 
 ## Constraints
 - Jupiter model, fresh agent, no commit by agent.
@@ -57,7 +66,7 @@ Rules:
 - Commit (orchestrator, post-approval): `docs(architecture): TASK-006 technical architecture and ADRs`
 
 ## Status
-TODO
+READY (dependencies satisfied 2026-09-08; E2 = Direction C recorded in ADR-001)
 
 ## Implementation Notes
 - (agent fills in)
