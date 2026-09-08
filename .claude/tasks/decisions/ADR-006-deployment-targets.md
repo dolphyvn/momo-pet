@@ -1,7 +1,7 @@
 # ADR-006 — Deployment Targets: Current Shipping OS Generation at Build Start
 
 ## Status
-PROPOSED — under review (TASK-006). Becomes ACCEPTED upon REVIEW-TASK-006 approval. Implements TASK-002 D15 ("latest stable shipping OS at build start; support current, consider N-1"; exact versions delegated to TASK-006).
+ACCEPTED — approved by REVIEW-TASK-006 (verdict APPROVED; recorded in `.claude/tasks/reviews/REVIEW-TASK-006.md` and delivery plan §9; status reconciled during TASK-008's review fix pass). Implements TASK-002 D15 ("latest stable shipping OS at build start; support current, consider N-1"; exact versions delegated to TASK-006). Exact pins recorded at bootstrap in ADR-008.
 
 ## Context
 project.md §21 requires verifying APIs and deployment requirements against current official Apple documentation; the review flagged 2026 fall OS churn as a live hazard (TR6) and refused to pin version numbers in a document task. Phase 1's framework floor is deliberately low: no SwiftData (ADR-002), no widgets/HealthKit/notifications (Phases 2), a Codable store, SwiftUI + Observation as the only modern requirements. The app pairs an iPhone app with a watchOS app, so the iOS↔watchOS version-pairing matrix is part of the decision.

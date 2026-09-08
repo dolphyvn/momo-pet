@@ -49,4 +49,4 @@ Full acceptance criteria per task live in the task files (first batch materializ
 All four tasks DONE per CLAUDE.md §18 (implemented → independently reviewed → findings addressed → atomic TASK-ID commits on `feature/EPIC-002-foundation` → pushed). Epic slice increment demonstrable: both placeholder shells launch. Tests green with evidence. Epic branch merged to `main`. `.claude/tasks/status.md` updated by the orchestrator.
 
 ## Status
-TODO (TASK-008 materialized as READY in `.claude/tasks/active/`; TASK-009–011 TODO pending their in-epic dependencies)
+IN_PROGRESS — TASK-008 DONE (`172bc11` on `feature/EPIC-002-foundation`, pushed; ADR-008 pins recorded; review chain REVIEW-TASK-008 → fix pass → VERIFY all clean). TASK-009–011 TODO pending dispatch.
