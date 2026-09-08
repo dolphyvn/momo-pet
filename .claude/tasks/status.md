@@ -4,10 +4,10 @@ Last Updated: 2026-09-08 22:00 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
-**Phase 1 — Step 7 Engineering** (project.md §40). EPIC-002 COMPLETE and merged to `main` (`eb82184`). **EPIC-003 — Pet Domain Model COMPLETE (2/2)** — `feature/EPIC-003-domain-model` merging directly to `main` per the §14 rule as the immediate next action; EPIC-004 (Pet State Engine) follows.
+**Phase 1 — Step 7 Engineering** (project.md §40). **EPIC-003 — Pet Domain Model COMPLETE and merged to `main`** (`4291f02`, direct `--no-ff` merge per the §14 rule; the owner's PR #4 had earlier integrated the branch's docs-only prefix through `8ae4970` — clean ancestry, no duplication; merged `main` verified green 80/14). **EPIC-004 — Pet State Engine begins** on `feature/EPIC-004-engine`.
 
 ## Current Epic
-EPIC-003 — Pet Domain Model (`.claude/tasks/epics/EPIC-003-domain-model.md`) — **DONE (2/2 tasks)**: TASK-012 (`bc95cb9`) + TASK-013 (`5bbdd72`), both pushed. Epic branch merge to `main` (direct, §14 rule) is the exact next action.
+EPIC-004 — Pet State Engine (epic file just-in-time under `.claude/tasks/epics/`) — **starting** on `feature/EPIC-004-engine` (cut from `main` at the post-merge state). EPIC-003 is DONE and fully merged (`4291f02`).
 
 ## Overall Progress
 Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four tasks DONE and merged to `main`** (`eb82184`): TASK-008 (`172bc11`, ADR-008 pins) · TASK-009 (`b28ccb4`, package + app targets + shells) · TASK-010 (`a9b9993`, test harness + scanners) · TASK-011 (`a2a36b7`, design tokens + String Catalog scaffolding; REVIEW-TASK-011 APPROVED_WITH_MINOR_NOTES 0/1/2, disposition applied). **Merge rule (owner, 2026-09-08): reviewed code merges directly to `main` — no PR — then continue immediately to the next epic (recorded in CLAUDE.md §14, commit `f5c1c11`).** **EPIC-003 TASK-012 DONE** (`bc95cb9`; REVIEW-TASK-012 APPROVED_WITH_MINOR_NOTES 0/1/3, disposition applied; domain model + property-test-ready `Thresholds` landed; swift test 64/11 green). TASK-013 is the only remaining EPIC-003 task.
@@ -41,12 +41,14 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - None. Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
+- (pending) — EPIC-004 kickoff record commit on `feature/EPIC-004-engine`
+- `4291f02` — merge — EPIC-003 Pet Domain Model (TASK-012–013) into `main` — direct merge per owner rule 2026-09-08
+- `a334cba` — housekeeping — record TASK-013 completion (EPIC-003 2/2 DONE), task file to completed
 - `5bbdd72` — TASK-013 — test(domain): TASK-013 exhaustive domain-model property tests
-- (pending housekeeping) — record TASK-013 completion (EPIC-003 2/2 DONE); task file → completed
 - `6d08f08` — housekeeping — record TASK-012 completion (EPIC-003 1/2), task file to completed
 - `bc95cb9` — TASK-012 — feat(domain): TASK-012 define MomoCore domain model (05 §3.1)
 - `f5c1c11` — docs(orchestration) — record owner direct-merge rule in CLAUDE.md §14
-- `eb82184` — merge — EPIC-002 Foundation & Build Baseline (TASK-008–011) into `main` — direct merge per owner rule 2026-09-08
+- `feb2898` — owner PR #4 — merged `feature/EPIC-003-domain-model` docs-only prefix (through `8ae4970`) to `main`
 - `2973eb8` — housekeeping — record TASK-011 commit; EPIC-002 DONE (4/4), task file to completed
 - `a2a36b7` — TASK-011 — feat(design): TASK-011 design-system token pass and String Catalog scaffolding
 - `a9b9993` — TASK-010 — test(bootstrap): scaffold test targets with import-whitelist and banned-vocabulary scans
@@ -64,9 +66,9 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - `557c936` — TASK-001 — chore(orchestration): bootstrap Momo agent team contracts and task structure
 
 ## Recent Pushes
-- `feature/EPIC-003-domain-model` → origin — **success** (`6d08f08..5bbdd72`, TASK-013)
-- `feature/EPIC-003-domain-model` → origin — success (`8ae4970..bc95cb9`, TASK-012 + CLAUDE.md §14 contract commit)
-- `main` → origin — **success** (`4929348..eb82184`, EPIC-002 integration merge)
+- `main` → origin — **success** (`feb2898..4291f02`, EPIC-003 integration merge; merged state verified green 80/14)
+- `feature/EPIC-003-domain-model` → origin — success (`5bbdd72..a334cba`, TASK-013 housekeeping)
+- `feature/EPIC-003-domain-model` → origin — success (`6d08f08..5bbdd72`, TASK-013)
 - `feature/EPIC-002-foundation` → origin — success (`a2a36b7..2973eb8`, housekeeping)
 - `feature/EPIC-002-foundation` → origin — success (`5389af1..a2a36b7`)
 - `feature/EPIC-002-foundation` → origin — success (`983d94d..a9b9993`)
@@ -107,10 +109,10 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - **Design system landed (TASK-011, `a2a36b7`):** both builds green; both UI smoke tests green; rendering pixel-verified exact against token hex on both canvases (iPhone light+dark, watch). Reviewer reproduced all of it independently.
 
 ## Repository Status
-- Branch: `feature/EPIC-003-domain-model` @ `5bbdd72` + this housekeeping commit; `main` @ `eb82184` (EPIC-003 merge is the exact next action).
-- Clean/Dirty: clean after this housekeeping commit.
+- Branch: `main` @ `4291f02` + this status-record commit; EPIC-004 branch (`feature/EPIC-004-engine`) cut from here.
+- Clean/Dirty: clean after this commit.
 - Uncommitted files: none.
-- Remote sync: `feature/EPIC-003-domain-model` in sync with origin (`6d08f08..5bbdd72` pushed); `main` in sync.
+- Remote sync: `main` in sync (EPIC-003 merged); EPIC-003 feature branch retained at `a334cba`.
 
 ## Important Context for Next Agent
 - Read first: `CLAUDE.md`, `project.md`, `docs/product/06-delivery-plan.md` (§3 tables = backlog of record), then doc chain 01→02 (amended)→03→04→05 + ADR-001…008.
@@ -124,4 +126,4 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§22/§24); scope-creep proposals route to KEEP/LATER/REJECT with the orchestrator (plan R10).
 
 ## Exact Next Action
-Merge `feature/EPIC-003-domain-model` into `main` (`git merge --no-ff`, push) per the §14 owner rule, then cut `feature/EPIC-004-engine` from `main`, materialize the EPIC-004 epic file + first task batch, and dispatch the first fresh Jupiter implementation agent (engine tasks per delivery plan §3: PetStateEngine `reduce(state, event, clock, rng)`, attractor/floor/ceiling dynamics, event reduction — 05 §4).
+Dispatch the fresh Jupiter implementation agent for **TASK-014** (engine core: `reduce`, EngineClock, seeded RNG, day-stable seeds — 05 §4.1/§4.10, ADR-004) on `feature/EPIC-004-engine` → fresh adversarial reviewer → disposition → commit `feat(engine): TASK-014 engine core ...` → push → TASK-015 (time-fold + wakefulness + handshakes), then the rest of the epic per delivery plan §3.
