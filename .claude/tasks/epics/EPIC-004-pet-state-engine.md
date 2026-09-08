@@ -50,4 +50,4 @@ Branch: `feature/EPIC-004-engine` (from `main` @ `bf2dcb7`).
 All seven tasks DONE per CLAUDE.md §18 (implemented → independently reviewed → findings addressed → atomic TASK-ID commits on `feature/EPIC-004-engine` → pushed). §10.3 matrix green; coverage floor recorded. Epic branch merged to `main` (direct merge per CLAUDE.md §14 owner rule). `.claude/tasks/status.md` updated.
 
 ## Status
-IN_PROGRESS (0/7) — branch cut 2026-09-08 from `main` @ `bf2dcb7`; TASK-014/015 task files materialized; TASK-014 dispatching.
+IN_PROGRESS (1/7) — TASK-014 **DONE** (`696d8dd`; REVIEW-TASK-014 APPROVED_WITH_MINOR_NOTES 0 MAJOR, disposition applied; `swift test` 126/20 green, coverage 100 % × 7 new files / TOTAL 97.12 %). Branch cut 2026-09-08 from `main` @ `bf2dcb7`. Next: TASK-015.

@@ -1,13 +1,13 @@
 # Momo Project Status
 
-Last Updated: 2026-09-08 22:00 UTC
+Last Updated: 2026-09-08 22:53 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
-**Phase 1 — Step 7 Engineering** (project.md §40). **EPIC-003 — Pet Domain Model COMPLETE and merged to `main`** (`4291f02`, direct `--no-ff` merge per the §14 rule; the owner's PR #4 had earlier integrated the branch's docs-only prefix through `8ae4970` — clean ancestry, no duplication; merged `main` verified green 80/14). **EPIC-004 — Pet State Engine begins** on `feature/EPIC-004-engine`.
+**Phase 1 — Step 7 Engineering** (project.md §40). **EPIC-004 — Pet State Engine IN PROGRESS (1/7)** on `feature/EPIC-004-engine`: TASK-014 DONE (`696d8dd`, REVIEW-TASK-014 APPROVED_WITH_MINOR_NOTES, disposition applied). EPIC-003 is DONE and fully merged (`4291f02`).
 
 ## Current Epic
-EPIC-004 — Pet State Engine (epic file just-in-time under `.claude/tasks/epics/`) — **starting** on `feature/EPIC-004-engine` (cut from `main` at the post-merge state). EPIC-003 is DONE and fully merged (`4291f02`).
+EPIC-004 — Pet State Engine — **1/7 DONE** on `feature/EPIC-004-engine` (branch cut from `main` @ `bf2dcb7`). TASK-015 is next; TASK-016–020 follow per delivery plan §3.
 
 ## Overall Progress
 Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four tasks DONE and merged to `main`** (`eb82184`): TASK-008 (`172bc11`, ADR-008 pins) · TASK-009 (`b28ccb4`, package + app targets + shells) · TASK-010 (`a9b9993`, test harness + scanners) · TASK-011 (`a2a36b7`, design tokens + String Catalog scaffolding; REVIEW-TASK-011 APPROVED_WITH_MINOR_NOTES 0/1/2, disposition applied). **Merge rule (owner, 2026-09-08): reviewed code merges directly to `main` — no PR — then continue immediately to the next epic (recorded in CLAUDE.md §14, commit `f5c1c11`).** **EPIC-003 TASK-012 DONE** (`bc95cb9`; REVIEW-TASK-012 APPROVED_WITH_MINOR_NOTES 0/1/3, disposition applied; domain model + property-test-ready `Thresholds` landed; swift test 64/11 green). TASK-013 is the only remaining EPIC-003 task.
@@ -28,20 +28,23 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - **TASK-011 — Design-system token pass + String Catalog scaffolding (`a2a36b7`, pushed).** Token module in `MomoCharacter` (8 §8.4 slots verbatim + §18 UI tokens; light/dark compile-enforced; hex confined to the 2 palette files, scan-tested); `Apps/Shared/MomoCopy.xcstrings` in both app targets; type-safe `CopyKey`/`MomoCopy` lookup (bundle-injected, NUL-sentinel missing-key, DEBUG-loud resolve); both shells token-fed and pixel-verified exact (incl. dark); contrast recorded, all 12 pairs reviewer-recomputed exact; banned-vocab scan green and proven non-vacuous both directions. One real defect found+fixed in verification (watch canvas 32 pt strip). swift test 35/9; both builds + both UI smoke tests green. REVIEW-TASK-011 **APPROVED_WITH_MINOR_NOTES** (0/1/2 — disposition in review + task file).
 - **TASK-012 — MomoCore domain model (`bc95cb9`, pushed; first EPIC-003 task).** All 05 §3.1 value types + all five 04 §9.2 interface types in `Sources/MomoCore/` (11 files): `Sendable`, `let`-immutable (zero `var` in module), Swift 6 strict-concurrency clean. Pure derivations `makeMoodBand`/`makeEnergyBand`/`makeBondStage` with every PRD number single-sourced in `Thresholds.swift` (bands 20/45/75; bond stages 150/400/750 first-value form = PRD's 0–149/150–399/400–749/750–1000; quest windows 12/20/7). `DayKey.make(from:calendar:)` injected-calendar-only (D20, DST + non-Gregorian tested). INV-1…11 dispositioned (type/representation-enforced where possible; engine/store halves honestly deferred to EPIC-004/005). Placeholder pair removed (self-documented EPIC-003 condition). swift test **64 tests / 11 suites green**; D-R1 + banned-vocab scans green. REVIEW-TASK-012 **APPROVED_WITH_MINOR_NOTES** (0/1/3 — MINOR-1 wording + NITPICK-3 doc note fixed; NITPICK-1/2 declined; disposition in review file). Contract commit `f5c1c11` recorded the owner merge rule in CLAUDE.md §14.
 - **TASK-013 — Exhaustive domain-model property tests (`5bbdd72`, pushed; EPIC-003 complete).** 1203 parameterized cases: full-range mood/energy sweeps (0…100 ×2) + bond-stage sweep (0…1000) with every boundary; `ThresholdsPinnedToPRDTests` (PRD-literal pins + tiling + edge mappings — anti-echo proven by mutation probe: silent constant 45→46 fails pins 4/4 while constant-fed sweeps stay green); `NoNumericLeakageTests` (4-layer check incl. compile-time case-set pins via default-free exhaustive switches). Review chain: REVIEW-TASK-013 **CHANGES_REQUIRED** (MAJOR-1: `case historic(Int)` evaded the leakage suite — case sets unpinned) → fresh fix agent (test-file-only) → same reviewer's verification: Probe D re-run fails the build (`switch must be exhaustive`) — **REVISED VERDICT APPROVED_WITH_MINOR_NOTES**, commit-ready. Final: `swift test` **80 tests / 14 suites green**; coverage informational: Bands.swift 100 %, TOTAL 92.06 % lines. NITPICK-1 citation fixes applied at contract source (task file + epic AC-5).
+- **TASK-014 — Engine core: reduce, EngineClock, seeded RNG, day-stable seeds (`696d8dd`, pushed; first EPIC-004 task).** 7 new `MomoCore` sources: repo-owned FIPS 180-4 SHA-256 (zero imports — D-R1 bans CryptoKit; NIST vectors OS-verified), SplitMix64 `RandomNumberGenerator` (canonical vectors; seed-9 constant computed and corrected before landing), `DaySeed` (length-framed injective preimage petID‖dayKey‖epoch‖salt, SHA-256 truncated first-8-BE; golden-byte + round-trip pins), `EngineState`/`EngineEvent`/`EngineOutcome` per §4.1 (all-`let`, `Equatable`), `EngineClock` protocol + `SystemEngineClock` (the one sanctioned ambient `Date.now`, scanner-exempted) + value-semantic `ManualEngineClock`, and pure `reduce` with honest bookkeeping-only semantics (owner tasks documented; clock/rng proven unread by probes). VERIFY item resolved: stdlib `Clock` rejected (monotonic instants can't see §4.3 wall-clock changes; `Date(ContinuousClock.now)` compile-fails). Engine-purity scan over all of `Sources/MomoCore` proven non-vacuous both directions (seeded violation RED, restored). swift test **125/20 green**; coverage 7 new files 100 % lines, TOTAL 97.12 %. REVIEW-TASK-014 **APPROVED_WITH_MINOR_NOTES** (0 MAJOR — every crypto/arithmetic constant independently re-derived by the reviewer: shasum 8/8 + 12/12 unseen, SplitMix64 9/9 from-scratch, preimage hand-built byte-identical). Disposition applied: MINOR-1 narrowed (exact frozen hex counts 72/3; full allowlist declined as redundant with the NIST/canonical vector pins), MINOR-2 occurrence-pinned (exactly one `Date` in EngineClock.swift), NITPICK-1/2 fixed (capacity==64 pin; distinct fixture intent id). Post-fix **126/20 green**.
 
 ## Work In Progress
-- None (between tasks).
+- None (between tasks). TASK-015 (time-fold catch-up + wakefulness + handshakes) is READY to dispatch.
 
 ## Next Tasks
-1. **EPIC-003 merge to `main`** — direct `--no-ff` merge per the §14 rule (both tasks DONE, reviewed, tests green), then push.
-2. **EPIC-004 — Pet State Engine** per delivery plan §3: epic file + first task batch just-in-time, branch `feature/EPIC-004-engine` cut from `main`; fresh Jupiter agent per task.
-3. Follow-up candidates (no urgency, recorded per REVIEW-TASK-011): extend `TokenPurityTests` to component initializers (`Color(red:)`-class) + SwiftUI named colors outside the token module; optionally pin the four body-text contrast pairs with a test luminance helper (full audit remains TASK-047).
+1. **TASK-015 — Time-fold catch-up + wakefulness machine + handshakes** (L; 05 §4.2–4.3, §4.7) — contract READY at `.claude/tasks/active/TASK-015-timefold-wakefulness-handshakes.md`; dispatch fresh Jupiter impl → reviewer → disposition → commit `feat(engine): TASK-015 time-fold catch-up, wakefulness machine, handshakes` → push.
+2. **EPIC-004 remainder** per delivery plan §3: TASK-016 (interactions/satiety/repetition) → TASK-017 (bond ledger) → TASK-018 (quests + Watch cascade) → TASK-019 (read-models) → TASK-020 (§10.3 matrix + coverage floor ≥ 90 %) → epic `--no-ff` merge to `main` per §14.
+3. Follow-up candidates (no urgency, recorded per REVIEW-TASK-011): extend `TokenPurityTests` to component initializers (`Color(red:)`-class) + SwiftUI named colors outside the token module; optionally pin the four body-text contrast pairs with a test luminance helper (full audit remains TASK-047). REVIEW-TASK-014's full exact-literal hex allowlist was **declined** (count pins + NIST/canonical vector pins already cover both failure modes) — no follow-up owed.
 
 ## Blocked Tasks
 - None. Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
-- (pending) — EPIC-004 kickoff record commit on `feature/EPIC-004-engine`
+- (pending) — TASK-014 housekeeping record commit on `feature/EPIC-004-engine`
+- `696d8dd` — TASK-014 — feat(engine): TASK-014 engine core — reduce, clock, seeded randomness, day-stable seeds
+- `8cf46e2` — docs(orchestration) — EPIC-004 epic + TASK-014/015 task files READY
 - `4291f02` — merge — EPIC-003 Pet Domain Model (TASK-012–013) into `main` — direct merge per owner rule 2026-09-08
 - `a334cba` — housekeeping — record TASK-013 completion (EPIC-003 2/2 DONE), task file to completed
 - `5bbdd72` — TASK-013 — test(domain): TASK-013 exhaustive domain-model property tests
@@ -66,6 +69,7 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - `557c936` — TASK-001 — chore(orchestration): bootstrap Momo agent team contracts and task structure
 
 ## Recent Pushes
+- `feature/EPIC-004-engine` → origin — **success** (`8cf46e2..696d8dd`, TASK-014; branch tracking set)
 - `main` → origin — **success** (`feb2898..4291f02`, EPIC-003 integration merge; merged state verified green 80/14)
 - `feature/EPIC-003-domain-model` → origin — success (`5bbdd72..a334cba`, TASK-013 housekeeping)
 - `feature/EPIC-003-domain-model` → origin — success (`6d08f08..5bbdd72`, TASK-013)
@@ -101,7 +105,7 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - Phase 0: review gates — all six REVIEW records final (002–007 APPROVED).
 - TASK-008: verification-as-evidence complete; **three independent probe pairs agree** (reviewer / fixer / verifier: iPhone SE 3rd gen 750×1334 px, Watch SE 2 40mm 324×394 px); Swift Testing probe reproduced exactly.
 - TASK-010/011: `swift test` = 35 tests / 9 suites green (superseded); both scheme UI smoke tests green on pinned sims; banned-vocab scan green over the real catalog and proven non-vacuous both directions (REVIEW-TASK-011).
-- **Current: `swift test` = 80 tests / 14 suites green** (TASK-013 final; re-verified by orchestrator post-disposition). Standing scans (D-R1 import whitelist, banned vocabulary) green in-suite. Parameterized sweeps carry 101+101+1001 = 1203 cases. Coverage informational via llvm-cov: Bands.swift 100 % lines, TOTAL 92.06 % (floors enforced from TASK-020/024).
+- **Current: `swift test` = 126 tests / 20 suites green** (TASK-014 final, post-disposition; +45 tests/+6 suites over the TASK-013 baseline 80/14, +1 orchestrator disposition pin). Standing scans (D-R1 import whitelist, banned vocabulary, token purity, engine purity) green in-suite. Parameterized sweeps carry 1203 cases + new SHA-256/SplitMix64/DaySeed vector pins. Coverage informational via llvm-cov: all 7 engine files 100 % lines, TOTAL 97.12 % (floors enforced from TASK-020/024).
 
 ## Build Status
 - **Build baseline established (TASK-009, `b28ccb4`):** both schemes build on pinned simulators — BUILD SUCCEEDED; both apps launch with placeholder shells.
@@ -109,10 +113,10 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - **Design system landed (TASK-011, `a2a36b7`):** both builds green; both UI smoke tests green; rendering pixel-verified exact against token hex on both canvases (iPhone light+dark, watch). Reviewer reproduced all of it independently.
 
 ## Repository Status
-- Branch: `main` @ `4291f02` + this status-record commit; EPIC-004 branch (`feature/EPIC-004-engine`) cut from here.
+- Branch: `feature/EPIC-004-engine` @ `696d8dd` + this housekeeping commit; `main` @ `bf2dcb7` (EPIC-004 branch cut from it).
 - Clean/Dirty: clean after this commit.
 - Uncommitted files: none.
-- Remote sync: `main` in sync (EPIC-003 merged); EPIC-003 feature branch retained at `a334cba`.
+- Remote sync: `main` in sync (EPIC-003 merged); `feature/EPIC-004-engine` in sync through TASK-014; EPIC-003 feature branch retained at `a334cba`.
 
 ## Important Context for Next Agent
 - Read first: `CLAUDE.md`, `project.md`, `docs/product/06-delivery-plan.md` (§3 tables = backlog of record), then doc chain 01→02 (amended)→03→04→05 + ADR-001…008.
@@ -126,4 +130,4 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§22/§24); scope-creep proposals route to KEEP/LATER/REJECT with the orchestrator (plan R10).
 
 ## Exact Next Action
-Dispatch the fresh Jupiter implementation agent for **TASK-014** (engine core: `reduce`, EngineClock, seeded RNG, day-stable seeds — 05 §4.1/§4.10, ADR-004) on `feature/EPIC-004-engine` → fresh adversarial reviewer → disposition → commit `feat(engine): TASK-014 engine core ...` → push → TASK-015 (time-fold + wakefulness + handshakes), then the rest of the epic per delivery plan §3.
+Dispatch the fresh Jupiter implementation agent for **TASK-015** (time-fold catch-up + wakefulness machine + handshakes — 05 §4.2–4.3, §4.7; contract READY at `.claude/tasks/active/TASK-015-timefold-wakefulness-handshakes.md`) on `feature/EPIC-004-engine` → fresh adversarial reviewer → disposition → commit `feat(engine): TASK-015 time-fold catch-up, wakefulness machine, handshakes` → push → TASK-016, then the rest of the epic per delivery plan §3.
