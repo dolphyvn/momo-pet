@@ -1,6 +1,6 @@
 # Momo Project Status
 
-Last Updated: 2026-09-08 16:45 UTC
+Last Updated: 2026-09-08 17:30 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
@@ -26,11 +26,11 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 - TASK-007 — Step 6 Delivery Plan: 8 epics / 43 tasks, slice spine, test mappings, release gates, risks R1–R13, FR/NFR traceability; REVIEW-TASK-007 = APPROVED (after APPROVED_WITH_MINOR_NOTES + mechanical fixes) — **this commit**
 
 ## Work In Progress
-- **TASK-008 — Verify toolchain & pin deployment targets (ADR-008) — BLOCKED** (owner escalation outstanding)
-  - Status: BLOCKED (2026-09-08) — full evidence in the task file's Implementation Notes
-  - Branch: none (empty `feature/EPIC-002-foundation` deleted; recreated at re-dispatch)
-  - Agent: first attempt confirmed the blocker and stopped correctly (no ADR-008 written, nothing fabricated)
-  - Notes: re-dispatch a FRESH TASK-008 agent after unblock — do not resume the old one
+- **TASK-008 — Verify toolchain & pin deployment targets (ADR-008) — re-dispatched on fresh agent**
+  - Status: IN_PROGRESS (2026-09-08, after owner unblocked the toolchain)
+  - Branch: `feature/EPIC-002-foundation` (recreated from main after unblock)
+  - History: first attempt recorded BLOCKED (Xcode absent — evidence in the task file); owner installed Xcode 26.6 + accepted license; orchestrator downloaded iOS 26.5 + watchOS 26.5 simulator runtimes (10 devices available, `-checkFirstLaunchStatus` clean)
+  - Agent: FRESH agent per one-task-one-agent (the blocked attempt is history in the task file, not a resumable session)
 
 ## Next Tasks
 1. TASK-008 (BLOCKED — see above; unblocks the entire epic)
@@ -39,10 +39,7 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 4. TASK-011 — Design-token pass + `momo.line.*` String Catalog scaffolding (TODO, after 009)
 
 ## Blocked Tasks
-- **TASK-008 — Xcode not installed on the build machine** (TR10 confirmed real; independently verified by the orchestrator):
-  - `xcode-select -p` → `/Library/Developer/CommandLineTools`; no Xcode.app in /Applications; `simctl` absent; Swift 6.3.3 (CLT) works but has no iOS/watchOS SDK.
-  - **Unblock path (owner action, needs admin):** install current Xcode from the Mac App Store (or developer.apple.com) → `sudo xcode-select -s /Applications/Xcode.app` (accept license) → in Xcode, install iOS + watchOS simulator runtimes → inform the orchestrator.
-  - Per delivery plan R1 nothing else in EPIC-002+ proceeds until this lands.
+- None. ~~TASK-008 Xcode blocker~~ **RESOLVED 2026-09-08**: owner installed Xcode 26.6 (Build 17F113), accepted the license, and iOS 26.5 / watchOS 26.5 simulator runtimes were downloaded (verified via `simctl`).
 - Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
@@ -70,7 +67,7 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 - Orchestration: docs under `docs/{product,design,architecture}/`; ADRs under `.claude/tasks/decisions/`; direct-to-main during Phase 0; **feature branches from EPIC-002 onward**; all agents Jupiter.
 
 ## Known Issues
-- **Xcode not installed (TR10 confirmed real, 2026-09-08)** — the only EPIC-002 blocker; owner install required (see Blocked Tasks for the unblock path). Everything else in EPIC-002 is unblocked-by-design the moment it lands.
+- ~~Xcode not installed (TR10)~~ **RESOLVED 2026-09-08** — Xcode 26.6 installed + license accepted + iOS/watchOS 26.5 runtimes downloaded; TR10 retired when the fresh TASK-008 agent records the pins in ADR-008.
 - 2026 fall OS churn: all API availability claims VERIFY-AT-BUILD; register in 05 Appendix B, every item has exactly one owning task (008, 009/010, 014, 025, 040/044, 045, 048).
 - R9: paired Watch hardware needed for WC delivery obligations (TASK-044) — simulators carry development; device session is the explicit deliverable.
 
@@ -81,10 +78,9 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 - Not applicable yet — TASK-008/009 establish the first build baseline (placeholder shells + `swift test` green).
 
 ## Repository Status
-- Branch: main
-- Clean/Dirty: clean after this commit (TASK-008 BLOCKED record committed)
+- Branch: main (this commit) → `feature/EPIC-002-foundation` recreated from main immediately after
+- Clean/Dirty: clean after this commit
 - Remote sync: in sync with origin/main after push
-- `feature/EPIC-002-foundation` deleted (had zero commits; epic gate blocked) — recreate from main when re-dispatching TASK-008.
 
 ## Important Context for Next Agent
 - Read first: `CLAUDE.md`, `project.md`, `docs/product/06-delivery-plan.md` (execution plan — §3 tables are the backlog of record), then the doc chain 01→02 (amended)→03→04→05 + ADR-001…007.
@@ -96,4 +92,4 @@ Next epic: EPIC-002 — Foundation & Build Baseline (file: `.claude/tasks/epics/
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§22/§24); scope-creep proposals route to KEEP/LATER/REJECT with the orchestrator (plan R10).
 
 ## Exact Next Action
-**OWNER ACTION (blocks everything):** install current Xcode + iOS/watchOS simulator runtimes, then `sudo xcode-select -s /Applications/Xcode.app` — see Blocked Tasks. After the owner confirms, the orchestrator recreates `feature/EPIC-002-foundation` from main and dispatches a FRESH TASK-008 agent (do not resume the blocked attempt).
+Fresh TASK-008 agent (dispatched on `feature/EPIC-002-foundation`) completes toolchain verification with recorded evidence → ADR-008 (deployment pins iOS/watchOS, device-matrix names, framework pin) → fresh adversarial reviewer → orchestrator commits `chore(bootstrap): TASK-008 verify toolchain and record deployment pins (ADR-008)` and pushes.
