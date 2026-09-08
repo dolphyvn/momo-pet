@@ -56,10 +56,63 @@ ADR-006 deliberately deferred deployment-target pins to EPIC-002 bootstrap ("cur
 - Push to origin after orchestrator commit; record hash in Completion Evidence.
 
 ## Status
-READY (root task — nothing blocks it)
+BLOCKED (Xcode is not installed on the build machine — see Implementation Notes; orchestrator informed 2026-09-08)
 
 ## Implementation Notes
-- (agent fills in)
+
+### Verdict
+**BLOCKED** — Xcode.app is not installed on this machine; only Command Line Tools exist. The STOP condition in Requirements §1 fired (`xcodebuild` and `simctl` fail). Per CLAUDE.md §25 (no fake completion) no pins were guessed and **ADR-008 was NOT created** — the machine's actual toolchain was declared the source of truth for the pins, and it cannot be verified without Xcode. AC-1 is satisfied via its BLOCKED path (outputs below + orchestrator informed).
+
+### Verbatim command outputs (all executed for real, 2026-09-08)
+
+1. `xcodebuild -version` — **exit 1**
+```
+xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance
+```
+
+2. `xcodebuild -showsdks` — **exit 1**
+```
+xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance
+```
+
+3. `xcrun simctl list runtimes` — **exit 72**
+```
+xcrun: error: unable to find utility "simctl", not a developer tool or in PATH
+```
+
+4. `xcrun simctl list devices available` — **exit 72**
+```
+xcrun: error: unable to find utility "simctl", not a developer tool or in PATH
+```
+
+5. `swift --version` — **exit 0** (works: Command Line Tools provides the Swift compiler, but no iOS/watchOS SDK or simulator)
+```
+swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)
+Target: arm64-apple-macosx26.0
+```
+
+### Supporting evidence gathered before declaring BLOCKED
+- `xcode-select -p` → `/Library/Developer/CommandLineTools`
+- `ls -d /Applications/Xcode*.app` → `no matches found`
+- `mdfind "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'"` → no results (no Xcode bundle anywhere indexed)
+- Direct listing of `/Applications/` and `~/Applications/` → no Xcode.app present (full app list otherwise normal: Safari, Keynote, Slack, etc.)
+
+### State of the acceptance criteria
+- **AC-1** — SATISFIED via BLOCKED path: commands executed, outputs recorded verbatim above, orchestrator informed.
+- **AC-2** — NOT met (ADR-008 not written). Creating it without Xcode evidence would require guessing SDK/pin numbers — forbidden by this task ("do not guess newer versions you cannot see evidence for") and CLAUDE.md §25.
+- **AC-3** — NOT met: none of the 05 Appendix B VERIFY-AT-BUILD items owned by this task (pins / pairing / device names / framework) are resolved. They remain VERIFY-AT-BUILD and now also depend on the unblock below.
+- **AC-4** — SATISFIED via second path: **TR10 is confirmed real and is recorded as a project blocker** (Xcode availability was warned about in 01 §Technical Risks and status.md Known Issues; this task verified the warning is accurate).
+
+### Unblock path (for the orchestrator; none of this was executed — requires human/admin)
+1. Install Xcode (App Store or developer.apple.com). Evidence above (Swift 6.3.3, `macosx26.0` target) indicates the installed CLT is current-generation, so the matching Xcode 26.x release is expected to be the current shipping generation — but the exact iOS/watchOS SDK versions must be read from `xcodebuild -version` / `-showsdks` after install, never assumed.
+2. `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` (root required — not attempted by this agent).
+3. Launch Xcode once, then install the iOS and watchOS simulator runtimes (Settings → Components) and re-verify with `xcrun simctl list runtimes` / `list devices available`.
+4. Re-run TASK-008 (fresh agent): all four evidence commands, then the pins + ADR-008 per the unchanged Requirements.
+
+### Risks / observations for the orchestrator
+- The whole of EPIC-002's build DAG is gated on this (delivery plan §4.1 / §7 R1) — no package or project work (TASK-009+) can start until the unblock path completes and TASK-008 re-runs.
+- Xcode install is ~multi-GB plus simulator runtimes; scheduling it before the next build session avoids idle agent time.
+- Nothing else was touched: no commit made, branch `feature/EPIC-002-foundation` (at `1746a98`), `status.md` and `docs/` left to the orchestrator, no package/project files created (TASK-009 scope intact).
 
 ## Reviewer Findings
 - (orchestrator records)
