@@ -1,16 +1,16 @@
 # Momo Project Status
 
-Last Updated: 2026-09-08 17:55 UTC
+Last Updated: 2026-09-08 18:54 UTC
 Updated By: main orchestration agent
 
 ## Current Phase
 **Phase 1 — Step 7 Engineering** (project.md §40). EPIC-002 (Foundation & Build Baseline) executing on branch `feature/EPIC-002-foundation`.
 
 ## Current Epic
-EPIC-002 — Foundation & Build Baseline (`.claude/tasks/epics/EPIC-002-foundation.md`) — **IN_PROGRESS (2/4 tasks DONE)**.
+EPIC-002 — Foundation & Build Baseline (`.claude/tasks/epics/EPIC-002-foundation.md`) — **IN_PROGRESS (3/4 tasks DONE)**.
 
 ## Overall Progress
-Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172bc11`) — toolchain verified, ADR-008 pins recorded; **TASK-009 DONE** (`b28ccb4`) — package + app targets + placeholder shells, build baseline green (REVIEW-TASK-009 APPROVED, 0/0/3). TASK-010/011 staged TODO. Then EPIC-003+ per delivery plan §3/§4.1 (backlog of record).
+Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172bc11`) — toolchain verified, ADR-008 pins recorded; **TASK-009 DONE** (`b28ccb4`) — package + app targets + placeholder shells, build baseline green; **TASK-010 DONE** (`a9b9993`) — five-target test harness + both standing scanners, all verifications green (REVIEW-TASK-010 APPROVED, 0/0/2). TASK-011 staged TODO — last task of the epic. Then EPIC-003+ per delivery plan §3/§4.1 (backlog of record).
 
 ## Completed Work
 - TASK-001 — Repository & orchestration bootstrap (`557c936`)
@@ -24,18 +24,19 @@ Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172
 - TASK-007 — Step 6 Delivery Plan (8 epics / 43 tasks) (`71a510b`)
 - **TASK-008 — Toolchain verified + ADR-008 bootstrap pins (`172bc11`, first commit on `feature/EPIC-002-foundation`, pushed).** Review chain: REVIEW-TASK-008 CHANGES_REQUIRED (MAJOR-1: smallest-iPhone mis-pin) → fresh fixer re-pinned iPhone-small to **iPhone SE (3rd generation)** → REVIEW-TASK-008-VERIFY: FIXED — CLEARED FOR COMMIT (three independent probe pairs agree).
 - **TASK-009 — Swift package + app targets with placeholder shells (`b28ccb4`, pushed).** MomoCore (Foundation-only) / MomoCharacter / MomoKit, zero external deps; Momo 3-tab shell + MomoWatch glance launch on pinned sims (750×1334 / 324×394 exact); `swift test` green (3 empty Swift Testing suites); swift-test-hostability VERIFY item RESOLVED. REVIEW-TASK-009 **APPROVED** (0/0/3; nitpicks dispositioned in the review record).
+- **TASK-010 — Test-target scaffolding + import-whitelist + banned-vocabulary scans (`a9b9993`, pushed).** Five-target architecture per 05 §10.1 (3 package suites + MomoUITests + MomoWatchUITests); scheme TestActions added; both scanners shipped as pure fixture-tested functions (import whitelist = Foundation-only documented; banned list = 04-character-system §10.2 verbatim, byte-verified, vacuously green until TASK-011's catalogs); self-tests caught 2 real defects during implementation; coverage wired (llvm-cov; xccov can't read SwiftPM profdata). All verifications green: swift test 20/5 suites; both xcodebuild test runs TEST SUCCEEDED on pinned sims. REVIEW-TASK-010 **APPROVED** (0/0/2, both mechanical — disposition in review file).
 
 ## Work In Progress
 - None (between tasks).
 
 ## Next Tasks
-1. **TASK-010 — Test-target scaffolding + import-whitelist + banned-vocabulary harness** — next to dispatch (task file staged in `.claude/tasks/active/`); inherits TASK-009's working `swift test` harness.
-2. TASK-011 — Design-token pass + `momo.line.*` String Catalog scaffolding (after 009; can run parallel to 010 once 009's layout is stable — it now is).
+1. **TASK-011 — Design-token pass + `momo.line.*` String Catalog scaffolding** — next to dispatch (task file staged in `.claude/tasks/active/`); LAST task of EPIC-002. Note: the banned-vocabulary scanner engages the moment catalogs land — TASK-011's placeholder copy must pass it (sanctioned reference: "Momo missed you.").
 
 ## Blocked Tasks
 - None. Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
+- `a9b9993` — TASK-010 — test(bootstrap): scaffold test targets with import-whitelist and banned-vocabulary scans
 - `b28ccb4` — TASK-009 — feat(bootstrap): create Swift package and app targets with placeholder shell
 - `172bc11` — TASK-008 — chore(bootstrap): verify toolchain and record deployment pins (ADR-008) — **first commit on `feature/EPIC-002-foundation`**
 - `71a510b` — TASK-007 — docs(product): TASK-007 delivery plan with Phase 1 epics and task breakdown
@@ -50,7 +51,8 @@ Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172
 - `557c936` — TASK-001 — chore(orchestration): bootstrap Momo agent team contracts and task structure
 
 ## Recent Pushes
-- `feature/EPIC-002-foundation` → origin — **success** (`81be80b..b28ccb4`)
+- `feature/EPIC-002-foundation` → origin — **success** (`983d94d..a9b9993`)
+- `feature/EPIC-002-foundation` → origin — success (`81be80b..b28ccb4`)
 - `feature/EPIC-002-foundation` → origin — success (new branch, `172bc11`, tracking set)
 - main → origin — success (`95e7649..71a510b main -> main`)
 
@@ -70,17 +72,19 @@ Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172
 - 2026 fall OS churn: all API availability claims VERIFY-AT-BUILD; register in 05 Appendix B, every item has exactly one owning task (009/010, 014, 025, 040/044, 045, 048).
 - R9: paired Watch hardware needed for WC delivery obligations (TASK-044) — simulators carry development; device session is the explicit deliverable.
 - ~~`.gitignore` minimal~~ **RESOLVED (TASK-009):** Swift/Xcode entries added (`.build/`, `DerivedData/`, `xcuserdata/`, `*.xcuserstate`; the committed `Momo.xcodeproj` is deliberate).
-- Hand-authored schemes carry Build/Launch/Profile actions only — no TestAction (REVIEW-TASK-009 NITPICK-3, informational): `swift test` is the unit runner; don't attempt `xcodebuild test -scheme`.
+- ~~Schemes carry no TestAction~~ **RESOLVED (TASK-010):** TestActions added to both shared schemes; `xcodebuild test` works on both.
+- `xccov` cannot read SwiftPM's raw profdata ("unrecognized file format") — coverage is read via `xcrun llvm-cov report …` (command recorded in the completed TASK-010 file).
 
 ## Test Status
 - Phase 0: review gates — all six REVIEW records final (002–007 APPROVED).
 - TASK-008: verification-as-evidence complete; **three independent probe pairs agree** (reviewer / fixer / verifier: iPhone SE 3rd gen 750×1334 px, Watch SE 2 40mm 324×394 px); Swift Testing probe reproduced exactly.
 
 ## Build Status
-- **Build baseline established (TASK-009, `b28ccb4`):** both schemes build on pinned simulators (iPhone SE 3rd gen / Watch SE 3 40mm, OS 26.5) — BUILD SUCCEEDED; both apps launch with placeholder shells (screenshots at exact ADR-008 canvases); `swift test` green (3 empty Swift Testing suites). Reviewer independently reproduced all of it.
+- **Build baseline established (TASK-009, `b28ccb4`):** both schemes build on pinned simulators — BUILD SUCCEEDED; both apps launch with placeholder shells.
+- **Test harness live (TASK-010, `a9b9993`):** `swift test` = 20 tests / 5 suites green; `xcodebuild test` green for both UI targets on pinned sims; coverage measured 90.81 % lines TOTAL (informational at this stage). Reviewers independently reproduced all of it.
 
 ## Repository Status
-- Branch: `feature/EPIC-002-foundation` @ `b28ccb4` (pushed); main @ `71a510b` (pushed).
+- Branch: `feature/EPIC-002-foundation` @ `a9b9993` (pushed); main @ `71a510b` (pushed).
 - Clean/Dirty: dirty → clean after this housekeeping commit (status.md + EPIC-002 status line).
 - Uncommitted files: none after this commit.
 - Remote sync: epic branch tracking origin, in sync after this push.
@@ -91,9 +95,9 @@ Phase 0 complete (TASK-001…007, all pushed). EPIC-002: **TASK-008 DONE** (`172
 - **git mv gotcha:** `git mv` moves the index blob, NOT working-tree edits — always `git add` the moved file explicitly after any post-edit rename.
 - "(this commit)" convention: task files record `(this commit)` in Completion Evidence; the real hash lands in status.md's Recent Commits via the housekeeping commit (see `39d6bab`/`1746a98` precedent).
 - Branch model: each epic on `feature/EPIC-00X-slug` cut from `main`; one atomic commit per task, pushed after each task; epic merges to `main` at DoD (delivery plan §1.5, §6.1). EPIC-002's branch now exists with TASK-008 as its first commit.
-- TASK-010/011 inherit TASK-009's baseline: working `swift test` harness (3 empty suites, Swift Testing, `.macOS(.v26)` host-only), committed pbxproj with shared schemes (no TestAction — use `swift test`), package layout `Sources/<Module>` + `Tests/<Module>Tests` + `Apps/`. TASK-010 adds the real test scaffolding + D-R1 import-whitelist scan + banned-vocabulary scan; TASK-011 consumes 04 §8.4 slot names + the three `momo.line.*` namespaces. All five ADR-008 matrix simulators are provisioned and available (Ultra 3 included, untouched).
+- TASK-011 inherits the completed EPIC-002 baseline: package (`Sources/<Module>` + `Tests/<Module>Tests`), committed pbxproj with TestAction-equipped schemes, live scanners (`Tests/MomoCoreTests/Support/` — import whitelist Foundation-only; banned-vocabulary values-only with U+2019 normalization; both loud-fail by design). The banned-vocab scanner ENGAGES when catalogs land — TASK-011's placeholder copy must pass it. All five ADR-008 matrix simulators are provisioned and available.
 - Coverage floors (Core 90 %, Kit 80 %) recorded per task, enforced by TASK-020/024.
 - Philosophy guardrail: Cute × Calm × Minimal × Alive × Premium. No punishment. MVP scope protection (§22/§24); scope-creep proposals route to KEEP/LATER/REJECT with the orchestrator (plan R10).
 
 ## Exact Next Action
-Spawn a fresh Jupiter implementation agent for **TASK-010** (test-target scaffolding + import-whitelist + banned-vocabulary harness) on `feature/EPIC-002-foundation` → fresh adversarial reviewer → commit `test(harness): TASK-010 ...` → push → status update.
+Spawn a fresh Jupiter implementation agent for **TASK-011** (design-token pass + `momo.line.*` String Catalog scaffolding) on `feature/EPIC-002-foundation` → fresh adversarial reviewer → commit → push → status update → EPIC-002 merge to `main` per its DoD, then TASK-012 (EPIC-003).

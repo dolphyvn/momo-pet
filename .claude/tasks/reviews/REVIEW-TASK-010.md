@@ -73,3 +73,18 @@ The following were re-executed or independently inspected by this reviewer durin
 **APPROVED** (0 MAJOR / 0 MINOR / 2 NITPICK)
 
 Every substantive claim in the task file survived adversarial re-execution: all four verification commands reproduce exit 0 with matching counts and figures (20/5 suites; both `** TEST SUCCEEDED **` UI runs through the new scheme TestActions; 90.81 % coverage TOTAL; the `xccov` failure reproduced verbatim); the 12-term banned list is byte-verified verbatim against `04-character-system.md` §10.2 with no extra or missing terms; the whitelist is exactly D-R1's single documented entry; and the planted-tree mutation probes prove the scanners' real-tree failure paths and that the vacuous-green design genuinely engages the moment String Catalogs exist. The pbxproj additions are structurally sound (unique object IDs, complete dependency/proxy wiring, consistent pins) and the whole change set stays inside harness scope. The two nitpicks are documentation-accuracy items — a file-count slip in the Handoff and an overbroad sentence in the scanner docstring — both mechanical, foldable into the orchestrator's findings recording, neither requiring a fix loop. TASK-010 is cleared for commit `test(bootstrap): TASK-010 scaffold test targets with import-whitelist and banned-vocabulary scans` on `feature/EPIC-002-foundation`, followed by push, hash recording, and the status.md update (which should also refresh the now-superseded "schemes carry no TestAction" note), then the TASK-011 dispatch.
+
+---
+
+## Disposition (orchestrator, 2026-09-08)
+
+Verdict received: **APPROVED** (0 MAJOR / 0 MINOR / 2 NITPICK) — no fix loop required. Findings closed mechanically by the orchestrator:
+
+| ID | Disposition | Fix |
+|---|---|---|
+| NITPICK-1 | FIXED | Task-file Handoff count corrected to "7 modified, 7 new files/directories" with an in-place correction note (the count lived at one location, :95; the Constraints-compliance bullet carries the per-file inventory and needed no change). |
+| NITPICK-2 | FIXED (wording only, no code change) | `ImportWhitelistScan.swift` docstring + the task-file echo reworded per the suggested language: the absolute "never miss a real import" claim replaced by the documented model limit (same-line `; import X` after a statement unrecognized; line-start imports — the effectively universal real-world form — always caught). `swift test` re-run post-edit: 20 tests / 5 suites green (§19). |
+
+Reviewer's status.md note taken: the "schemes carry no TestAction" Known-Issue entry is superseded — removed in the same housekeeping update that records the TASK-010 hash. (Process note: this Disposition appendix missed the task commit by minutes — the Edit anchoring failed and the commit proceeded; it lands in the immediately-following housekeeping commit rather than amending a pushed commit.)
+
+No re-review required (no behavioral change). Final: **APPROVED — cleared for commit** `test(bootstrap): TASK-010 scaffold test targets with import-whitelist and banned-vocabulary scans`.
