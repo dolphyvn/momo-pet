@@ -119,7 +119,7 @@ Calls use §27 phasing, §22 ("keep architecture proportional"), §30 ("do not c
 |---|------|------|------|-----------|
 | K1 | 23 required documents | §30 | **SIMPLIFY** | Do not produce 23 artifacts. Consolidate into the five Phase-0 deliverables (Steps 2–6 of §40) plus ADRs; treat the §30 list as a *coverage checklist* each deliverable must tick. |
 | K2 | 14 conceptual domains | §22 | **SIMPLIFY** | Phase 1 modeled domains: Pet, PetState, PetStateEngine, Bond, DailyProgress, Quest, Settings. DEFER modeling of Inventory, Customization, Room-as-domain (Phase 3 per §27); Notification is a Phase 2 thin wrapper (§27). Sync stays Phase 1 (D6). |
-| K3 | Character state inventory (14 states) | §4, §19 | **KEEP intent, SIMPLIFY MVP set** | The aliveness goal (§1, §44) needs idle/breathing/blinking/sleeping/happy/eating/playing/low-energy plus touch reactions. Full inventory is specified in TASK-005; Phase 1 ships the minimal set above. |
+| K3 | Character state inventory (15 states) | §4, §19 | **KEEP intent, SIMPLIFY MVP set** | The aliveness goal (§1, §44) needs idle/breathing/blinking/sleeping/happy/eating/playing/low-energy plus touch reactions. Full inventory is specified in TASK-005; Phase 1 ships the minimal set above. |
 | K4 | Room objects and interactivity | §16 | **DEFER** | §27 Phase 1 says "basic room": ship a static, charming scene. Interactive objects and the §16 object list are Phase 3 (§27 room customization). |
 | K5 | Collection tab | §10 | **DEFER** | §27 puts achievements/collections in Phase 3. Phase 1 IA per D13 (Home, Room, Settings) — trimming §10's "primary areas" list. |
 | K6 | App Intents | §21 | **DEFER** | No consumer exists in the MVP. Revisit only when interactive widgets land (Phase 2, §14). |
