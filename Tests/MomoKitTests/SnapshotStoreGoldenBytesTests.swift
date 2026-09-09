@@ -69,10 +69,10 @@ struct SnapshotStoreGoldenBytesTests {
 
     @Test("the recorded checksum is the recipe over the recorded payload (bytes ↔ recipe coupling)")
     func recordedChecksumIsTheRecipeOverTheRecordedPayload() throws {
-        let envelope = try #require(try JSONDecoder().decode(
+        let envelope = try JSONDecoder().decode(
             SnapshotStore.SnapshotEnvelope.self,
             from: Data(Self.recordedGeneration.utf8)
-        ))
+        )
         #expect(envelope.schemaVersion == StoreRules.currentSchemaVersion, "the recording is at the shipped schema")
         #expect(envelope.checksum == Self.recordedChecksum)
         let payloadJSON = try #require(SnapshotStore.payloadJSONData(for: envelope.payload))
