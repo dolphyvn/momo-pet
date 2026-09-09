@@ -74,13 +74,122 @@ Make the rig ALIVE-able: compose TASK-025's pre-built geometry into the §2.2 tr
 - No commit by the implementation agent. Orchestrator commits after review disposition: `feat(character): TASK-026 rig layer tree, CharacterClock, LOD tiers` — atomic, TASK-ID included.
 
 ## Status
-READY — contract authored 2026-09-09; impl agent dispatched
+IN_REVIEW — implementation complete 2026-09-09; awaiting independent review (Review Requirements above; review file `REVIEW-TASK-026.md`). Not committed (Git Requirements).
 
 ## Implementation Notes
-(implementation agent fills)
+
+### What was built (all NEW files; nothing existing modified)
+
+**Sources (1,102 lines across 8 files, all < 400):**
+- `CharacterClock.swift` (76) — the one pausable timeline: injected time source (an `() -> Double`-style engine clock), `pause()` zeroes the accumulated timeline, `resume()` restarts from zero, idempotent double-pause/double-resume, elapsed frozen while stopped, observable running state. SwiftUI-independent.
+- `RigChannel.swift` (108) — per-channel gating as a `UInt64` OptionSet.
+- `RigPose.swift` (177) — the transform-only channel value struct (§2.2 channels, name-for-name) + `RigPose.rest` (authored defaults).
+- `RigMotionModel.swift` (61) — pure `(time, CharacterDisplayState) -> RigPose`; today drives only the reference Content breath channel (§7.1) with per-channel gating hooks; all other choreography is TASK-027+ per scope.
+- `MomoCurves.swift` (108) — §7.2/§7.1 constants home: damping band 0.75–0.85, touch ≤ 15 % (+0.35 s response), celebration ≤ 8 %, `repeatedBounceAllowed == false`, breath cycle bands per mood band, amplitude band 1.5–2.5 %, sleep −30 %, canonical Content driver 4.9 s / 2 %, pure-sine `breathScaleY(at:)`, and the executable no-bounce law (`overshootFraction(of:target:start:)` + `isSingleSoftOvershoot(_:target:cap:)`).
+- `RigLODTier.swift` (75) — pure tier enum + selection: iPhone → full; watch foreground → glance; AOD/complication → glyph. Watch-never-full is a named test pin.
+- `RigLayerTree.swift` (315) — the shared truth: z-ordered `RigLayerSlot`s (part, path = the generated constant, §8.4 slotName, token, stage chain, opacity channel) for full (25 slots = 21 rig + 4 props), glance (11 `lod*`), glyph (3). `affineTransform(of:at:)` composes each slot's stages: `anchor.inverted().concatenating(scale).concatenating(rotate).concatenating(translate).concatenating(anchor)`, stages folded outermost-first so children ride parents (head rides body breath). Consumed by BOTH the SwiftUI view and the CG evidence harness — evidence paints exactly what the view paints.
+- `MomoRigView.swift` (182) — SwiftUI composition, token-colored only via `MomoCharacterPalette`, `CharacterDisplayState` input, LOD tier parameter, scenePhase → the ONE clock call through the pure `RigMotionViewMapping.clockAction(for:)` (`.active → resume`, else `pause`); static under a stopped clock.
+
+**Tests (1,312 lines across 6 files + `Support/SteppedClock.swift`):** `CharacterClockTests` (pause-zero/resume-from-zero/idempotence/frozen-while-stopped/single-gate), `RigMotionModelTests` (§2.2 channel inventory name-for-name, rest == zero, gating, §2.4 pupil clamp ≤ 30 % eye radius, transform-only surface mirror walk), `RigLODTierTests` (§2.1 table pins incl. watch-never-full; tier↔constant-set 25/11/3 via the TASK-025 inventory catalog), `RigLayerTreeTests` (z-order, token pins vs `MomoCharacterPalette.allSlots`, rest == identity, anchor math — breath bottom-anchored at the ground line, ear/tail roots, lid tops, pupil offsets, head-carries-children, mouth/cheek opacity channels), `MomoCurveRulesTests` (§7.2/§7.1 raw-literal pins, sine purity, loop continuity, peak-semantics band test, executable no-bounce law incl. a bouncing-ball rejection), `RigDisciplineTests` (R1 no-Path-construction, R4 hex confinement, R3 ambient-time scans over the 8 pinned rig files — fixture-tested non-vacuous in BOTH directions — plus the scenePhase wiring presence check).
+
+**Evidence:** `Tools/character-pipeline/render_rig_evidence.swift` (259; committed, re-runnable — build/run commands in its header comment) → 8 committed PNGs under `docs/evidence/character/`: full rest + full inhale @2x (520 px = 260 pt iPhone stage), glance rest @2x (140 px = 70 pt watch stage), glyph @2x (56 px = 28 pt AOD stage), and 4× nearest-neighbor zooms of the eye and tail regions from the full and glance renders. Colors resolve THROUGH the palette tokens (no harness-local tones); a magenta guard shouts on any token-resolution failure — measured 0 magenta pixels anywhere.
+
+### Key decisions
+1. **RigLayerTree as the single composition source.** The view and the evidence harness consume the same slot list + the same `affineTransform` — no second hand-rolled composition for evidence to drift from.
+2. **CGAffineTransform row-vector discipline:** `a.concatenating(b)` applies `a` first; the anchored fold is `anchor.inverted().concatenating(local).concatenating(anchor)`; local = scale → rotate → translate. Stage chains fold outermost-first (prepended) so the child transform applies first — head inherits body's breath through its own anchor.
+3. **Clock design:** injected time source ONLY (R3); accumulated time zeroed on pause; `resume` after `pause` restarts from zero (no backlog replay, §5.3); double calls idempotent; elapsed frozen while stopped. One instance gates all channels (single call, §9.5).
+4. **Breath as the single reference ambient channel** (contract item 5): pure sine, Content band (4.9 s inside 4.6–5.2), amplitude 2 % inside 1.5–2.5 %, bottom-anchored at the ground line (y = 1000 grid) — the executable proof of R1/R3 end-to-end. Mood-band variation and all other channels are TASK-027.
+5. **Amplitude-band test semantics:** §7.1 constrains the PEAK deviation, not each instantaneous sample (a sine crosses 0) — the band test asserts `allSatisfy ≤ upperBound` AND `contains(peak)`.
+6. **Discipline scanners return patterns-that-fired** (substring `.filter`); substring over-matching (e.g. "addPath(" contains "Path(") is the safe direction for a defense scan — documented in the test that pins it.
+
+### O2 / O3 judgments (evidence + measurements)
+Numeric readouts are emitted by the harness (`printMeasurements()`); pixel facts were verified by probe programs, and the renders were vision-read at fresh URLs.
+
+**O2 (eye calm-not-drowsy) — ACCEPTED at glance + glyph; NOT accepted as-is at full tier → refinement-routed to the geometry owner (frozen for this task):**
+- Glance tier: 7 × 7.84 pt dot eyes — reads alert-gentle, round, even, clean (vision-confirmed; no artifacts).
+- Glyph tier: 2.24 × 2.464 pt dots in a 28 pt glyph — "recognizable bunny, dots visible, production-ready for a complication" (vision-confirmed).
+- Full tier (260 pt iPhone stage): eye base 26 × 29 pt — but the face reads drowsy at close inspection. Measured pixel facts (probe on `rig-tree-full-rest@2x.png`):
+  - The visible dark eye's top edge is FLAT at grid y ≈ 361.5 across the entire eye width (all 11 sampled columns, one bucket). The authored lid's bbox bottom is y = 360: at rest (lid scaleY = 1, the authored "open" pose) the lid already covers the top 26 of the eye base's 112 units, slicing a horizontal lid line.
+  - The glint (pupil slot, `momo.eye.highlight`) spans grid y[365.4…411.5], x-width ≈ 46 units: its top sits only ~4 units below the lid line and it occupies ~57 % of the visible dark region's height — a large glint riding high, visually merging into the flat lid.
+  - Cheeks visually overlap the eye bottoms (eye–cheek crowding), and the mouth nearly disappears at this scale.
+  - All three are AUTHORED GEOMETRY facts (`eyeLid` authored extent, `eyePupil` authored size/position, cheek placement) inside the frozen TASK-025 files — NOT reachable from this task's transform-only layer without violating R1. **Route:** geometry-authoring revision (raise the lid bottom above the eye bbox top at rest; shrink/lower the glint to a catch-light with margin; ease eye–cheek overlap). Recorded for the owner; does not block TASK-026 (whose deliverable is the layer tree + evidence, both correct).
+
+**O3 (tail legibility) — ACCEPTED with notes:**
+- Full tier: 27.04 × 29.12 pt tail, `momo.fur.shade` against `momo.fur.base`, silhouette notch against the background — "present and tone-separated, reads as attached puff tail" (vision-confirmed). Optional polish: a stronger tone step (geometry owner).
+- Glance tier: 7.28 × 7.84 pt tail — legible as a subtle one-shade bump at 4×; at true glance size it reads as a body bump rather than a distinct tail. Judged acceptable for a simplified glance silhouette (the full glance creature reads as a clean calm bunny); polish note to the geometry owner if O3 is later read as requiring distinct-tail at glance.
+- Glyph tier: no tail by design (3 static slots) — consistent with the LOD contract.
+
+### §8.3 budget actuals (measured 2026-09-09)
+- Rig bucket: **50,096 B ≤ 300 KB** (9 `MomoRig+*.swift`).
+- Room + props: **20,647 B ≤ 250 KB**.
+- Total generated art: **70,743 B ≤ 1.5 MB**; bucket file sets partition all 11 generated files (coverage pin).
+- All pinned green in both final runs (`MomoArtBudgetTests`). The 8 new hand-written rig files sit OUTSIDE the buckets per the O8 basis (buckets cover generated art; the coverage pin proves the partition is complete).
+
+### Test status
+- Baseline: 549 tests / 59 suites green. Final: **627 tests / 65 suites green, ×2 back-to-back** (exit 0 both; +78 tests, +6 suites). Exact lines: "Test run with 627 tests in 65 suites passed after 0.452 / 0.595 seconds."
+- Warnings: zero compiler warnings in both final run logs. The only warning observed at any point during this task is the PRE-EXISTING `ld: warning: search path '/opt/extra/lib' not found` (present before this task; appears only on fresh links, not in the final incremental runs).
+- Scan exemptions: zero new (all discipline scans pass with none).
+
+### Disclosures (reviewer attention)
+1. **Pupil → `momo.eye.highlight` mapping:** the "pupil" slots render the LIGHT catch-light glint drawn over the near-black `eye.base` mass — inverted vs the naive naming. Follows §8.4 slot semantics; visible in the zoom evidence.
+2. **`bellyPatch` and `food` → `momo.fur.shade`:** the palette has no dedicated belly/food slot; furShade is documented as form/shadow. Static application; state never by color (INV-5).
+3. **The `momo.ear.inner` palette token is unused:** no inner-ear geometry constant exists in the generated catalog, and §2.2's layer table has no inner-ear part — so the token has nothing to paint (reviewer-confirmed: zero inner-ear pixels in the census; NOT a fidelity gap). If the design wants inner-ear tone, that is a geometry + table revision (owner: epic). (Wording corrected at review: the original note wrongly implied a generated inner-ear constant existed but went undrawn.)
+4. **The view applies per-stage SwiftUI modifiers** (`scaleEffect`/`rotationEffect`/`offset`, anchored at the stage anchors in grid units) rather than one `transformEffect` matrix — SwiftUI-native, still transform-only (all values from the model); the harness applies the equivalent `CGAffineTransform` directly, and `RigLayerTreeTests` pin the matrix math both share.
+5. **Gate-exactness bites are exercised on bodyScale only** — today the only ambient channel the rest model drives (the reference breath). The gating mechanism is channel-generic (`RigChannel` OptionSet); TASK-027 channels inherit it.
+6. **Head rides body breath** (head group stacked on the body stage chain) — the §2.2 hierarchy, pinned by `headRidesBreathPropsDoNot`.
+7. **Swift Testing `#expect` macro landmine (found + fixed):** a mixed-type `CGFloat == Double` comparison as the DIRECT macro argument mis-evaluates to false even when bit-identical; the breath pins compare same-type (`CGFloat` vs `CGFloat(...)`) and a comment documents the pitfall.
+8. **Composed-matrix rounding:** the +90° ear rotation lands 1 ulp off π/2, so every anchor-math assertion uses a 1e-9 tolerance (documented at the ear test; identical elsewhere).
+9. **Evidence-harness zoom fix (this session):** the original zoom crop applied a second, wrong y-flip (`CGImage.cropping` already works in the image's top-left-origin space — the same orientation as the grid). Fixed to a plain scale with an orientation comment; the committed zooms are post-fix. Verified by pixel probes (eye dark bands at the expected image rows; tail + blanket tones in frame; 0 magenta anywhere).
+10. **Vision-verification episode (§25 honesty):** the first vision reads of the post-fix zooms returned STALE cached analyses keyed by the upload-path filename. Resolution: pixel probes established ground truth independently (orientation, tone census per region), and fresh-URL re-uploads of byte-different re-encodes produced the real visual reads recorded under O2/O3 — which agree with the probes. Note for future agents: on this transport, treat a vision read that contradicts a pixel probe as a cache artifact, not a render defect.
+11. **Observations routed to the TASK-025 geometry owner (frozen files; not TASK-026 defects):** front paws not visually distinct at full tier (fur.shade slots drawn last, per TASK-025 evidence z-order); ear-inner shapes poke above the head (visible as a tan sliver at the eye-zoom crop edge); the O2 full-tier eye findings above.
+12. **File sizes:** largest new file is `RigLayerTree.swift` at 315 lines — all within the 200–400 house norm.
+
+## Handoff
+
+### Completed
+All 8 contract deliverables: transform-only RigLayerTree (R1/R2), CharacterClock (R3), pure LOD tiers (watch-never-full pinned), §7.2 curve constants + no-bounce law (O7), Content breath wired clock → model → view, committed re-runnable size-ladder evidence (8 PNGs), all Required Tests, discipline scans green non-vacuous. O2/O3 judgments recorded (see above).
+
+### Files Changed
+18 new files (nothing modified): 8 `Sources/MomoCharacter/*.swift`, 7 `Tests/MomoCharacterTests/*.swift` (+ `Support/SteppedClock.swift`), `Tools/character-pipeline/render_rig_evidence.swift`, 8 PNGs under `docs/evidence/character/`.
+
+### Tests Run
+`swift test` ×2 back-to-back after the final code state (only the evidence harness — outside the SPM package — changed after the first green pair).
+
+### Test Results
+627 tests / 65 suites PASSED, both runs (baseline 549/59; +78/+6). Exit 0 both. Zero new warnings; zero new scan exemptions.
+
+### Known Issues
+O2 full-tier eye reads drowsy at close inspection — measured authored-geometry causes, refinement-routed to the geometry owner (does not block this task; glance/glyph accepted). See Disclosures 10–11.
+
+### Decisions Made
+See Key decisions 1–6 + Disclosures 1–8.
+
+### Reviewer Status
+**APPROVED_WITH_MINOR_NOTES** — `.claude/tasks/reviews/REVIEW-TASK-026.md`. All REQUIRED pre-commit doc-only fixes applied and dispositioned (see Reviewer Findings); MINOR-1b/MINOR-2/MINOR-3/8b routed as blocking TASK-027 contract items.
+
+### Commit
+None (Git Requirements: orchestrator commits after review disposition — `feat(character): TASK-026 rig layer tree, CharacterClock, LOD tiers`).
+
+### Push
+None (follows the commit).
+
+### Recommended Next Step
+Orchestrator: dispatch the independent review agent per Review Requirements (incl. the two sanctioned mutation bites and the O2/O3 adjudication), then commit + push per Git Requirements; route the O2/geometry findings to the TASK-025/EPIC-006 geometry owner as a follow-up task.
 
 ## Reviewer Findings
-(reviewer fills)
+Independent adversarial review complete — `.claude/tasks/reviews/REVIEW-TASK-026.md`. Verdict: **APPROVED_WITH_MINOR_NOTES** (0 MAJOR, 4 MINOR, 6 NOTE). Reviewer's own numbers: 627/65 green ×2 (pre-bite and post-restore), 0 warnings; §2.2 re-derived name-for-name; R1/R3/R4 clean; §7.1/§7.2 pins digit-for-digit; both sanctioned mutation bites restored sha256-identical with exactly the predicted pins failing; breath pixel-probed at +2.02% bottom-anchored; O2 full-tier drowsy CONFIRMED (routing upheld), glance/glyph ACCEPTED; O3 accepted with polish note; scope/hygiene clean.
+
+**Orchestrator disposition (every finding verified personally before acting):**
+- **MINOR-1 (view/harness composition order) — CONFIRMED via orchestrator probe** (`/tmp/momo-task026-disposition/probe.swift`): breath-only EXACT-equal (why nothing diverges today); reviewer's counterexamples reproduced digit-for-digit (neck Δ0.4; head6°+ear10° Δ(0.556, 6.007); within-stage tilt+bob Δ(5.21, 0.46)). The implementer's comments claimed equivalence — false; the orchestrator's own earlier in-session derivation also had SwiftUI modifier order backwards and was overturned by the probe. **Fixed pre-commit (doc-only):** `RigLayerTree.swift` affineTransform doc + inline comment, `MomoRigView.swift` layer() + paddedStages docs now state the true orders and the TASK-027 reconciliation obligation. **MINOR-1b routed to TASK-027 contract as BLOCKING there** (compose decision before any head/ear/tail channel goes live).
+- **MINOR-2 (no-bounce predicate rejects in-band springs) — CONFIRMED** (mechanism: underdamped step responses cross target at every sign change of the decaying sinusoid term; ζ=0.75 double-crosses within 2 s at +2.84% peak; ζ=0.80/0.85 second crossings land later but are analytically certain). Latent only — nothing consumes the predicate today. **Routed to TASK-027 contract (blocking there):** tolerance-filter tiny excursions or restate intent.
+- **MINOR-3 (settle/sleep ease-in constant missing) — CONFIRMED** (Requirement 5 names it; `MomoCurves` has no such constant). **Routed to TASK-027 contract** (it consumes the constant).
+- **MINOR-4 (lidScaleY labels inverted) — CONFIRMED via probe** (0.5 lifts lid bottom 361.5→332.75 = more open; 0 = no lid). Math correct, labels wrong. **Fixed pre-commit (doc-only):** `RigPose.swift` doc + `RigLayerTreeTests` test name/local renamed to match the pinned numbers.
+- **NOTE-5 (Disclosure 3 misstated the ear.inner fact) — CONFIRMED** (no inner-ear constant exists anywhere; the real fact is the unused `momo.ear.inner` palette token). **Fixed pre-commit:** Disclosure 3 rewritten above.
+- NOTE-1 (scanner under-matching, non-blocking — extend opportunistically), NOTE-2/3 (predicate holes, documented), NOTE-4 (glyph pauses shared clock — R3-compliant), NOTE-6 (O2/O3 adjudication upheld) — accepted, no action this task; NOTE-1 carried as an opportunistic backlog item.
+- Routed question 8b (ear ±25° / tail ±10° clamp homes): driver-time obligation — **TASK-027 contract**. 8c (prop channels unapplied): contract-compliant via Disclosure, wiring **TASK-028**.
 
 ## Completion Evidence
-(filled at cycle close by the orchestrator)
+- Independent review: APPROVED_WITH_MINOR_NOTES (`.claude/tasks/reviews/REVIEW-TASK-026.md`); both mutation bites sha256-proven restored (`CharacterClock.swift` `66c91652…`, `RigLODTier.swift` `2b63b549…`).
+- Final `swift test` after disposition fixes: green, counts recorded in status.md (baseline 549/59 → +78/+6), zero new warnings.
+- Orchestrator verification: HEAD unmoved pre-commit; diff confined to the disclosed 18-file set + the review/disposition docs; R1/R4 greps clean; evidence vision-read (breath bottom-anchored +2%, feet planted, O2 drowsy-at-full confirmed and routed).
+- Commit: recorded in `.claude/tasks/status.md` (housekeeping keeps the hash).
