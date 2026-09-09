@@ -204,7 +204,16 @@ struct EngineReduceTests {
         var rng = SeededGenerator(seed: 0)
         var ledger: [UUID] = []
         var current = state
-        for intent in intents {
+        // TASK-018 supersession (in place, per the contract): the moments
+        // seam is now filled — the counting intents tick the fixture set's
+        // placeholder quests at their own instants (pat@09:00 completes Q1,
+        // feed@09:01 completes Q2), while the waking-decline play and the
+        // second pat (Q1 already done; Q7 is not in the set) complete
+        // nothing.
+        let expectedMoments: [[CharacterMoment]] = [
+            [.questCompleted], [.questCompleted], [], [],
+        ]
+        for (index, intent) in intents.enumerated() {
             let outcome = reduce(current, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
             // TASK-016 supersession (in place, per the contract): the "no
             // response / no dynamics" half of this pin WAS the documented
@@ -222,7 +231,7 @@ struct EngineReduceTests {
             #expect(outcome.response != nil)
             #expect(outcome.response?.lineKey == nil)
             #expect(outcome.response?.haptic == nil)
-            #expect(outcome.moments.isEmpty)
+            #expect(outcome.moments == expectedMoments[index])
             #expect(outcome.newState.pet == current.pet)
             ledger.append(intent.id)
             #expect(outcome.newState.processedIntents == ledger)
@@ -363,8 +372,11 @@ struct EngineReduceTests {
         )
         var rng = SeededGenerator(seed: 0)
         let outcome = reduce(state, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
-        #expect(outcome.newState.state.bond == 145 + BondRules.helloBondDelta) // the hello crossed 150
-        #expect(outcome.moments == [.bondStageReached(.gettingClose)])
+        // TASK-018 supersession (in place, per the contract): the first pat
+        // also completes the placeholder set's Q1 (+4 → 157 ≥ 150), and the
+        // completion moment composes FIRST — the crossing is its consequence.
+        #expect(outcome.newState.state.bond == 145 + BondRules.helloBondDelta + BondRules.questBondDelta) // the hello + quest crossed 150
+        #expect(outcome.moments == [.questCompleted, .bondStageReached(.gettingClose)])
         #expect(outcome.newState.highestCelebratedStage == .gettingClose)
         #expect(outcome.response != nil) // the pat's own plan still fired
     }

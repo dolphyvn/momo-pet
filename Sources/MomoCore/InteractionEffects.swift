@@ -14,12 +14,15 @@ import Foundation
 /// **expired-dayKey intent** (05 §4.4's note — no entry after §5.4 pruning
 /// or pre-dating the pet) applies its current-state effects and drops ALL
 /// day-ledger attribution: no counters, no retroactive `DayRecord`, and its
-/// repetition instance reads as 1 (full effect). Quest-progress ticking is
-/// TASK-018's; the family-ledger writes live with the counting events
-/// themselves (TASK-017): the cease-side `.play` record composes here, the
-/// intent-side `.feed`/`.care` records in `InteractionSemantics` — each via
-/// `BondLedger.recordFamilyUse`, so the variety award fires at exactly the
-/// event that completes the trio (§4.6).
+/// repetition instance reads as 1 (full effect). The family-ledger writes
+/// live with the counting events themselves (TASK-017): the cease-side
+/// `.play` record composes here, the intent-side `.feed`/`.care` records in
+/// `InteractionSemantics` — each via `BondLedger.recordFamilyUse`, so the
+/// variety award fires at exactly the event that completes the trio (§4.6).
+/// Quest-progress ticking rides the same counting events (TASK-018, §4.8):
+/// the cease ticks `.play` here via `QuestTick`, the intent-side families
+/// tick in `InteractionSemantics` — after the counter increment and the
+/// family record, with the event's own instant.
 enum InteractionEffects {
 
     // MARK: Clamps
@@ -108,8 +111,12 @@ enum InteractionEffects {
     /// cease instant is when the round "happened", FR-7 AC-2); a cease on a
     /// day with no ledger entry applies instance-1 effects and drops the
     /// count. The mood ceiling 92 clamps the mood gain (PRD §3.1's
-    /// representative case); the activity clears with the round.
-    static func applyPlayRoundEffects(to state: EngineState, at ceaseInstant: Instant, calendar: Calendar) -> EngineState {
+    /// representative case); the activity clears with the round. The cease
+    /// also quest-ticks the `.play` family (§4.8, TASK-018) at the cease
+    /// instant's own local time — the returned moments ride to
+    /// `HandshakeMachine`'s caller so a report-path completion emits on the
+    /// report event.
+    static func applyPlayRoundEffects(to state: EngineState, at ceaseInstant: Instant, calendar: Calendar) -> (state: EngineState, moments: [CharacterMoment]) {
         let pet = state.state
         let dayKey = DayKey.make(from: ceaseInstant, calendar: calendar)
         let multiplier = repetitionMultiplier(in: state, dayKey: dayKey, familyCount: \.playCount)
@@ -129,9 +136,11 @@ enum InteractionEffects {
         )!
         // The unified cease is the round's ONE counting event — so it is the
         // round's ONE family-record event (§4.6; the variety award rides the
-        // trio-completing cease, never a round start).
-        return BondLedger.recordFamilyUse(.play, to: updatingDay(state.with(state: ceased), dayKey) {
+        // trio-completing cease, never a round start), and its ONE quest
+        // tick (§4.8): counter → family record → tick, the pinned order.
+        let counted = BondLedger.recordFamilyUse(.play, to: updatingDay(state.with(state: ceased), dayKey) {
             incremented($0, play: 1)
         }, dayKey: dayKey)
+        return QuestTick.tick(families: [.play], to: counted, dayKey: dayKey, instant: ceaseInstant, calendar: calendar)
     }
 }

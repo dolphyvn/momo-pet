@@ -40,7 +40,8 @@ public struct EngineOutcome: Equatable, Sendable {
 
     /// Moment requests (greeting / questCompleted / bondStageReached —
     /// 04 §9.2). `bondStageReached` is populated by `BondLedger.reconcileStage`
-    /// (TASK-017); greeting is TASK-019+ and questCompleted is TASK-018's.
+    /// (TASK-017), `questCompleted` by the §4.8 window-checked quest ticks
+    /// (TASK-018); greeting is TASK-019+'s.
     public let moments: [CharacterMoment]
 
     /// False ⇒ the app layer persists nothing and pushes no snapshot

@@ -37,7 +37,8 @@ struct SatietyWindowTests {
                 pendingHandshake: nil,
                 from: fedAt,
                 to: to,
-                calendar: calendar
+                calendar: calendar,
+                petID: fixture.petID
             )
             #expect(fold.petState.satietyPhase == probe.expected,
                     "at +\(probe.seconds)s since the feed the phase must be \(probe.expected)")
@@ -53,7 +54,8 @@ struct SatietyWindowTests {
             pendingHandshake: nil,
             from: fixture.instant("2026-09-08T09:00:00Z"),
             to: fixture.instant("2026-09-08T09:01:00Z"),
-            calendar: fixture.calendar
+            calendar: fixture.calendar,
+            petID: fixture.petID
         )
         #expect(derived.petState.satietyPhase == .hungry) // the stored value is NOT carried — re-derived
 

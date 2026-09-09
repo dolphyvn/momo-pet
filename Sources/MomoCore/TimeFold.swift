@@ -84,9 +84,10 @@ struct FoldResult: Equatable {
 ///    stay silently empty (FR-12 AC-1), and the append is keyed — a backward
 ///    clock re-deriving an awarded `dayKey` finds it present, so no second
 ///    record and no reset of any kind (FR-11/D20, exactly-once by structure).
-///    The placeholder quest set is the documented TASK-018 seam (real seeded
-///    generation replaces the content; the shape/append/exactly-once
-///    semantics are what TASK-015 delivers).
+///    A newly created record carries the §4.8 generated quest set (seeded
+///    from the pet identity, the landing day, the current epoch, and the
+///    `.quest` salt; stamped with `QuestGeneration.currentEpoch`) — TASK-018;
+///    the shape/append/exactly-once semantics are TASK-015's.
 enum TimeFold {
 
     // MARK: Decomposition
@@ -148,14 +149,15 @@ enum TimeFold {
 
     /// Applies §4.3's rules segment by segment, in order, then lands the
     /// wakefulness/nap/rollover bookkeeping. Pure: the caller injects state,
-    /// span, and calendar.
+    /// span, calendar, and the pet identity the §4.8 quest seed derives from.
     static func apply(
         petState: PetState,
         days: [DayRecord],
         pendingHandshake: Handshake?,
         from: Instant,
         to: Instant,
-        calendar: Calendar
+        calendar: Calendar,
+        petID: UUID
     ) -> FoldResult {
         guard from < to else {
             return FoldResult(petState: petState, days: days, pendingHandshake: pendingHandshake)
@@ -248,7 +250,7 @@ enum TimeFold {
             satietyPhase: satietyPhase(lastFedAt: petState.lastFedAt, at: to)
         )!
 
-        let foldedDays = rollover(days: days, landingDay: DayKey.make(from: to, calendar: calendar))
+        let foldedDays = rollover(days: days, landingDay: DayKey.make(from: to, calendar: calendar), petID: petID)
 
         return FoldResult(petState: foldedState, days: foldedDays, pendingHandshake: foldedHandshake)
     }
@@ -322,35 +324,54 @@ enum TimeFold {
     // MARK: Day rollover
 
     /// FR-11/D20: guarantees the landing day's record exists — appended when
-    /// absent (the daily reset: zero counters, fresh quest slots, hello
-    /// un-awarded), untouched when present (backward clocks re-derive the
-    /// awarded `dayKey` and find it — no double reset, no double hello;
-    /// exactly-once by structure). Absent intermediate days are never
-    /// retro-created (FR-12 AC-1).
-    private static func rollover(days: [DayRecord], landingDay: String) -> [DayRecord] {
+    /// absent (the daily reset: zero counters, a freshly generated quest set,
+    /// hello un-awarded), untouched when present (backward clocks re-derive
+    /// the awarded `dayKey` and find it — no double reset, no double hello,
+    /// no regeneration of a past day's set; exactly-once by structure).
+    /// Absent intermediate days are never retro-created (FR-12 AC-1).
+    ///
+    /// The new record's quest set is §4.8's by-construction generation (TASK-018):
+    /// the seed derives from the pet identity, the LANDING day, the current
+    /// epoch, and the `.quest` salt (`DaySeed.make` — pure, injected values
+    /// only, so the purity discipline holds; the choreography rng's draw
+    /// lineage is untouched — generation seeds its own per-call generator);
+    /// `priorTwoSets` are the two most recent records' non-anchor quests,
+    /// NEWEST FIRST (a missing tail is unknown prior — fresh-install day 1
+    /// forces Q6); the record stamps `QuestGeneration.currentEpoch`.
+    private static func rollover(days: [DayRecord], landingDay: String, petID: UUID) -> [DayRecord] {
         guard !days.contains(where: { $0.dayKey == landingDay }) else { return days }
-        // TASK-018 seam: real seeded quest generation replaces the placeholder
-        // set (Q1 + Q2 + Q6, zero progress). The set must satisfy DayRecord's
-        // exactly-3 invariant today; `questGenEpoch: 0` marks the placeholder.
-        let placeholderQuests = [QuestID.q1, .q2, .q6].compactMap { QuestProgress(questID: $0, progress: 0, completed: false) }
+        let seed = DaySeed.make(
+            petID: petID,
+            localDayKey: landingDay,
+            epoch: QuestGeneration.currentEpoch,
+            salt: .quest
+        )
+        let priorTwoSets = days.suffix(2).reversed().map { $0.questSet.filter { $0.questID != .q1 } }
+        let generated = QuestGeneration.generate(
+            dayKey: landingDay,
+            seed: seed,
+            priorTwoSets: priorTwoSets,
+            questGenEpoch: QuestGeneration.currentEpoch
+        )
         guard let record = DayRecord(
             dayKey: landingDay,
             feedCount: 0,
             playCount: 0,
             careCount: 0,
             patCount: 0,
-            questSet: placeholderQuests,
+            questSet: generated,
             helloAwarded: false,
             familiesUsed: [],
             bondAwarded: 0,
-            questGenEpoch: 0
+            questGenEpoch: QuestGeneration.currentEpoch
         ) else {
             // Unreachable: zero counters satisfy INV-4, 0 satisfies INV-5, and
-            // the placeholder set has exactly 3 distinct quests. Constructing
-            // the ledger entry is structural, so failure here is a programmer
-            // error — loud in debug, and the ledger is left unchanged rather
-            // than corrupted (house pattern: DEBUG-loud, release-safe).
-            assertionFailure("TimeFold: placeholder DayRecord rejected — invariant regression")
+            // the generated set has exactly 3 distinct INV-6-valid quests.
+            // Constructing the ledger entry is structural, so failure here is
+            // a programmer error — loud in debug, and the ledger is left
+            // unchanged rather than corrupted (house pattern: DEBUG-loud,
+            // release-safe).
+            assertionFailure("TimeFold: generated DayRecord rejected — invariant regression")
             return days
         }
         return days + [record]

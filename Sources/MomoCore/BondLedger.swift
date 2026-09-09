@@ -125,10 +125,11 @@ enum BondLedger {
         return award(BondRules.varietyBondDelta, to: recorded, dayKey: dayKey).state
     }
 
-    // MARK: The quest award (mechanism only — TASK-018 drives it)
+    // MARK: The quest award (driven by §4.8's quest ticks — TASK-018)
 
-    /// Awards one completed quest's +4 through the clamp. Detection, window
-    /// checks, and ticking are §4.8 / TASK-018's; tests drive this directly.
+    /// Awards one completed quest's +4 through the clamp. The §4.8
+    /// window-checked tick (`QuestTick`) calls this at each completion;
+    /// tests drive it directly too.
     static func awardQuestCompletion(to state: EngineState, dayKey: String) -> EngineState {
         award(BondRules.questBondDelta, to: state, dayKey: dayKey).state
     }

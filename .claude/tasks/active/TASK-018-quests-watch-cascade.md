@@ -92,13 +92,91 @@ Independent fresh reviewer (CLAUDE.md §10/§33), adversarial: re-derive every c
 No commit by the implementation agent. Orchestrator commits after review disposition: `feat(engine): TASK-018 quest generator, completion windows, Watch cascade` — atomic, TASK-ID included.
 
 ## Status
-READY (2026-09-09 — contract materialized by the orchestration agent from 05 §4.8, PRD §5.1–5.5 + FR-14–16, amended §5.5 rule 1, delivery plan TASK-018 row, and the committed TASK-012/014–017 code shapes).
+DONE pending commit/push (2026-09-09) — implemented, independently reviewed APPROVED_WITH_MINOR_NOTES (REVIEW-TASK-018, 0 MAJOR / 1 MINOR / 2 NITPICK), all findings disposed (MINOR-1 applied, NITPICK-1 fixed, NITPICK-2 recorded; mechanical/test-only — §11 proportionality, no fresh re-review), suite re-run green post-disposition (314/36). Atomic commit + push follow this file (§12/§13); housekeeping then moves it to `completed/`.
 
 ## Implementation Notes
-(To be filled by the implementation agent — include the §28 Handoff block before reporting.)
+Implemented by the TASK-018 implementation agent (2026-09-09, branch `feature/EPIC-004-engine`). Scope held to Requirements 1–10: (a) the §4.8 by-construction generator + rollover wiring, (b) the window-checked ticks at the four counting sites, (c) the six-rule cascade as one shared pure function. Everything ships in one new source file, `Sources/MomoCore/QuestGeneration.swift`, plus the rollover seam edit in `Sources/MomoCore/TimeFold.swift`; the four new test suites carry Required Tests 1–10.
+
+### Judgment calls, ranked (for the reviewer)
+
+1. **The draw reads "two quests, by construction" (§4.8's filtering sentence + §5.3's pair constraints).** The candidate space is the filtered PAIRS; two seeded draws pick the pair's members — draw 1 from the pool's quest universe (distinct quests in surviving pairs, catalog order), draw 2 from the first pick's in-pool partners (catalog order). Every constraint then holds BY construction (the drawn pair is always a pool member; nothing is ever drawn-then-rejected, so no retry loop exists to break determinism), the pool is provably never empty (see 5), and the induced pair distribution is uniform over the surviving pool in every scenario. `QuestGenerationPinnedTests.twoDrawPin` replays the recipe independently and pins that exactly two draws are consumed (a third draw or a reorder changes the mapping and fails).
+2. **Rules 3–4 scan in-set only (contract Req 7's framing).** The PRD's rules 3–4 omit an in-set qualifier; rule 5 has it explicitly. Surfacing an out-of-set quest would promise an uncompletable wish (ticks never progress out-of-set quests), so the scoping is applied uniformly. Pinned in the cascade table ("an out-of-set Q2 is never surfaced…", "an out-of-set Q7 never beats the all-done state").
+3. **`QuestLine` is an enum (`wish(QuestID)` / `allDone`), not a nullable `QuestID`.** A nil would lose the all-done state from "wish pending" — §4.11's `DisplayState.questLine` needs the distinction; rendering stays presentation's business (EPIC-007/008).
+4. **Epoch-interface fidelity (contract Req 3).** `generate` accepts `questGenEpoch` per §4.8's signature but does NOT mix it into the RNG seed: determinism flows through the caller's `DaySeed.make(…, epoch:, salt: .quest)` (§4.10's salt separation). Re-mixing would hash the epoch twice into the same derivation for no added guarantee. `dayKey` is likewise interface-only. Both parameters keep the function's mirror of the stored record auditable.
+5. **Pool-minimum analysis — CORRECTED mid-task.** An earlier draft note here (and in the source doc) claimed the contract's "≥ 4" bound was vacuous with a true minimum of 5. That was WRONG: the tightest case IS reachable — yesterday's pair contains Q6 while the OLDER prior lacks it (Q6 credit needs BOTH priors), so the ban first removes that Q6-carrying pair and the restriction keeps the remaining 5 − 1 = 4. `exhaustiveNonEmptiness` sweeps all 225 ordered prior-pair configurations and pins `tightest == 4` exactly. The source doc comment states the corrected analysis.
+6. **Tick site order is pinned: counter increment → family/variety record → quest tick.** The quest award therefore participates in the same clamp-at-award ledger write as the event's own bond (hello/variety), one `bondAwarded` per day, and `questCompleted` precedes `bondStageReached` in the moment list when one event crosses both (pinned twice: `completionCrossingOrdersTheMoments`, and the re-pinned property sweep). A single event CAN complete two quests (e.g. a fresh morning pat serving both Q1 and a Q7 at 2/3): the tick loop runs per in-set qualifying quest, emitting one moment per completion — the contract's "≤ 1 completion per event" reading is structurally false and the tests document the real shape (`doubleCompletionLoops`).
+7. **Rule 2's in-set check is defensive but present**, mirroring rules 3–5, so the cascade is total and well-defined even over a malformed set (pinned by `cascadeIsTotalOverEveryHour` over full/all-done/partial sets × 24 hours).
+8. **Fold wiring keeps TimeFold's shape**: `apply` gained `petID` (mechanical call-site updates in TimeFoldTests; the seed lineage `DaySeed.make(petID:localDayKey:epoch:salt: .quest)` is re-derived exactly in `rolloverGeneratesTheLandingDay`, so any drift in salt, epoch, or prior order fails). Priors pass NEWEST FIRST (`suffix(2).reversed()`); generation fires only when creating a record whose dayKey is absent (exactly-once; a re-landed day keeps its ticked set — `rolloverNeverRegeneratesAPastDay`, `rolloverExactlyOnceUnderBackwardClock`); absent days in a multi-day gap stay absent (no retro-creation) and the landing day's priors see the unknown tail as no-Q6-credit (`rolloverPriorGap`).
+9. **Test mechanics**: the exact-value tick pins need quest sets the `InteractionFixture` placeholder (Q1/Q2/Q6 zero-progress) cannot express, so `QuestTickTests`/`QuestGenerationPinnedTests` build `DayRecord`s directly via a local `state(questSet:…)` helper (still through `fixture.state`, so the no-fold-dynamics discipline holds), plus a `rebased(_:at:)` helper that moves the evaluation high-water mark so multi-event tests fold zero elapsed (without it, the 09:00→20:30 fold completes the nap, lands the pet `.waking`, and declines the tuck-in — fold dynamics that belong to TimeFoldTests, not here).
+
+### Supersession license (e) — existing tests updated, with reasons
+
+All edits are the mechanical consequence of quest generation going live; the placeholders asserted. Per file:
+
+- `BondLedgerPropertyTests` — license (a), the named re-pin: `check()` now pins `moments ≤ 2`, order exactly `[questCompleted?, bondStageReached?]` (each at most once, quest first), stage emission iff the guard advances, and guard never advances without emission.
+- `BondLedgerTests` — every first-counting-event now completes a quest, so bond pins gained `+ BondRules.questBondDelta` (hello pins, variety-feed pin, thousandPats renamed to "…+12 once, then zero", helloDoesNotDisturb); patHelloCrossing's moments became `[.questCompleted, .bondStageReached(.gettingClose)]`; threeQuestDay exercises the cap through direct quest awards.
+- `EngineReduceTests` — interactionPassThrough gained `expectedMoments` per intent (ticks land on feed/feed-refusal/pat, not on the quiet cells); interactionPathReconcilesStage's crossing now composes questCompleted first.
+- `InteractionResponseTests` — per-cell bond pins gained the quest delta; `planShapeAndSeams` restructured to carry per-scenario moments (awake pat / asleep pat / feed / full-refusal feed tick; exhausted play / drowsy nap do not); renamed to "…moments are exactly the counting events' quest ticks".
+- `RepetitionCurveTests` — patCurveExact's first-pat bond pin gained the quest delta (every cell's 09:00 first pat completes Q1); `ceaseDayAttribution`'s mechanical `ceased.state.…` signature fix from the `HandshakeMachine.apply` tuple return (license (d)) is also listed here per REVIEW-TASK-018 NITPICK-2.
+- `CareInteractionTests` — careArithmeticHonesty's 20:30 tuck-in now completes Q6 (+ quest delta).
+- `EngineReduceTests`/`TimeFoldTests` — mechanical signature fix for `TimeFold.apply(petID:)`.
+- `DaySeedTests` — already vector-pins the `.quest` salt (untouched, no license needed).
+
+### New files
+
+- `Sources/MomoCore/QuestGeneration.swift` — epoch, candidate space, pool, `generate`, `QuestLine`, `cascade`.
+- `Tests/MomoCoreTests/QuestGenerationPinnedTests.swift` — the anti-echo exception: raw spec literals (epoch 1, 15 pairs, window hour tables, the named "a 02:00 tuck-in with Q1 done selects Q6", D20 day-ownership, the offline-pat case).
+- `Tests/MomoCoreTests/QuestGenerationTests.swift` — twins, seed variation, shape, pool-level constraint proofs, exhaustive + randomized non-emptiness, 30-day × 5-seed simulation, rollover integration.
+- `Tests/MomoCoreTests/QuestTickTests.swift` — scope, qualifying-only progress, event's-own-time, dayKey attribution, expired-dayKey no-op, clamp interplay (cap + plateau), idempotence, all-done quiet, doubles, moment ordering, play-cease report emissions.
+- `Tests/MomoCoreTests/QuestCascadeTests.swift` — the 17-row six-rule precedence table (named constants), cascade twins, 24-hour totality sweep.
+
+## Handoff
+
+### Completed
+- Requirements 1–10 of the contract, nothing else: (a) `QuestGeneration.generate` per 05 §4.8 / PRD §5.3 wired into `TimeFold.rollover` (petID threaded into `TimeFold.apply`; priors NEWEST FIRST; epoch stamped; exactly-once; never regenerates a past day); (b) window-checked completion detection at all four counting sites (feed incl. refusals, unified play cease, care events, pat) with qualifying-only progress, event's-own-timestamp hour checks, event-dayKey attribution, expired-dayKey no-op, bare `.questCompleted` moments and `BondLedger.awardQuestCompletion` (+4 through the clamp); (c) the six-rule §5.5 cascade (amended rule 1: ≥ 20:00 ∨ < 07:00) as one shared pure function returning `QuestGeneration.QuestLine`.
+
+### Files Changed
+- Sources, new: `QuestGeneration.swift` (epoch, candidate space, pool, `generate`, `QuestLine`, `cascade`); `QuestTick.swift` (window-checked completion detection invoked at the counting sites).
+- Sources, edited: `TimeFold.swift` (rollover generation + `petID` param); `BondLedger.swift` (`awardQuestCompletion`); `InteractionSemantics.swift` (feed/pat/care counting-site threading); `Reduce.swift` (the DaySeed sentence, license (c), + tick-site dispatch and moment threading); `HandshakeMachine.apply` returns `(state, moments)` so the unified play cease's completions emit on the report path (Req 6); `InteractionEffects.swift` (moment threading); `EngineEvent.swift` (doc-comment provenance only).
+- Tests, new: `QuestGenerationPinnedTests.swift`, `QuestGenerationTests.swift`, `QuestTickTests.swift`, `QuestCascadeTests.swift`.
+- Tests, edited: `BondLedgerTests`, `BondLedgerPropertyTests` (license (a)), `EngineReduceTests`, `InteractionResponseTests`, `RepetitionCurveTests`, `CareInteractionTests` (license (e) edits); `SatietyWindowTests`, `TimeFoldTests` (mechanical `TimeFold.apply(petID:)` signature).
+
+### Tests Run
+- `swift build --build-tests`
+- `swift test`
+
+### Test Results
+- BOTH FULLY GREEN: **314 tests in 36 suites passed, 0 failures** (pre-TASK-018 baseline: 273 tests / 32 suites; +41 tests, +4 suites).
+- Warnings, verbatim, both pre-existing and untouched by this task:
+  - `/opt/works/personal/github/momo-pet/Tests/MomoCoreTests/EngineClockTests.swift:46:13: warning: variable 'original' was never mutated; consider changing to 'let' constant`
+  - `ld: warning: search path '/opt/extra/lib' not found`
+
+### Known Issues
+- None in scope. (Purity scan holds: no `UUID()`, `Date()`, `Calendar.current`, `random(` in the new source; the generator seeds its own per-call `SeededGenerator`, never the choreography rng.)
+
+### Decisions Made
+- See "Judgment calls, ranked" above; the corrected pool-minimum analysis (call 5) supersedes the earlier "minimum 5" draft claim — the tightest case of 4 pairs is reachable and pinned.
+
+### Reviewer Status
+- APPROVED_WITH_MINOR_NOTES — fresh adversarial review agent (§10/§33), full record `.claude/tasks/reviews/REVIEW-TASK-018.md`; 0 MAJOR / 1 MINOR / 2 NITPICK. MINOR-1 + both NITPICKs disposed by the orchestrator (mechanical/test-only, §11 proportionality); see the Disposition under Reviewer Findings.
+
+### Commit
+- None — per dispatch, the orchestration agent commits after review.
+
+### Push
+- None — ditto.
+
+### Recommended Next Step
+- Independent review of this task (review agent, Jupiter), then TASK-019 per EPIC-004's remaining task list.
 
 ## Reviewer Findings
-(To be filled by the review agent.)
+Independent adversarial review complete (§10/§33; full record: `.claude/tasks/reviews/REVIEW-TASK-018.md`). **APPROVED_WITH_MINOR_NOTES** — MAJOR 0 / MINOR 1 / NITPICK 2. Reproduced `swift test`: 314 tests / 36 suites, 0 failures; HEAD `60e4fe5` untouched; inventory exact; purity, anti-echo (seeded divergence bites with exact attribution), supersession audit (nothing beyond license items (a)–(e)), and the fold's draw-lineage checks all clean. Both open questions adjudicated independently: (1) **Q6-credit rule** — the strong reading (credit iff BOTH priors carry Q6; `count == 2` correctly implements "unknown priors = no credit") is the only reading under which §4.8's "≥ 4 pairs in the tightest case (5 − 1)" arithmetic is coherent and reachable; PRD §5.3's window invariant holds under BOTH readings (verified: the 30-day sim stays green under a seeded weak-reading mutation), so the non-emptiness parenthetical is the discriminator; the `tightest == 4` pin is correct; (2) **moment multiplicity** — the implementation is right and the contract's premise was wrong: a pat serves Q1 (window-gated) and Q7 (all-day), so pats at 13:00/14:00 plus an 11:30 pat applied at 14:30 (§4.8's own offline-pat shape) complete BOTH on one event via the full production path (reviewer probe passed), and a simultaneous stage crossing makes 3 moments. All nine judgment calls APPROVED; Required Tests 1–10 present and mutation-validated (5 seeded mutations bit with exact attribution, incl. the two-draw pin and the tightest-case sweep). **MINOR-1 (apply at disposition; test-only; inside license (a)):** `BondLedgerPropertyTests.check()`'s re-pin (`moments.count <= 2`, ≤ 1 of each kind) is a false-but-latent invariant — amend to ≤ 3 moments, ≤ 2 `.questCompleted` (one per completing quest; Q1+Q7 is the only reachable pair), ≤ 1 `.bondStageReached` always last, quest moments first, with a comment noting the generator itself cannot reach a double (why the bound exceeds what the suite observes) and that `QuestTickTests.doubleCompletionLoops` is the live coverage; record the contract correction (Req 5's "structurally unreachable" premise is disproven; the tick loop is correct). Mechanical test-bound edit — no fresh re-review required (§11 proportionality). NITPICK-1: uniformity overclaim in `QuestGeneration.swift`'s draw doc comment (uniform only in the unrestricted/Q6-restricted scenarios; ban-active pools skew — no behavioral impact; one-line comment fix). NITPICK-2: `RepetitionCurveTests.ceaseDayAttribution`'s mechanical `ceased.state` signature fix (license (d)) is unlisted in the notes above. No MAJOR findings; nothing blocks commit once MINOR-1 lands.
+
+**Disposition (orchestrator, 2026-09-09):** MINOR-1 APPLIED — `BondLedgerPropertyTests.check()` re-pinned to ≤ 3 moments / ≤ 2 `.questCompleted` / ≤ 1 `.bondStageReached` always last (quest moments first), with the can't-reach-a-double comment and the `doubleCompletionLoops` live-coverage pointer; suite header doc kept in step. NITPICK-1 FIXED — both `QuestGeneration.swift` uniformity claims scoped to the two star-shaped scenarios with the REVIEW-TASK-018 NITPICK-1 pointer. NITPICK-2 RECORDED — bookkeeping line added to the supersession notes below. **Contract corrections recorded (both favor the implementation):** (1) Req 1b's "TOGETHER lack" wording, read in isolation, suggested the weak Q6-credit reading; the adjudication CLARIFIES it through Req 1c's own tightest-case arithmetic — the strong reading (credit iff both priors carry Q6) is the normative one and the code conforms; (2) Req 5's "at most one completion per event structurally" premise and license (a)'s named re-pin inherited a disproven premise — the tick loop is correct, and the re-pin now says so. Suite re-run post-disposition: `swift test` = 314 tests / 36 suites, 0 failures.
 
 ## Completion Evidence
-(To be filled at disposition: test command + counts, review file, commit hash.)
+- Tests: `swift build --build-tests` + `swift test` — **314 tests / 36 suites, 0 failures** post-disposition (pre-task baseline 273/32; +41/+4). Warnings: only the two pre-existing ones (EngineClockTests `var original`; `/opt/extra/lib` linker search path).
+- Review: `.claude/tasks/reviews/REVIEW-TASK-018.md` — APPROVED_WITH_MINOR_NOTES (0 MAJOR / 1 MINOR / 2 NITPICK); MINOR-1 + both NITPICKs disposed pre-commit (mechanical, §11 proportionality — no fresh re-review required).
+- Commit: this commit (atomic; sources + tests + task file + review file). Hash recorded in `.claude/tasks/status.md` at housekeeping.
+
+

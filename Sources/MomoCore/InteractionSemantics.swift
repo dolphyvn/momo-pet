@@ -54,27 +54,30 @@ import Foundation
 enum InteractionSemantics {
 
     /// Applies `intent` to `state` (already folded to the intent's instant by
-    /// `reduce`). Returns the new state and the plan the character executes.
+    /// `reduce`). Returns the new state, the plan the character executes, and
+    /// the `.questCompleted` moments the counting events raised (§4.8's
+    /// window-checked ticks ride exactly the events that count — TASK-018).
     /// Pure; consumes rng draws ONLY when a choreography token is minted
     /// (play authorization, tuck-in settle — two draws each, the shared
-    /// `mintToken` pattern); every other path draws nothing.
+    /// `mintToken` pattern); every other path draws nothing (quest ticks
+    /// draw none — the generation/tick draw lineages are separate).
     static func apply(
         _ intent: InteractionIntent,
         to state: EngineState,
         calendar: Calendar,
         rng: inout SeededGenerator
-    ) -> (state: EngineState, response: ResponsePlan) {
+    ) -> (state: EngineState, response: ResponsePlan, moments: [CharacterMoment]) {
         switch intent.kind {
         case .pat(let gesture, let zone):
-            return applyPat(intent, gesture: gesture, zone: zone, to: state)
+            return applyPat(intent, gesture: gesture, zone: zone, to: state, calendar: calendar)
         case .feed:
-            return applyFeed(intent, to: state)
+            return applyFeed(intent, to: state, calendar: calendar)
         case .play:
             return applyPlay(intent, to: state, rng: &rng)
         case .tuckIn:
             return applyTuckIn(intent, to: state, calendar: calendar, rng: &rng)
         case .nap:
-            return applyNap(intent, to: state)
+            return applyNap(intent, to: state, calendar: calendar)
         }
     }
 
@@ -91,13 +94,17 @@ enum InteractionSemantics {
     /// and settling collapse to the stir (the §6.2 sleeping cell / the
     /// settling soft-stir), napping counts as sleeping. The pending
     /// handshake is never touched (a mid-`.wake` pat leaves the stretch
-    /// intact).
+    /// intact). The pat serves the `.greet` (Q1) AND `.pet` (Q7) quest
+    /// families: after the counter increment and the hello award, the §4.8
+    /// tick runs at the intent's own instant (window-checked — a post-noon
+    /// pat counts but ticks nothing for Q1).
     private static func applyPat(
         _ intent: InteractionIntent,
         gesture: PatGesture,
         zone: TouchZone?,
-        to state: EngineState
-    ) -> (EngineState, ResponsePlan) {
+        to state: EngineState,
+        calendar: Calendar
+    ) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         let reaction: ReactionID
         switch pet.wakefulness {
@@ -125,7 +132,17 @@ enum InteractionSemantics {
         }
         // The §4.6 hello rides the same event that counted the pat — once per
         // dayKey, then an exact no-op (G2: pats beyond the first move nothing).
-        return (BondLedger.awardHello(to: next, dayKey: intent.localDayKey), plan(reaction))
+        // The quest tick follows the ledger writes (counter → hello → tick,
+        // the pinned site order).
+        let helloed = BondLedger.awardHello(to: next, dayKey: intent.localDayKey)
+        let ticked = QuestTick.tick(
+            families: [.greet, .pet],
+            to: helloed,
+            dayKey: intent.localDayKey,
+            instant: intent.timestamp,
+            calendar: calendar
+        )
+        return (ticked.state, plan(reaction), ticked.moments)
     }
 
     /// 04 §6.1's gesture×zone map (FR-5 AC-1 — distinguishable). Double-tap
@@ -179,22 +196,33 @@ enum InteractionSemantics {
     /// `react.nibble` I-2 beat. No `activity` write: nothing in the report
     /// vocabulary clears `.eating`, so the meal is carried by the plan, not
     /// by the activity slot (recorded interpretation; §4.2's eating is a
-    /// 2.5–4 s one-shot).
-    private static func applyFeed(_ intent: InteractionIntent, to state: EngineState) -> (EngineState, ResponsePlan) {
+    /// 2.5–4 s one-shot). The feed serves the `.feed` quest family: the
+    /// §4.8 tick rides the same count closure (counter → family record →
+    /// tick) at the intent's own instant — refusals and asleep declines
+    /// count, so they tick too.
+    private static func applyFeed(_ intent: InteractionIntent, to state: EngineState, calendar: Calendar) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         let count = { (s: EngineState) in
-            BondLedger.recordFamilyUse(.feed, to: InteractionEffects.updatingDay(s, intent.localDayKey) {
-                InteractionEffects.incremented($0, feed: 1)
-            }, dayKey: intent.localDayKey)
+            QuestTick.tick(
+                families: [.feed],
+                to: BondLedger.recordFamilyUse(.feed, to: InteractionEffects.updatingDay(s, intent.localDayKey) {
+                    InteractionEffects.incremented($0, feed: 1)
+                }, dayKey: intent.localDayKey),
+                dayKey: intent.localDayKey,
+                instant: intent.timestamp,
+                calendar: calendar
+            )
         }
         guard !isSleeping(pet), pet.wakefulness != .settling else {
             // Gentle decline-warm: counts, zero state effect, clock untouched.
-            return (count(state), plan(ReactionKeys.gentleDecline))
+            let counted = count(state)
+            return (counted.state, plan(ReactionKeys.gentleDecline), counted.moments)
         }
         guard pet.satietyPhase != .full else {
             // Politely full (§6.2 — a sated sigh, never a rejection): counts,
             // zero state effect, `lastFedAt` untouched.
-            return (count(state), plan(ReactionKeys.politelyFull))
+            let counted = count(state)
+            return (counted.state, plan(ReactionKeys.politelyFull), counted.moments)
         }
         let satietyFactor = pet.satietyPhase == .recentlyFed ? InteractionRules.nibbleEffectMultiplier : 1.0
         let multiplier = InteractionEffects.repetitionMultiplier(in: state, dayKey: intent.localDayKey, familyCount: \.feedCount) * satietyFactor
@@ -216,7 +244,8 @@ enum InteractionSemantics {
             lastFedAt: intent.timestamp,
             satietyPhase: .full
         )!
-        return (count(state.with(state: fed)), plan(beat))
+        let counted = count(state.with(state: fed))
+        return (counted.state, plan(beat), counted.moments)
     }
 
     // MARK: Play (PRD §4 play row; FR-7; 04 §6.3; 05 §4.4's unified cease)
@@ -233,24 +262,26 @@ enum InteractionSemantics {
     /// AC-2). Mid-round play → the small cheer (04 §9.2 item 6 — never
     /// resets or extends), full no-op. A waking pet declines warm (the
     /// header's recorded interpretation — the slot holds the wake token).
-    private static func applyPlay(_ intent: InteractionIntent, to state: EngineState, rng: inout SeededGenerator) -> (EngineState, ResponsePlan) {
+    /// No quest tick here: the authorization is not a counting event —
+    /// effects, count, and the `.play` tick land at the unified cease.
+    private static func applyPlay(_ intent: InteractionIntent, to state: EngineState, rng: inout SeededGenerator) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.cheer)) // round intact — never resets or extends
+            return (state, plan(ReactionKeys.cheer), []) // round intact — never resets or extends
         }
         if isSleeping(pet) {
-            return (state, plan(ReactionKeys.stir)) // sleeping: gentle stir only
+            return (state, plan(ReactionKeys.stir), []) // sleeping: gentle stir only
         }
         switch pet.wakefulness {
         case .settling:
-            return (state, plan(ReactionKeys.stir)) // declined-warm (§9.6 item 8)
+            return (state, plan(ReactionKeys.stir), []) // declined-warm (§9.6 item 8)
         case .waking:
-            return (state, plan(ReactionKeys.decline)) // the slot holds the never-cancelled .wake token
+            return (state, plan(ReactionKeys.decline), []) // the slot holds the never-cancelled .wake token
         case .asleep, .awake:
             break
         }
         guard makeEnergyBand(pet.energy) != .exhausted else {
-            return (state, plan(ReactionKeys.stir)) // exhausted: gentle stir only
+            return (state, plan(ReactionKeys.stir), []) // exhausted: gentle stir only
         }
         let authorized = state
             .with(state: PetState(
@@ -263,7 +294,7 @@ enum InteractionSemantics {
                 satietyPhase: pet.satietyPhase
             )!)
             .with(pendingHandshake: Handshake(kind: .play, token: mintToken(rng: &rng)))
-        return (authorized, plan(ReactionKeys.playReady))
+        return (authorized, plan(ReactionKeys.playReady), [])
     }
 
     // MARK: Care — tuck-in (PRD §4 care row; FR-8 AC-1; 05 §4.4 I-2 note)
@@ -282,16 +313,18 @@ enum InteractionSemantics {
     /// a waking pet declines (the header's recorded interpretation). A pet
     /// with a round in flight declines until the round ceases — settling
     /// into the single slot would orphan the unified-cease application
-    /// (recorded interpretation).
+    /// (recorded interpretation). Both counting paths quest-tick `.care`
+    /// (§4.8) at the intent's own instant — D20 day-ownership means a
+    /// 00:30 tuck-in ticks the NEW day's Q6.
     private static func applyTuckIn(
         _ intent: InteractionIntent,
         to state: EngineState,
         calendar: Calendar,
         rng: inout SeededGenerator
-    ) -> (EngineState, ResponsePlan) {
+    ) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         guard InteractionRules.isTuckInWindow(intent.timestamp, calendar: calendar) else {
-            return (state, plan(ReactionKeys.decline))
+            return (state, plan(ReactionKeys.decline), []) // no count — no tick
         }
         if isSleeping(pet) {
             // Blanket-adjust: counts, care effects, stays asleep exactly as it is.
@@ -309,18 +342,25 @@ enum InteractionSemantics {
             let next = InteractionEffects.updatingDay(state.with(state: adjusted), intent.localDayKey) {
                 InteractionEffects.incremented($0, care: 1)
             }
-            // The care happened — counts AND records the family (§4.6).
-            return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
-                    plan(ReactionKeys.blanketAdjust))
+            // The care happened — counts AND records the family (§4.6), and
+            // ticks the `.care` quest (§4.8).
+            let counted = QuestTick.tick(
+                families: [.care],
+                to: BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+                dayKey: intent.localDayKey,
+                instant: intent.timestamp,
+                calendar: calendar
+            )
+            return (counted.state, plan(ReactionKeys.blanketAdjust), counted.moments)
         }
         if pet.wakefulness == .settling {
-            return (state, plan(ReactionKeys.blanketAdjust)) // warm reaffirm — token untouched, settle still completes
+            return (state, plan(ReactionKeys.blanketAdjust), []) // warm reaffirm — token untouched, settle still completes
         }
         if pet.wakefulness == .waking {
-            return (state, plan(ReactionKeys.decline)) // the slot holds the never-cancelled .wake token
+            return (state, plan(ReactionKeys.decline), []) // the slot holds the never-cancelled .wake token
         }
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.decline)) // round in flight — cease first
+            return (state, plan(ReactionKeys.decline), []) // round in flight — cease first
         }
         let mood = InteractionEffects.moodAfterGain(pet.mood, InteractionRules.tuckInMoodDelta)
         let energy = InteractionEffects.energyAfterDelta(pet.energy, InteractionRules.tuckInEnergyDelta)
@@ -342,10 +382,17 @@ enum InteractionSemantics {
             InteractionEffects.incremented($0, care: 1)
         }
         // Settle-authorization is the care event — counts AND records the
-        // family (§4.6). The reaffirm path above returns early: its care was
-        // counted here, so no second record.
-        return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
-                plan(ReactionKeys.settling))
+        // family (§4.6), and ticks the `.care` quest (§4.8). The reaffirm
+        // path above returns early: its care was counted here, so no second
+        // record.
+        let counted = QuestTick.tick(
+            families: [.care],
+            to: BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+            dayKey: intent.localDayKey,
+            instant: intent.timestamp,
+            calendar: calendar
+        )
+        return (counted.state, plan(ReactionKeys.settling), counted.moments)
     }
 
     // MARK: Care — nap (PRD §4 care row; 05 §4.4's nap row)
@@ -358,17 +405,18 @@ enum InteractionSemantics {
     /// waking, and the nap touches no handshake slot). Already sleeping
     /// (asleep or mid-nap) → the warm no-op decline; settling → the gentle
     /// decline (§9.6 item 8); a round in flight declines until it ceases.
-    /// No repetition multiplier (care is exempt), no token, no rng.
-    private static func applyNap(_ intent: InteractionIntent, to state: EngineState) -> (EngineState, ResponsePlan) {
+    /// No repetition multiplier (care is exempt), no token, no rng. Nap
+    /// acceptance quest-ticks `.care` (§4.8) at the intent's own instant.
+    private static func applyNap(_ intent: InteractionIntent, to state: EngineState, calendar: Calendar) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         if isSleeping(pet) {
-            return (state, plan(ReactionKeys.gentleDecline)) // already sleeping — warm no-op
+            return (state, plan(ReactionKeys.gentleDecline), []) // already sleeping — warm no-op
         }
         if pet.wakefulness == .settling {
-            return (state, plan(ReactionKeys.gentleDecline)) // §9.6 item 8
+            return (state, plan(ReactionKeys.gentleDecline), []) // §9.6 item 8
         }
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.decline)) // round in flight — cease first
+            return (state, plan(ReactionKeys.decline), []) // round in flight — cease first
         }
         switch makeEnergyBand(pet.energy) {
         case .drowsy, .exhausted:
@@ -385,11 +433,18 @@ enum InteractionSemantics {
                 InteractionEffects.incremented($0, care: 1)
             }
             // Nap acceptance is the care event — counts AND records the
-            // family (§4.6); the decline paths above record nothing.
-            return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
-                    plan(ReactionKeys.settling))
+            // family (§4.6) and ticks the `.care` quest (§4.8); the decline
+            // paths above record nothing.
+            let counted = QuestTick.tick(
+                families: [.care],
+                to: BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+                dayKey: intent.localDayKey,
+                instant: intent.timestamp,
+                calendar: calendar
+            )
+            return (counted.state, plan(ReactionKeys.settling), counted.moments)
         case .energetic, .relaxed:
-            return (state, plan(ReactionKeys.decline)) // not offered in these bands
+            return (state, plan(ReactionKeys.decline), []) // not offered in these bands
         }
     }
 

@@ -5,8 +5,10 @@ import Foundation
 /// The PRD §4 response matrix as engine decisions (TASK-016 Requirements 1–2,
 /// 6, 9; AC-1/AC-2): every cell warm (INV-6), counting honest (I-1's
 /// asymmetry), and every plan shape the 04 §9.2 contract — reaction only,
-/// `lineKey`/`haptic` nil (TASK-019/presentation seams), `moments` empty
-/// (TASK-017/018 seams).
+/// `lineKey`/`haptic` nil (TASK-019/presentation seams). (TASK-018
+/// supersession, in place, per the contract: the former "`moments` empty"
+/// pin was the TASK-018 seam and is now filled — the counting events' quest
+/// ticks emit exactly their completions.)
 ///
 /// Exact-value expectations restate the production OPERATION ORDER with the
 /// named constants — never by calling the production helpers — so a
@@ -54,10 +56,14 @@ struct InteractionResponseTests {
             #expect(outcome.response == ResponsePlan(reaction: cell.beat, lineKey: nil, haptic: nil),
                     "\(cell.gesture) × \(String(describing: cell.zone)) must map to \(cell.beat.rawValue)")
             #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
-            #expect(outcome.newState.state.bond == start.state.bond) // G2: past the preset hello, petting banks nothing
+            // TASK-018 supersession (in place, per the contract): the first
+            // pat completes the fixture set's Q1 (+4) and emits its moment —
+            // the full G2 form (nothing beyond hello + one quest moves) is
+            // BondLedgerTests'.
+            #expect(outcome.newState.state.bond == start.state.bond + BondRules.questBondDelta)
             #expect(outcome.newState.days.first?.patCount == 1)
-            #expect(outcome.newState.days.first?.bondAwarded == 0)
-            #expect(outcome.moments.isEmpty)
+            #expect(outcome.newState.days.first?.bondAwarded == BondRules.questBondDelta)
+            #expect(outcome.moments == [.questCompleted])
         }
     }
 
@@ -344,23 +350,27 @@ struct InteractionResponseTests {
 
     // MARK: Plan-shape sweep (the 04 §9.2 contract: reaction only)
 
-    @Test("every engine-minted plan carries lineKey == nil, haptic == nil; moments stay empty")
+    @Test("every engine-minted plan carries lineKey == nil, haptic == nil; moments are exactly the counting events' quest ticks")
     func planShapeAndSeams() {
-        // One representative of every beat family the matrix produces.
-        let scenarios: [(EngineState, InteractionIntent.Kind)] = [
-            (fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t)), .pat(gesture: .stroke, zone: .belly)),
-            (fixture.state(dayKey: day, wakefulness: .asleep, lastEvaluatedAt: fixture.instant(t)), .pat(gesture: .tap, zone: nil)),
-            (fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t)), .feed),
-            (fixture.state(dayKey: day, lastFedAt: fixture.instant("2026-09-08T08:00:00Z"), satietyPhase: .full, lastEvaluatedAt: fixture.instant(t)), .feed),
-            (fixture.state(dayKey: day, energy: 15, lastEvaluatedAt: fixture.instant(t)), .play),
-            (fixture.state(dayKey: day, energy: 30, lastEvaluatedAt: fixture.instant(t)), .nap),
+        // One representative of every beat family the matrix produces, with
+        // the moments each scenario raises (TASK-018 supersession, in place,
+        // per the contract — the moments seam is filled: every counting
+        // event ticks the fixture set, and an in-window completion emits
+        // [.questCompleted]; non-counting paths emit nothing).
+        let scenarios: [(EngineState, InteractionIntent.Kind, [CharacterMoment])] = [
+            (fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t)), .pat(gesture: .stroke, zone: .belly), [.questCompleted]), // pat counts → Q1 completes (09:00 is in Q1's window)
+            (fixture.state(dayKey: day, wakefulness: .asleep, lastEvaluatedAt: fixture.instant(t)), .pat(gesture: .tap, zone: nil), [.questCompleted]), // the asleep stir still counts
+            (fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t)), .feed, [.questCompleted]), // the feed completes Q2
+            (fixture.state(dayKey: day, lastFedAt: fixture.instant("2026-09-08T08:00:00Z"), satietyPhase: .full, lastEvaluatedAt: fixture.instant(t)), .feed, [.questCompleted]), // the refusal still counts
+            (fixture.state(dayKey: day, energy: 15, lastEvaluatedAt: fixture.instant(t)), .play, []), // authorization is not a counting event
+            (fixture.state(dayKey: day, energy: 30, lastEvaluatedAt: fixture.instant(t)), .nap, []), // care counts, but 09:00 is outside Q6's window
         ]
-        for (start, kind) in scenarios {
+        for (start, kind, expectedMoments) in scenarios {
             let outcome = fixture.send(start, kind, at: fixture.instant(t), dayKey: day)
             #expect(outcome.response != nil)
             #expect(outcome.response?.lineKey == nil) // TASK-019 seam
             #expect(outcome.response?.haptic == nil) // presentation-owned vocabulary
-            #expect(outcome.moments.isEmpty) // TASK-017/018 seams
+            #expect(outcome.moments == expectedMoments)
         }
     }
 

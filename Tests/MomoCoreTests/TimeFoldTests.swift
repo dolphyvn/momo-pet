@@ -198,7 +198,8 @@ struct TimeFoldTests {
             pendingHandshake: nil,
             from: instant("2026-11-01T05:00:00-05:00"),
             to: instant("2026-11-01T08:00:00-05:00"),
-            calendar: ny
+            calendar: ny,
+            petID: petID
         )
         #expect(abs(folded.petState.energy - 77.9) < 1e-9)
         #expect(folded.petState.wakefulness == .waking)
@@ -226,7 +227,8 @@ struct TimeFoldTests {
             pendingHandshake: nil,
             from: instant("2026-03-08T05:00:00-04:00"),
             to: instant("2026-03-08T08:00:00-04:00"),
-            calendar: ny
+            calendar: ny,
+            petID: petID
         )
         #expect(abs(folded.petState.energy - 78.25) < 1e-9)
         #expect(folded.petState.wakefulness == .waking)
@@ -330,7 +332,8 @@ struct TimeFoldTests {
             pendingHandshake: nil,
             from: instant("2026-09-08T21:30:00Z"),
             to: instant("2026-09-08T23:00:00Z"),
-            calendar: utcCalendar
+            calendar: utcCalendar,
+            petID: petID
         )
         #expect(folded.petState.activity == nil)
         // Waking decline is suppressed while napping; the night segment is a

@@ -247,6 +247,9 @@ struct CareInteractionTests {
         // The ceiling clamps the care gain too (mood 90 + 3 → 92).
         #expect(settled.newState.state.mood == InteractionRules.interactionMoodCeiling)
         #expect(settled.newState.state.energy == start.state.energy + InteractionRules.tuckInEnergyDelta)
-        #expect(settled.newState.state.bond == start.state.bond) // care banks no bond in Phase 1 (TASK-017 owns the ledger)
+        // TASK-018 supersession (in place, per the contract): the in-window
+        // tuck-in completes the fixture set's Q6 (+4); care itself still
+        // banks no bond beyond the ledger's quest award.
+        #expect(settled.newState.state.bond == start.state.bond + BondRules.questBondDelta)
     }
 }

@@ -34,13 +34,16 @@ struct BondLedgerTests {
     func firstPatAwardsHelloExactlyOnce() {
         let start = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
         let first = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
-        #expect(first.newState.state.bond == start.state.bond + BondRules.helloBondDelta)
+        // TASK-018 supersession (in place, per the contract): the fixture's
+        // placeholder set carries Q1 at zero progress, so the first pat's
+        // quest tick completes it (+4) on the same event as the hello.
+        #expect(first.newState.state.bond == start.state.bond + BondRules.helloBondDelta + BondRules.questBondDelta)
         #expect(first.newState.days.first?.helloAwarded == true)
-        #expect(first.newState.days.first?.bondAwarded == BondRules.helloBondDelta)
+        #expect(first.newState.days.first?.bondAwarded == BondRules.helloBondDelta + BondRules.questBondDelta)
         #expect(first.newState.days.first?.patCount == 1)
         let second = fixture.send(first.newState, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
         #expect(second.newState.state.bond == first.newState.state.bond) // G2: the 2nd pat banks nothing
-        #expect(second.newState.days.first?.bondAwarded == BondRules.helloBondDelta)
+        #expect(second.newState.days.first?.bondAwarded == BondRules.helloBondDelta + BondRules.questBondDelta)
         #expect(second.newState.days.first?.patCount == 2)
     }
 
@@ -93,7 +96,10 @@ struct BondLedgerTests {
             dayKey: day
         )
         #expect(feed.newState.days.first?.familiesUsed == [.feed])
-        #expect(feed.newState.state.bond == bondBefore) // no award yet
+        // TASK-018 supersession (in place, per the contract): the feed
+        // completes the placeholder set's Q2 (+4) — no VARIETY award yet,
+        // which is what this pin owns.
+        #expect(feed.newState.state.bond == bondBefore + BondRules.questBondDelta)
         let play = fixture.report(
             fixture.state(
                 dayKey: day,
@@ -124,8 +130,11 @@ struct BondLedgerTests {
             dayKey: day
         )
         #expect(care.newState.days.first?.familiesUsed == [.feed, .play, .care])
-        #expect(care.newState.state.bond == bondBefore + BondRules.varietyBondDelta) // +6 here, exactly
-        #expect(care.newState.days.first?.bondAwarded == BondRules.varietyBondDelta)
+        // TASK-018 supersession (in place, per the contract): the in-window
+        // care ALSO completes the placeholder set's Q6, so this one event
+        // banks the +6 variety AND the +4 quest — +10, exactly here.
+        #expect(care.newState.state.bond == bondBefore + BondRules.varietyBondDelta + BondRules.questBondDelta) // +6 +4 here, exactly
+        #expect(care.newState.days.first?.bondAwarded == BondRules.varietyBondDelta + BondRules.questBondDelta)
     }
 
     @Test("every feed intent records the family — refusal included (I-1's asymmetry, §4.6)")
@@ -203,11 +212,14 @@ struct BondLedgerTests {
         )
         let afterFeed = fixture.send(state, .feed, at: fixture.instant(t), dayKey: day)
         #expect(afterFeed.newState.days.first?.familiesUsed == BondRules.varietyTrio) // set unchanged
-        #expect(afterFeed.newState.state.bond == state.state.bond)
+        // TASK-018 supersession (in place, per the contract): the feed
+        // completes the placeholder set's Q2 (+4) — no SECOND +6, which is
+        // the once-per-day property this pin owns.
+        #expect(afterFeed.newState.state.bond == state.state.bond + BondRules.questBondDelta)
         let afterNap = fixture.send(afterFeed.newState, .nap, at: fixture.instant(t), dayKey: day)
         #expect(afterNap.newState.state.activity == .napping) // the care was accepted…
         #expect(afterNap.newState.days.first?.familiesUsed == BondRules.varietyTrio) // …and records nothing new
-        #expect(afterNap.newState.state.bond == state.state.bond) // no second +6
+        #expect(afterNap.newState.state.bond == afterFeed.newState.state.bond) // no second +6; 09:00 is outside Q6's window, so no tick either
     }
 
     // MARK: The PRD's cap arithmetics (AC-7; quest mechanism, TASK-018 drives)
@@ -217,7 +229,10 @@ struct BondLedgerTests {
         var state = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
         // Hello.
         state = fixture.send(state, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day).newState
-        #expect(state.state.bond == BondRules.helloBondDelta)
+        // TASK-018 supersession (in place, per the contract): the hello pat
+        // also completes the placeholder set's Q1 (+4 → 12 banked); the
+        // three direct completions below still land the day on exactly 20.
+        #expect(state.state.bond == BondRules.helloBondDelta + BondRules.questBondDelta)
         // Three quest completions (direct mechanism calls).
         state = BondLedger.awardQuestCompletion(to: state, dayKey: day)
         state = BondLedger.awardQuestCompletion(to: state, dayKey: day)
@@ -279,15 +294,18 @@ struct BondLedgerTests {
 
     // MARK: The 1000 plateau (AC-3, G2)
 
-    @Test("1000 same-day pats move bond by exactly the day's hello: +8 once, then zero")
+    @Test("1000 same-day pats move bond by exactly the day's hello + first quest: +12 once, then zero")
     func thousandPatsMoveExactlyTheHello() {
         var state = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
         let startBond = state.state.bond
         for _ in 0..<1000 {
             state = fixture.send(state, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day).newState
         }
-        #expect(state.state.bond == startBond + BondRules.helloBondDelta)
-        #expect(state.days.first?.bondAwarded == BondRules.helloBondDelta)
+        // TASK-018 supersession (in place, per the contract): the first pat
+        // also completes the placeholder set's Q1 (+4); every later pat —
+        // the property this pin owns — banks nothing.
+        #expect(state.state.bond == startBond + BondRules.helloBondDelta + BondRules.questBondDelta)
+        #expect(state.days.first?.bondAwarded == BondRules.helloBondDelta + BondRules.questBondDelta)
         #expect(state.days.first?.patCount == 1000)
     }
 
@@ -307,8 +325,11 @@ struct BondLedgerTests {
     func patHelloCrossingEmitsExactlyOnce() {
         let start = fixture.state(dayKey: day, bond: 145, lastEvaluatedAt: fixture.instant(t))
         let first = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
-        #expect(first.newState.state.bond == 145 + BondRules.helloBondDelta) // 153 ≥ 150
-        #expect(first.moments == [.bondStageReached(.gettingClose)])
+        // TASK-018 supersession (in place, per the contract): the first pat
+        // completes the placeholder set's Q1 too (+4 → 157 ≥ 150), and the
+        // completion moment composes FIRST — the crossing is its consequence.
+        #expect(first.newState.state.bond == 145 + BondRules.helloBondDelta + BondRules.questBondDelta) // 157 ≥ 150
+        #expect(first.moments == [.questCompleted, .bondStageReached(.gettingClose)])
         #expect(first.newState.highestCelebratedStage == .gettingClose)
         // The second pat re-derives the same stage: no moment, guard stays.
         let second = fixture.send(first.newState, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
@@ -386,8 +407,10 @@ struct BondLedgerTests {
         #expect(outcome.newState.state.mood == start.state.mood
             + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
         #expect(outcome.newState.days.first?.patCount == 1)
-        // …and the bond still moved by exactly the hello.
-        #expect(outcome.newState.state.bond == start.state.bond + BondRules.helloBondDelta)
+        // …and the bond moved by exactly the hello plus the first pat's
+        // quest completion (TASK-018 supersession, in place, per the
+        // contract: the placeholder set carries Q1 at zero progress).
+        #expect(outcome.newState.state.bond == start.state.bond + BondRules.helloBondDelta + BondRules.questBondDelta)
     }
 
     // MARK: Determinism (AC-5)

@@ -50,7 +50,11 @@ struct RepetitionCurveTests {
             let outcome = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
             #expect(outcome.newState.state.mood == start.state.mood
                 + InteractionRules.touchMoodDelta * curveInstance(instance))
-            #expect(outcome.newState.state.bond == start.state.bond) // G2 at every volume past the preset hello
+            // TASK-018 supersession (in place, per the contract): each cell's
+            // fixture carries Q1 at zero progress, so EVERY cell's pat
+            // completes it (+4) — the curve this pin owns is the mood gain,
+            // which the tick leaves untouched.
+            #expect(outcome.newState.state.bond == start.state.bond + BondRules.questBondDelta)
             #expect(outcome.newState.days.first?.patCount == priorPats + 1)
             #expect(outcome.response?.reaction == ReactionKeys.tapHead)
         }
@@ -230,9 +234,9 @@ struct RepetitionCurveTests {
             at: nextDayInstant,
             calendar: fixture.calendar
         )
-        #expect(ceased.days.first { $0.dayKey == day }?.playCount == 3) // the authorization day untouched
-        #expect(ceased.days.first { $0.dayKey == nextDay }?.playCount == 1) // the fresh day's instance 1
-        #expect(ceased.state.energy == authorizeDay.state.energy
+        #expect(ceased.state.days.first { $0.dayKey == day }?.playCount == 3) // the authorization day untouched
+        #expect(ceased.state.days.first { $0.dayKey == nextDay }?.playCount == 1) // the fresh day's instance 1
+        #expect(ceased.state.state.energy == authorizeDay.state.energy
             + InteractionRules.playRoundEnergyDelta * curveInstance(0)) // × the NEW day's curve
     }
 }

@@ -14,8 +14,11 @@ import Foundation
 /// - **Monotonicity (AC-2/INV-3):** nothing — interactions, reports, folds,
 ///   day rollovers — ever decreases bond, including sequences spanning
 ///   midnight.
-/// - **Guard discipline (AC-4):** at most one `.bondStageReached` per event,
-///   the guard advances only WITH an emission, and never regresses.
+/// - **Guard discipline (AC-4; TASK-018's named re-pin, amended per
+///   REVIEW-TASK-018 MINOR-1):** at most three moments per event — at most
+///   two `.questCompleted` (one per completing quest) and one
+///   `.bondStageReached`, quest moments first, the stage moment last — and
+///   the stage guard advances only WITH an emission, and never regresses.
 /// - **Twin equality (AC-5/FR-13):** identical (state, event stream, clock,
 ///   calendar, seed) tuples produce whole-state-equal final states, bond
 ///   fields included.
@@ -99,17 +102,37 @@ struct BondLedgerPropertyTests {
             #expect(day.bondAwarded <= BondRules.dailyBondCap)
             #expect(day.familiesUsed.isSubset(of: BondRules.varietyTrio)) // only counting families record
         }
-        // Guard discipline: at most one stage moment per event; the guard
-        // advances only WITH an emission and never regresses.
-        #expect(outcome.moments.count <= 1)
+        // Guard discipline — TASK-018 supersession, AMENDED per
+        // REVIEW-TASK-018 MINOR-1 (the contract's "at most one completion
+        // per event structurally" premise was disproven: a pat serves both
+        // Q1 and Q7, and §4.8's own offline-pat shape lets one event complete
+        // both — QuestTickTests.doubleCompletionLoops is the live coverage).
+        // This property generator cannot reach a double (its fixture set has
+        // no Q7 and its intent clock is monotone), which is why the bound is
+        // wider than what this suite observes. At most three moments: ≤ 2
+        // questCompleted (one per completing quest; the Q1+Q7 pair is the
+        // only reachable one) and ≤ 1 bondStageReached — quest moments FIRST,
+        // the stage moment LAST (the completions are what cause any
+        // crossing); the stage guard advances only WITH a bondStageReached
+        // emission and never regresses.
+        #expect(outcome.moments.count <= 3)
+        var questCount = 0
+        var stageSeen = false
         for moment in outcome.moments {
-            guard case .bondStageReached(let stage) = moment else {
-                Issue.record("unexpected moment kind in the bond era: \(moment)")
-                continue
+            switch moment {
+            case .questCompleted:
+                #expect(!stageSeen) // quest moments compose first…
+                #expect(questCount < 2) // …at most two completions per event
+                questCount += 1
+            case .bondStageReached(let stage):
+                #expect(!stageSeen) // at most one stage moment, always last
+                stageSeen = true
+                #expect(next.highestCelebratedStage == stage) // the guard advanced WITH the emission
+            default:
+                Issue.record("unexpected moment kind in the re-pinned era: \(moment)")
             }
-            #expect(next.highestCelebratedStage == stage)
         }
-        if outcome.moments.isEmpty {
+        if !stageSeen {
             #expect(next.highestCelebratedStage == prev.highestCelebratedStage)
         }
     }
