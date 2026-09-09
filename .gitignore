@@ -8,3 +8,6 @@
 DerivedData/
 xcuserdata/
 *.xcuserstate
+
+# Python byte-code (Tools/character-pipeline)
+__pycache__/
