@@ -177,13 +177,13 @@ None open. (QuestProgress INV-6 decode bypass noted as disclosure 5 — pre-exis
 Per-event journal epoch; equality version gates; haptics from engine settings; snapshotSeq per-file-lifetime scope (reset = display no-op); DEBUG-loud split (assertionFailure vs print); tear-sealing append; `replaceItemAt` prune; FIFO-honest INV-10 property design; fix-loop: replace-when-present / move-when-absent sync-state commit point.
 
 ### Reviewer Status
-PENDING — fix-loop round 1 applied (orchestrator's confirmed MAJOR in `SyncStateStore.save` fixed + pinned; see "Fix loop round 1" above). Reviewer should verify the fix shape (no removeItem-then-move), both regression pins, and re-derive the prune boundary (`≤` + epoch match), the 0-init unseen-epoch default, and the version gates from DOC 05 §6.2/§6.4 independently.
+APPROVED_WITH_MINOR_NOTES — REVIEW-TASK-023 (fresh adversarial agent, 2026-09-09): independent §6.4/§6.2/§6.6 + ADR-003 re-derivation BEFORE reading code, zero divergence; all four sanctioned mutations bit (incl. the fix-loop revert crashing on the exact Code-516 trap); restores sha256-proven and re-verified by the orchestrator. Disposition in review §8: N1 fixed (with the absent-file refinement), O2 accepted as doc-faithful, O1+O5 routed to EPIC-008, O3/O4 accepted.
 
 ### Commit
-None (per contract — orchestrator commits after review).
+`9109457` — `feat(sync): TASK-023 sync DTOs, intent journal, watermark arithmetic` (this commit): 16 files, +2552/−2 (6 production files + StoreRules growth, 6 test files + fixture + pins, REVIEW-TASK-023, this task file).
 
 ### Push
-None.
+`feature/EPIC-005-persistence` → `origin` SUCCESS (`2cc01cb..9109457`), 2026-09-09.
 
 ### Recommended Next Step
 Spawn the fresh independent review agent (REVIEW-TASK-023), then fix-loop if needed, then orchestrator commits (`feat(kit): TASK-023 ...`) and pushes on `feature/EPIC-005-persistence`.
@@ -192,4 +192,9 @@ Spawn the fresh independent review agent (REVIEW-TASK-023), then fix-loop if nee
 (reviewer fills; verdict record at `.claude/tasks/reviews/REVIEW-TASK-023.md`.)
 
 ## Completion Evidence
-(orchestrator fills at housekeeping.)
+- **Commit:** `9109457` (this commit) — atomic, TASK-ID in the message; pushed to `origin/feature/EPIC-005-persistence` (verified `2cc01cb..9109457`).
+- **Tests:** `swift test` = **515 tests / 54 suites green** (baseline 451/49 → +64 cases, +5 suites: SyncDTOTests, IntentJournalTests, WatchSyncGateTests, SyncStateTests, WatchSnapshotBuilderTests; +3 pins in StoreRulesPinnedTests). Runs: orchestrator 515/54 ×2 (post-fix), disposition fix re-run 515/54 ×1, reviewer 515/54 pre- and post-mutations. Zero warnings (incl. 2 latent var→let fixes in SyncStateTests).
+- **AC mapping:** AC-1/AC-2 sync-pure halves — gate exactly-once property + journal drain (INV-10); AC-5 — watermark arithmetic fully pinned (dup/replay no-ops, 0-init, stale-epoch never prunes, expired-dayKey pass-through at the gate; engine-side rule already TASK-016). Store never re-versioned; `Sources/MomoCore/` diff 0 bytes throughout (re-verified post-fix).
+- **Mutation proofs:** prune `>=` → 5 tests/9 issues; epoch-match removed → byte-identical pin crash; 0-init `?? 1` → 7 tests/8 issues; fix-loop revert → SyncStateTests crashes on the exact documented Code-516. All restores byte-identical (sha256 re-checked by orchestrator).
+- **Review:** REVIEW-TASK-023 APPROVED_WITH_MINOR_NOTES + §8 disposition; fix loop round 1 documented in Implementation Notes.
+- **Contract deviations (recorded):** INV-10 shuffle pin = exactly-once under FIFO / at-most-once under seeded shuffles (doc-faithful; review §8 O2). Hand-written Codable/Equatable on both DTOs (MomoCore freeze; disclosed, Requirement 1).
