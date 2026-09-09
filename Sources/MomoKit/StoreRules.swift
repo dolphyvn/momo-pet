@@ -74,6 +74,50 @@ public enum StoreRules {
         oldestStateFileName,
     ]
 
+    // MARK: - Sync layer (05 §6.2/§6.4; ADR-003; TASK-023)
+
+    /// The `WatchSnapshot` DTO's wire schema version (05 §6.2: the payloads
+    /// are "Codable, versioned"). `1` is the initial schema. Decode-side
+    /// semantics for any other version: IGNORED (nil) — the store's
+    /// above-head rule with the shipped `MigrationChain.empty` is the
+    /// consistent analogue (no DTO migration machinery exists; a version
+    /// that is not the current one is not understood, and an ignored
+    /// snapshot is §6.3's "Watch keeps rendering its last snapshot").
+    public static let watchSnapshotSchemaVersion = 1
+
+    /// The `IntentEvent` DTO's wire schema version (05 §6.2). Same
+    /// ignore-semantics as `watchSnapshotSchemaVersion`: on the journal's
+    /// parse path an unknown version is a SKIPPED line (the journal's
+    /// documented skip semantics), so a future version can never wedge the
+    /// queue.
+    public static let intentEventSchemaVersion = 1
+
+    /// The Watch → iPhone intent journal (05 §6.4's append-only queue behind
+    /// `transferUserInfo`; ADR-003). NDJSON: one `IntentEvent` JSON object per
+    /// line, `.sortedKeys`, newline-terminated. The doc names the MECHANISM,
+    /// not a file name — the name is this layer's.
+    public static let intentJournalFileName = "intent-journal.ndjson"
+
+    /// The journal prune's in-flight temp file (the prune REWRITES the journal
+    /// with its survivors; the rename is the commit point — the append path
+    /// deliberately does NOT use it, because a torn append is the journal's
+    /// designed crash tolerance). Same-volume rule as the store's temp: it
+    /// lives in the injected journal directory. Never read by anyone.
+    public static let temporaryIntentJournalFileName = "intent-journal.ndjson.tmp"
+
+    /// The sync-state file (TASK-023 contract Requirement 3): the per-epoch
+    /// watermark table + the next `snapshotSeq`, the iPhone's watermark home
+    /// (05 §6.4: "the iPhone stores the watermark per epoch"). Plain JSON —
+    /// no envelope — because it is iPhone-local bookkeeping (never crosses
+    /// the link, TR4); a future breaking change to its shape would add a
+    /// version field, mirroring the DTOs.
+    public static let syncStateFileName = "sync-state.json"
+
+    /// The sync-state save's temp file (write-temp-then-atomic-rename — the
+    /// store's commit-point discipline, Requirement 3). Same-volume rule;
+    /// never read by anyone.
+    public static let temporarySyncStateFileName = "sync-state.json.tmp"
+
     /// The default store directory (05 §5.2): `Application Support/Momo/`,
     /// created if missing — so EPIC-007's wiring is one call. This is the ONE
     /// sanctioned ambient-path site in MomoKit (the discipline scan exempts

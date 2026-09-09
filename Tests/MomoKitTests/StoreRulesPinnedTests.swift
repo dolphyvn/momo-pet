@@ -56,4 +56,24 @@ struct StoreRulesPinnedTests {
         #expect(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory))
         #expect(isDirectory.boolValue, "the factory must create the directory when missing")
     }
+
+    // MARK: - The TASK-023 sync constants (05 §6.2 + §6.4 + ADR-003)
+
+    @Test("both sync payload schema versions are 1 (initial wire schemas)")
+    func syncSchemaVersions() {
+        #expect(StoreRules.watchSnapshotSchemaVersion == 1)
+        #expect(StoreRules.intentEventSchemaVersion == 1)
+    }
+
+    @Test("the sync file names are the §6.4 names, byte-for-byte")
+    func syncFileNames() {
+        #expect(StoreRules.intentJournalFileName == "intent-journal.ndjson")
+        #expect(StoreRules.syncStateFileName == "sync-state.json")
+    }
+
+    @Test("the sync temp names live in their documents' namespaces (same-volume renames)")
+    func syncTemporaryFileNames() {
+        #expect(StoreRules.temporaryIntentJournalFileName == "intent-journal.ndjson.tmp")
+        #expect(StoreRules.temporarySyncStateFileName == "sync-state.json.tmp")
+    }
 }

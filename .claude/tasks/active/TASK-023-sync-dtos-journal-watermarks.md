@@ -75,10 +75,118 @@ Standard independent adversarial review (CLAUDE.md §10/§33). Reviewer MUST:
 - "(this commit)" convention for the task file's Completion Evidence.
 
 ## Status
-READY — dispatched 2026-09-09 (branch `feature/EPIC-005-persistence` @ `b5a390e`; baseline 451/49 green).
+REVIEWED — APPROVED_WITH_MINOR_NOTES (REVIEW-TASK-023, 2026-09-09; 0 MAJOR / 0 MINOR / 1 NITPICK / 5 OBSERVATIONs; all four sanctioned mutations bit with sha256-proven restores, incl. the fix-loop revert biting as the exact Code-516 DEBUG trap). Disposition applied pre-commit (review §8): N1 fixed with a diagnosis refinement (exists-guard: absent-journal no-op preserved, genuine removal failure now DEBUG-loud; 515/54 green post-fix), O2 accepted as the doc-faithful deviation (independently concurred), O1+O5 routed to EPIC-008, O3/O4 accepted as documented posture. Was IN_REVIEW — implementation + fix-loop round 1 complete; was READY — contract materialized by the orchestration agent from 05 §6.1–6.6, ADR-003, and grounded MomoCore type facts.
 
 ## Implementation Notes
-(implementation agent fills: API shape, design decisions + disclosures, test inventory, suite results, §28 Handoff.)
+Filled by the TASK-023 implementation agent, 2026-09-09.
+
+### API shape (all under `Sources/MomoKit/`, imports Foundation + MomoCore only)
+
+- **`SyncDTOs.swift`** — `WatchSnapshot` and `IntentEvent`: `public struct`, `Sendable`, `Equatable`, hand-written `Codable`. Fields verbatim 05 §6.2: snapshot = `schemaVersion, snapshotSeq, display: DisplayState, questInputs: [QuestProgress], hapticsEnabled: Bool, lastAppliedIntentSeq: Int, lastAppliedEpoch: UUID`; event = `schemaVersion, intent: InteractionIntent, watchSessionEpoch: UUID, watchSeq: Int`. Both inits take `schemaVersion` with a `StoreRules` default. `encoded() -> Data?` single-sources the `.sortedKeys` canonical recipe; `static decoded(from: Data) -> DTO?` is the non-throwing gate: unknown schemaVersion (ANY version ≠ current, above OR below — equality gate, the store's `MigrationChain.empty` analogue), malformed bytes, or unknown enum strings → `nil`.
+- **`SyncState.swift`** — `public struct SyncState: Equatable, Sendable, Codable` = `watermarks: [UUID: Int]` + `nextSnapshotSeq: Int` (default 1). `watermark(for:)` is THE one unseen-epoch-0 site. `recordingApplied(_:) -> SyncState` (max semantics, immutable rebuild). `consumingSnapshotSeq() -> (sync:, assignedSeq:)`. `shouldApply(_:seenIntentIDs:)` delegates to the gate.
+- **`WatchSyncGate.swift`** — `public enum WatchSyncGate`, `static func shouldApply(_ event:, seenIntentIDs:, watermarkForEpoch:) -> Bool`: UUID guard first (UUID outranks seq), then `event.watchSeq > watermarkForEpoch`. Header carries the full §6.4 cell matrix.
+- **`WatchSnapshotBuilder.swift`** — free function `makeWatchSnapshot(state:display:questInputs:watermarkEpoch:sync:) -> (snapshot:, nextSync:)` (house precedent: `makeDisplayState`). No ambient reads: haptics ← `state.settings.hapticsEnabled`, watermark ← `sync.watermark(for: watermarkEpoch)` (that epoch ONLY), epoch ← parameter, seq ← consumed.
+- **`IntentJournal.swift`** — `public struct IntentJournal(directory:)` (injected, like SnapshotStore): `append(_:)`, `events() -> [IntentEvent]`, `prune(watermarkEpoch:watermarkSeq:)`, and the pure core `static pruned(_ events:, watermarkEpoch:, watermarkSeq:) -> [IntentEvent]`. Every public API non-throwing by signature. NDJSON, one canonical line per event.
+- **`SyncStateStore.swift`** — `public struct SyncStateStore(directory:)`: `load() -> SyncState` (absent/empty/garbled → fresh, silently), `save(_:)` (encode → temp → atomic commit: **replace-when-present via `replaceItemAt` / move-when-absent via `moveItem`**; internal failure → remove temp, previous file stands, DEBUG-loud).
+- **`StoreRules.swift`** (+44 lines) — 6 new constants, authority-labeled (05 §6.2/§6.4 + ADR-003): `watchSnapshotSchemaVersion = 1`, `intentEventSchemaVersion = 1`, `intentJournalFileName = "intent-journal.ndjson"`, `temporaryIntentJournalFileName = "intent-journal.ndjson.tmp"`, `syncStateFileName = "sync-state.json"`, `temporarySyncStateFileName = "sync-state.json.tmp"`. All pinned as raw literals in `StoreRulesPinnedTests`.
+
+### Design decisions + justifications
+
+1. **Journal epoch = per-event field** (not a journal-header line): §6.2 mandates it on the wire event; per-entry matching handles defensively mixed-epoch journals (Watch writing through an epoch switch); no second format to version. The prune keeps an entry iff its epoch ≠ watermark epoch OR `watchSeq > watermarkSeq`.
+2. **DTO unknown-version = equality gate → `nil`/skip** (any version ≠ current): the sync analogues of the store's below-current-is-unreadable posture under `MigrationChain.empty`; production has no migrations yet. Journal skips unknown-version lines (defined, `#if DEBUG print`-recorded) so a future wedge cannot block the queue.
+3. **`hapticsEnabled` sourced from `EngineState.settings`** — the builder takes it from its explicit `state` parameter; no ambient settings read exists in MomoKit.
+4. **`snapshotSeq` monotonicity scope = per sync-state-file lifetime** (header-documented): iPhone-assigned; a reset after file loss is a Watch DISPLAY no-op (seq is delivery metadata, never a gate input — the gate uses Watch-owned `watchSeq`, per epoch, EPIC-008's contract). `recordingApplied`'s max semantics make out-of-order recording unable to regress a watermark.
+5. **DEBUG-loud split**: invariant/I-O regressions → `assertionFailure` (trap in DEBUG, silent release, SnapshotStore pattern); DEFINED skip paths (torn line, garbage line, blank line, unknown version) → non-trapping `#if DEBUG print` — trapping would make crash recovery itself crash. (`import os` is banned by the whitelist scan.)
+6. **Append after a tear seals it**: `append` re-reads, appends `0x0A` if the file doesn't end with one (sealing the torn line as DISCRETE and skipped — never merged into the new event), then appends the new canonical line. Plain in-place write is deliberate: the torn trailing line is the DESIGNED tolerance.
+7. **Prune atomicity**: survivors are unapplied pats — losing them would break FR-18, so prune writes temp then `FileManager.replaceItemAt` (atomic replace), removes the file entirely when nothing survives, and never throws.
+8. **INV-10 property honesty**: §6.1's transport contract is FIFO (`transferUserInfo`). Shuffled delivery with an advancing watermark legitimately BLOCKS unseen lower-seq events (seq 5 applied first → watermark 5 → seq 3 blocked) — that IS the guard working. So the property suite pins: exactly-once under FIFO + duplicates/replays/redeliveries (the contract's stream shape, second pass complete no-op), and at-most-once under 3 seeded shuffles of a doubled multiset (σ-independent: WHICH members survive the shuffle-order varies, that none double-applies does not).
+
+### DISCLOSURES
+
+1. **Hand-written `Codable` on both DTOs** (task constraint said "synthesize Codable, disclose if hand-written"): `DisplayState` and `QuestGeneration.QuestLine` are not Codable, and `InteractionIntent`'s nested `Source`/`Kind`/`PatGesture`/`TouchZone` are Sendable-only — synthesizing would have required MomoCore changes (FORBIDDEN). The conformances live entirely in MomoKit; MomoCore diff is EMPTY (verified below). Enum encodings delegate to exhaustive case-name string maps; a new MomoCore case breaks the build in `SyncDTOs.swift` (compile-time pin). DisplayState encodes as the nested §4.11 keyed container; QuestLine/toolchain-canonical keyed enums (`{"wish":"Q6"}`, `{"awake":{}}`); greeting encodes explicitly → `null`.
+2. **Hand-written `Equatable` on `IntentEvent`** (separate extension, field-wise `==`): `InteractionIntent` itself is not Equatable. Roundtrip pins and the 9-mutation field test depend on it.
+3. **`#if DEBUG print`** for defined skip paths (see decision 5) — the only non-trapping loud channel under the Foundation-only import whitelist.
+4. **First-run golden-pin correction**: the two hand-statable canonical-bytes expectations initially guessed bare-string `bondStage`/`wakefulness` and a `watchSeq`-terminal object; actual output uses keyed enums (`{"awake":{}}`) and `watchSessionEpoch` sorts last. Production codec unchanged — roundtrips + the independent-encoder cross-check passed on the first run; only my test-side expectations were corrected to the recorded actual bytes.
+5. `QuestProgress`'s synthesized Codable decode bypasses its failable init (INV-6 not re-enforced on decode) — noted, no claim made otherwise; the builder threads questInputs verbatim and adds no validation of its own (the engine owns INV-6).
+
+### Per-test inventory
+
+**SyncDTOTests.swift** (16 functions; parameterized cases counted in suite totals): populated snapshot roundtrip; QuestLine ×8 roundtrip; greeting ×5 roundtrip; populated event roundtrip; every kind ×20 roundtrip (+direct kind assertion); attribution (dayKey + timestamp) verbatim; iPhone source roundtrip; encoding byte-stability (both DTOs); production encoder == independent encoder (both DTOs); snapshot canonical bytes pinned (hand-statable string); event canonical shape pinned (keyed kind, null zone, nested intent, key order); unknown snapshot version ×3 → nil; unknown event version ×3 → nil; current version decodes; garbage/empty bytes → nil; IntentEvent `==` field-wise (9 single-field mutations).
+
+**IntentJournalTests.swift** (14): append→parse FIFO roundtrip (+format pins: 0x0A-terminated, N lines); append creates missing directory; torn trailing line skipped, prefix survives; append after tear preserves the new event; mid-file garbage line skipped; blank lines ignored; unknown-version line skipped; prune boundary ≤ (watermark 3 drops seq 3; watermark 2 keeps it); stale-epoch watermark prunes NOTHING (byte-identical); two-epoch journal prunes per entry; epoch identity held across prune; matched prune byte shape; prune leaves no temp; absent journal empty + stays absent; pure prune core total (empty/all-dropped/watermark-0/500-event).
+
+**WatchSyncGateTests.swift** (12 functions, 15 cases): fresh epoch applies at seq 1 (0-init, wrapper + raw); duplicate UUID no-op even at seq 99; unseen-UUID replay at/below watermark no-op (retention interplay); boundary seq == watermark no-op, seq+1 applies; both guards pass applies; stale-epoch watermark never gates; epoch reset applies without starvation (old watermark untouched); iPhone reinstall applies warm; expired-dayKey pass-through (gate never reads dayKey); recordingApplied advances per epoch; recordingApplied never regresses (max); INV-10 exactly-once under FIFO + duplicates + replay + full redelivery (+second-pass no-op); INV-10 at-most-once under 3 seeded shuffles (+subset +second-pass no-op).
+
+**SyncStateTests.swift** (10): unseen epoch reads 0 (read doesn't mutate); known epoch reads back; seq consumption 1,2,3 strictly monotone; seeded next seq continues; multi-epoch state roundtrips through store; persisted bytes are plain sorted JSON, no envelope; absent file → fresh, never creates; garbled/empty bytes → fresh; record→save→load identity (watermark + seq durable); save leaves no temp.
+
+**WatchSnapshotBuilderTests.swift** (6 functions, 7 cases): field-for-field threading (display/questInputs verbatim, haptics from settings, epoch = parameter, watermark of THAT epoch only — no epoch1 leak, seq consumed, schemaVersion current); haptics both values ×2; repeated builds consume 1,2,3 through returned sync; empty sync → seq 1 / watermark 0 origin; determinism (identical inputs → identical snapshot+nextSync).
+
+**StoreRulesPinnedTests.swift** (+3): wire schema versions = 1; sync file names byte-for-byte; sync temp names in-namespace.
+
+### Fix loop round 1 (2026-09-09, routed back by the orchestrator per §11)
+
+**Confirmed MAJOR defect** (orchestrator-verified empirically, REVIEW-TASK-023): `SyncStateStore.save` used a plain `moveItem(at: temporary, to: current)`, which fails (NSCocoaErrorDomain Code=516) whenever the destination exists — i.e. every save AFTER the first. The error fell into the catch → `debugLoudFailure` → `assertionFailure` crash in DEBUG builds on the app's second sync-state save; in release the save silently no-oped and the watermark table stayed frozen at its first-save content, degrading INV-10's cross-launch durability to the 64-entry UUID belt alone.
+
+**Why my green suite missed it**: no test saved twice over an existing file — the original re-persistence pin exercised only a FIRST save into a fresh directory, and `saveLeavesNoTempBehind` passed vacuously on the move path. The bug hid behind the untested second-save path. Honest lesson recorded: a persistence pin must include the save-over-existing-file case.
+
+**Why SnapshotStore does not share it** (untouched): its generation rotation (`removeItem(oldest)` → `moveItem(previous→oldest)` → `moveItem(current→previous)`) VACATES `state.json` before its final move; this store has no rotation, so the plain move was never safe here.
+
+**The fix** (confined to `SyncStateStore.swift`): the commit point is now replace-when-present / move-when-absent — `fileExists(current)` → `replaceItemAt(current, withItemAt: temporary, backupItemName: nil, options: [])` (the atomic whole-or-new commit, same precedent as `IntentJournal.prune`); else the first-save `moveItem`. NOT removeItem-then-move (that opens a loss window over the watermark table). `save`'s doc comment and the type header's "SnapshotStore discipline" claim corrected to state WHY plain `moveItem` is insufficient without generation rotation.
+
+**Regression pins added** (`SyncStateTests.swift`): `secondSaveOverExistingFileLands` (save A → save B over the now-existing file → `load() == B` — the second save must LAND; crashes the suite via the DEBUG-loud path if the defect returns) and `secondSaveLeavesNoTempBehind` (temp cleanup on the replace path). Also surfaced and fixed two latent `var`→`let` warnings in the seq-consumption tests on recompile.
+
+### Suite results (exact)
+
+**Original implementation (pre-fix-loop):**
+
+- **Run 1 (full suite, first pass)**: `Test run with 513 tests in 54 suites failed after 0.699 seconds with 2 issues.` — the 2 issues were the disclosed golden-pin expectation mismatches (test-side only; DISCLOSURE 4); corrected to the recorded actual bytes.
+- **Run 2 (after correction)**: `Test run with 513 tests in 54 suites passed after 0.537 seconds.`
+- **Run 3 (confirmation)**: `Test run with 513 tests in 54 suites passed after 0.542 seconds.` — 0 ✘ lines.
+
+**After fix loop round 1 (both pins + warning fixes in):**
+
+- **Run A**: `Test run with 515 tests in 54 suites passed after 0.632 seconds.` — 0 ✘ lines; both second-save regression pins pass; build clean of warnings (only the pre-existing environment `ld` search-path note).
+- **Run B**: `Test run with 515 tests in 54 suites passed after 0.684 seconds.` — 0 ✘ lines.
+- **Baseline 451 tests / 49 suites → now 515 / 54** (+64 cases, +5 suites: SyncDTOTests, IntentJournalTests, WatchSyncGateTests, SyncStateTests (12), WatchSnapshotBuilderTests — plus 3 cases grown into StoreRulesPinnedTests).
+- Standing discipline scans ran IN-SUITE and passed (no new exemptions): "MomoKit discipline scan — no ambient time/paths, Foundation+MomoCore imports only" ✔; "D-R1 import-whitelist scan" ✔; token-purity suites ✔.
+
+### Git verification (at report time)
+
+- `git diff Sources/MomoCore/` → **EMPTY** (the forbidden boundary is untouched).
+- `git diff --stat` → `.claude/tasks/status.md` (orchestrator's own pre-dispatch edit, untouched by me), `Sources/MomoKit/StoreRules.swift` (+44), `Tests/MomoKitTests/StoreRulesPinnedTests.swift` (+20); 10 new untracked files (6 production, 6 test incl. fixture).
+- Working tree left DIRTY by design; **nothing staged, nothing committed**.
+
+## Handoff (§28)
+
+### Completed
+DTOs + version gates (Req 1/AC-1); journal append/parse/prune + tolerance (Req 4/AC-2); watermark table + gate + builder (Req 5/AC-3, Req 6/AC-5); sync-state persistence (Req 3/AC-4); StoreRules constants + pins; full test matrix incl. the sanctioned unnamed intermediates (duplicate-UUID/higher-seq, unseen-UUID/stale-seq, two-epoch journal, snapshotSeq after file loss). No transport, no Watch store, no UI, no engine changes, no SnapshotStore refactor, no store schemaVersion bump.
+
+### Files Changed
+New: `Sources/MomoKit/{SyncDTOs,SyncState,SyncStateStore,WatchSyncGate,WatchSnapshotBuilder,IntentJournal}.swift`; `Tests/MomoKitTests/{SyncDTOTests,IntentJournalTests,WatchSyncGateTests,SyncStateTests,WatchSnapshotBuilderTests}.swift`; `Tests/MomoKitTests/Support/SyncFixture.swift`. Edited: `Sources/MomoKit/StoreRules.swift`, `Tests/MomoKitTests/StoreRulesPinnedTests.swift`; fix-loop round 1: `Sources/MomoKit/SyncStateStore.swift`, `Tests/MomoKitTests/SyncStateTests.swift`. Untouched: all of `Sources/MomoCore/` (verified empty diff after the fix too) and `SnapshotStore.swift`.
+
+### Tests Run
+`swift test` full suite — five complete runs total (three original, two post-fix; exact lines above); `swift build --build-tests` zero warnings (only a pre-existing environment `ld` search-path note).
+
+### Test Results
+**515 tests / 54 suites PASSED** on both post-fix runs (runs A–B). History: run 1 = 513/54 with the 2 disclosed golden-pin expectation corrections; runs 2–3 = 513/54 clean; fix loop added 2 regression pins (+2). Baseline delta +64/+5.
+
+### Known Issues
+None open. (QuestProgress INV-6 decode bypass noted as disclosure 5 — pre-existing MomoCore shape, out of scope by the MomoCore freeze.)
+
+### Decisions Made
+Per-event journal epoch; equality version gates; haptics from engine settings; snapshotSeq per-file-lifetime scope (reset = display no-op); DEBUG-loud split (assertionFailure vs print); tear-sealing append; `replaceItemAt` prune; FIFO-honest INV-10 property design; fix-loop: replace-when-present / move-when-absent sync-state commit point.
+
+### Reviewer Status
+PENDING — fix-loop round 1 applied (orchestrator's confirmed MAJOR in `SyncStateStore.save` fixed + pinned; see "Fix loop round 1" above). Reviewer should verify the fix shape (no removeItem-then-move), both regression pins, and re-derive the prune boundary (`≤` + epoch match), the 0-init unseen-epoch default, and the version gates from DOC 05 §6.2/§6.4 independently.
+
+### Commit
+None (per contract — orchestrator commits after review).
+
+### Push
+None.
+
+### Recommended Next Step
+Spawn the fresh independent review agent (REVIEW-TASK-023), then fix-loop if needed, then orchestrator commits (`feat(kit): TASK-023 ...`) and pushes on `feature/EPIC-005-persistence`.
 
 ## Reviewer Findings
 (reviewer fills; verdict record at `.claude/tasks/reviews/REVIEW-TASK-023.md`.)
