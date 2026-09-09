@@ -43,7 +43,7 @@ struct EngineClockTests {
 
     @Test("value semantics: advancing a copy never moves the original")
     func manualValueSemantics() {
-        var original = ManualEngineClock(at: utcInstant("2026-09-08T12:00:00Z"))
+        let original = ManualEngineClock(at: utcInstant("2026-09-08T12:00:00Z"))
         var copy = original
         copy.advance(to: utcInstant("2026-09-10T00:00:00Z"))
         #expect(original.now() == utcInstant("2026-09-08T12:00:00Z"))
