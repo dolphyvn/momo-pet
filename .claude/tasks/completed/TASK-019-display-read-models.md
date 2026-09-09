@@ -85,13 +85,100 @@ Independent fresh reviewer (CLAUDE.md §10/§33), adversarial: re-derive the gre
 No commit by the implementation agent. Orchestrator commits after review disposition: `feat(engine): TASK-019 display read-models and copy-key selection` — atomic, TASK-ID included.
 
 ## Status
-READY (2026-09-09 — contract materialized by the orchestration agent from 05 §4.9/§4.10/§4.11, 04 §3.5/§9.2/§10.1/§10.4, PRD §3.3 + FR-12, UX §4/§7/§10, D11, delivery plan TASK-019 row, and the committed TASK-012–018 code shapes).
+REVIEWED — disposition applied 2026-09-09 (APPROVED_WITH_MINOR_NOTES, 0 MAJOR; MINOR-1/MINOR-2/NITPICK-1 fixed in-disposition, OBS-A–D recorded; suite re-verified 363/42 green; atomic task commit follows this edit). Was IN_REVIEW — implementation complete, fully green; was READY — contract materialized by the orchestration agent from 05 §4.9/§4.10/§4.11, 04 §3.5/§9.2/§10.1/§10.4, PRD §3.3 + FR-12, UX §4/§7/§10, D11, delivery plan TASK-019 row, and the committed TASK-012–018 code shapes.
 
 ## Implementation Notes
-(To be filled by the implementation agent: judgment calls ranked, supersession ledger per file, new files list, §28 Handoff.)
+Implementation complete 2026-09-09 (implementation agent, Jupiter). `swift build --build-tests` green; `swift test` → **"Test run with 361 tests in 42 suites passed after 0.437 seconds."** (baseline 314/36 ⇒ +47 tests, +6 suites; only warning is the environmental `ld: warning: search path '/opt/extra/lib' not found`, present at baseline). **Not committed/pushed — awaiting independent review per CLAUDE.md §9–11.**
+
+### New files
+- `Sources/MomoCore/CopyRules.swift` — the §4.9 constants home (copyEpoch, slot cut-offs, LineSlot, ReactFamily, pool counts; per-constant authority labels; FoldRules hours referenced, never restated).
+- `Sources/MomoCore/LineSelection.swift` — `LineSelection` (copySeed / pick / reactLineKey / slotLineKey) + `VocabularyKeys` (the OBS-1 fixed lookup).
+- `Sources/MomoCore/DisplayState.swift` — `DisplayState`, `makeDisplayState(_:at:calendar:)`, `makeCharacterDisplayState(_:)`, `Greeting.select`.
+- Tests: `VocabularyKeyTests`, `CopySlotTests`, `LineSelectionTests`, `GreetingSelectionTests`, `CopySelectionPinnedTests`, `DisplayStateTests` (Required Tests 1–7; purity scan auto-covers — Required Test 8 green).
+
+### Modified files
+- `Thresholds.swift` — +`Greeting` namespace (regreetFloorMinutes 5 engine-owned; missedYouAfterHours 36 FR-12 AC-2 PRD-normative).
+- `EngineState.swift` — +`GreetingStamp` struct, +`lastGreeting: GreetingStamp?` as LAST field, NO init default (license (c) threading honored).
+- `HandshakeMachine.swift` — all six `with(...)` helpers thread `lastGreeting`; +`with(lastGreeting:)`.
+- `Reduce.swift` — evaluate path: `Greeting.select` over the PRE-stamp `lastOpenedAt`, stamp written after mint/stamps, moments = greeting FIRST + reconciled; header DaySeed paragraph re-scoped to "quest-domain … and copy-domain" (license (b)).
+- `InteractionSemantics.swift` — plan helper now family-aware (`LineSelection.reactLineKey`); all 21 call sites pass the intent (license (d)).
+- `EngineEvent.swift` — moments doc provenance sentence.
+
+### Test supersession ledger (license (a)/(e), mechanical)
+- `InteractionFixture.swift` + 5 suites: `lastGreeting: nil` threaded at all 8 EngineState construction sites (QuestGenerationTests, WakefulnessHandshakeTests, EngineReduceTests ×3, QuestTickTests, TimeFoldTests).
+- Plan pins filled with the family's `.00` key: InteractionResponseTests (23, per-line by family incl. `planShapeAndSeams` scenario rewrite + header), CareInteractionTests (9, care), PlayRoundTests (2, play), WakefulnessHandshakeTests:260 (touch), TimeFoldTests:490 (touch), BondLedgerTests:406 (touch). EngineReduceTests: `evaluateStampsBoth` moments → `[.greeting(.freshMorning)]` + stamp pin; `interactionPassThrough` per-index key table. DomainInvariantsTests:276 deliberately UNTOUCHED (INV-11 type-shape construction, not an engine-minted plan).
+- `BondLedgerPropertyTests` re-pin (license (a)): StepKind threaded into `check`; `.greeting` ≤ 1 FIRST, evaluate-only; switch now exhaustive (no default); suite header documents that evaluate steps WILL greet (10–20-min steps > 5-min floor; fixture anchors lastOpenedAt at the prior step).
+- `ThresholdsPinnedToPRDTests` — +greeting thresholds raw pins (5/36).
+
+### Judgment calls (ranked)
+1. **Wistful key is band-named** (`momo.line.vocab.mood.wistful`), catalog entry announces 04 §3.5's "quiet" — keeps the band→key lookup total/mechanical; remap pinned by name in `VocabularyKeyTests.wistfulKeyStaysBandNamed`. (Req 3's "pin by name".)
+2. **Vocabulary gets its own keyspace** `momo.line.vocab.<field>.<band>` rather than folding into a variational class — it is a lookup (zero variation), not a §4.9 selection; keeps the three variational classes pure.
+3. **Night rule = D11 normative, cut-offs 12/18 engine-owned** per §4.9's text; slot derivation REFERENCES FoldRules (no restatement). Cut-off hour opens the NEXT slot; `timeSlot` provably never returns the context slots.
+4. **The pinned draw recipe is exactly ONE draw** (seed → `% poolCount`), mirroring TASK-018's twoDrawPin discipline; generators are call-local — the choreography rng is never touched (proven by `rngDrawDiscipline` staying green).
+5. **`GreetingStamp` persists until the next greeting** — the greeting is the only L4 moment that outlives its event (both read-models project it); presentation owns fading. Initial nil = onboarding's own flow is the greeting.
+6. **Rule order in the selector**: floor → missedYou (outranks the hour) → nightGlance (outranks the dayKey change — midnight crossing is nightGlance, not freshMorning) → freshMorning → welcomeBack. Backward gaps fall out as nil.
+7. **`interactionPassThrough`'s replay pin stays response-nil** (INV-10 no-op) — the "duplicate-intent replay same plan" contract point is covered by two DISTINCT fresh same-family intents carrying the same day-stable key (`LineSelectionTests.duplicateIntentReplayCarriesSamePlanKey`), which is the day-stability claim; an INV-10 replay mints no plan at all.
+8. **`EngineState` init keeps NO default for `lastGreeting`** — license (c) says thread it; house convention is explicit memberwise args.
+9. **`pick` traps on pool 0 by modulo panic** (documented) rather than fabricating an index — pool counts come from the constants home, never 0 there.
+
+### Known issues / follow-ups (non-blocking)
+- `ReactionKeys.swift` header ("lineKey/haptic seams … this task leaves both nil") is now historically stale — OUTSIDE the supersession license (not one of the five named files), so untouched; one-line doc fix recommended during review or as a reviewer-authorized mechanical touch-up.
+- The `.00` index in behavior-test expectations derives from the pool-count constant (`count − 1`); raw `.00` literals live only in `CopySelectionPinnedTests` (they bite together with the epoch-bump obligation).
+
+## Handoff
+
+### Completed
+All 9 contract requirements; Required Tests 1–8; supersession license (a)–(e) exercised exactly as named.
+
+### Files Changed
+New: `Sources/MomoCore/{CopyRules,LineSelection,DisplayState}.swift`; `Tests/MomoCoreTests/{VocabularyKeyTests,CopySlotTests,LineSelectionTests,GreetingSelectionTests,CopySelectionPinnedTests,DisplayStateTests}.swift`. Modified: `Sources/MomoCore/{Thresholds,EngineState,HandshakeMachine,Reduce,InteractionSemantics,EngineEvent}.swift`; `Tests/MomoCoreTests/{BondLedgerPropertyTests,BondLedgerTests,CareInteractionTests,EngineReduceTests,InteractionResponseTests,PlayRoundTests,QuestGenerationTests,QuestTickTests,ThresholdsPinnedToPRDTests,TimeFoldTests,WakefulnessHandshakeTests}.swift` + `Support/InteractionFixture.swift`.
+
+### Tests Run
+`swift build --build-tests` && `swift test` (full suite, in-suite scanners included).
+
+### Test Results
+`Test run with 361 tests in 42 suites passed after 0.437 seconds.` — 0 failures, 0 skipped. Baseline 314/36. Purity scan + import whitelist + banned-vocabulary scanners green, no new exemptions. `MomoCopy.xcstrings` untouched (3 placeholder keys stand). `ResponsePlan.haptic` nil everywhere.
+
+### Known Issues
+See follow-ups above (stale ReactionKeys header only).
+
+### Decisions Made
+Judgment calls 1–9 above.
+
+### Reviewer Status
+APPROVED_WITH_MINOR_NOTES (REVIEW-TASK-019, 0 MAJOR) — disposition applied: MINOR-1 pin added, MINOR-2 header fixed, NITPICK-1 assertion added, OBS-A–D recorded.
+
+### Commit
+`feat(engine): TASK-019 display read-models and copy-key selection` — the atomic task commit including the disposition fixes (hash recorded in status.md at housekeeping).
+
+### Push
+Pushed to `origin/feature/EPIC-004-engine` immediately after the commit (status recorded in status.md).
+
+### Recommended Next Step
+Spawn the independent review agent (§10, §33 — unprimed): diff = the files above on `feature/EPIC-004-engine`.
+
 
 ## Reviewer Findings
-(To be filled by the review agent.)
+**VERDICT: APPROVED_WITH_MINOR_NOTES** (independent fresh review agent, Jupiter, 2026-09-09; full record in `.claude/tasks/reviews/REVIEW-TASK-019.md`).
+
+Independently re-derived from the docs before reading the implementation: greeting precedence (missedYou outranking nightGlance is CORRECT — FR-12 AC-2 is unconditional; a night-only usage pattern would otherwise never see missedYou), all edges (06:30 → nightGlance, 14:00 → freshMorning, midnight crossing → nightGlance, backward gap → nil), the PRE-stamp read (proven structurally — `Greeting.select` is `evaluate`'s first statement on the input state — and behaviorally), the `lastGreeting` stamp's necessity (§4.11's state-alone `makeCharacterDisplayState` forces it; `instant` is the honest fading carrier), the fourth vocab keyspace (§4.9's "exactly three" must govern the variational classes or the doc self-contradicts), D11-exact night via FoldRules with NO `q6WindowEndHour` aliasing (distinct constants, distinct authorities), the one-draw recipe + §4.10 seed lineage, the exhaustive license (a)–(e) audit (28-path inventory: 19 M + 9 ??; frozen shapes, quest surface, `MomoCopy.xcstrings`, `DomainInvariantsTests` all untouched), and the anti-echo discipline — four sanctioned mutation bites (36 h→37, floor 5→6, 12→13, epoch 1→2) each failing the exact raw pin with attribution, all restored, HEAD unchanged at `8201b6d`, suite re-verified green after restore.
+
+Reproduced: `swift build --build-tests` green; `swift test` → **361 tests / 42 suites, 0 failures** (twice: pre-probe and post-restore). All nine judgment calls adjudicated SOUND. All pinned supersessions verified mechanical + attributed.
+
+**Findings (none blocking):**
+- **MINOR-1** — AC-2's verbatim pins (energy ×4, descriptors ×4) are not machine-enforced: the phrases exist only in `LineSelection.swift` doc comments; an EPIC-007 mis-transcription would fail no pin today. Recommended fix: a `catalogObligationsAreRecorded` test in `VocabularyKeyTests` pinning the 8 strings as the EPIC-007 catalog-entry contract (test fixtures are not engine output — `ThresholdsPinnedToPRDTests` precedent). Apply in-disposition or record in the EPIC-007 epic file.
+- **MINOR-2** — `ReactionKeys.swift` header still claims the task "leaves both nil" (now false for lineKey). The implementer was right to leave it (outside the license letter); recommend an orchestrator-authorized one-line doc touch-up riding the disposition commit (TASK-017 precedent).
+- **NITPICK-1** — no daytime ≥ 36 h pin (missedYou-vs-freshMorning untested directly; missedYou-vs-nightGlance is). Optional one-assertion fix in `GreetingSelectionTests`.
+- **OBS-A** — seed lockstep: one copy seed shared by all families+slots means equal pools will yield the same index across contexts on a day once pools > 1 (contract-conformant; catalog-era consideration for EPIC-006).
+- **OBS-B** — declined and warm cells share the family key (e.g. `politelyFull` == `eating` → `feed.00`); spec-conformant per 04 §10.4; catalog era decides whether declined cells need own entries (epoch-bump event).
+- **OBS-C/OBS-D** — pre-existing doc inconsistencies to reconcile when catalogs land: 04 §10.3 sample headers (Day …16:59 / Evening 17:00–21:59) vs the 12/18 cut-offs; 05 §4.9 / 04 §8.4 ratification of the `momo.line.vocab` namespace.
+
+Review status: **APPROVED_WITH_MINOR_NOTES** — eligible for disposition; orchestrator rules on MINOR-1/MINOR-2 (apply now vs follow-up). No source/test edits were made by the reviewer beyond the four restored mutation probes.
+
+**Orchestrator disposition (2026-09-09):** MINOR-1 — APPLY (reviewer's preferred option i): `catalogObligationsAreRecorded` added to `VocabularyKeyTests` — the 8 verbatim strings (04 §3.5 energy ×4, PRD §3.3 descriptors ×4) as test-file constants one-to-one with the minted keys, the EPIC-007 catalog-entry contract. MINOR-2 — APPLY: one-line `ReactionKeys.swift` seam-header touch-up ("lineKey filled as of TASK-019; haptics remain the presentation seam") riding this disposition commit (TASK-017 precedent; doc-only, outside the supersession license by explicit orchestrator authorization). NITPICK-1 — APPLY: `missedYouOutranksFreshMorning` added to `GreetingSelectionTests` (36 h exact → 14:00 daytime on a new dayKey → `.missedYou`). OBS-A–D — recorded in `status.md`; OBS-A/OBS-B migrate into the EPIC-006 epic file, OBS-C/OBS-D into the standing doc-chain follow-ups. All three fixes are test/doc-only — zero production behavior change; the reviewer's approval stands unamended. Post-disposition suite: `swift test` → **363 tests / 42 suites, 0 failures** (+2 disposition pins).
 
 ## Completion Evidence
-(To be filled at disposition: test command + counts, review file, commit hash.)
+- **Requirements:** all 9 contract requirements implemented; Required Tests 1–8 present; supersession license (a)–(e) exercised exactly as named (reviewer-audited, §T8 of the review).
+- **Tests:** `swift build --build-tests` green; `swift test` → `Test run with 363 tests in 42 suites passed after 0.422 seconds.` (handoff 361/42 + 2 disposition pins; baseline 314/36 ⇒ +49 tests, +6 suites). In-suite purity/import-whitelist/banned-vocabulary scanners green, no new exemptions; `MomoCopy.xcstrings` untouched (3 placeholder keys stand); `ResponsePlan.haptic` nil at every plan site.
+- **Review:** `.claude/tasks/reviews/REVIEW-TASK-019.md` — APPROVED_WITH_MINOR_NOTES, 0 MAJOR, 10 adversarial targets all survived, 4 sanctioned mutation bites with exact attribution; disposition applied as above.
+- **Commit:** `feat(engine): TASK-019 display read-models and copy-key selection` — this task's atomic commit (hash recorded in status.md and in the housekeeping update).

@@ -216,7 +216,8 @@ struct QuestGenerationTests {
             processedIntents: [],
             highestCelebratedStage: .newFriends,
             lastOpenedAt: lastEvaluatedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: nil
         )
     }
 

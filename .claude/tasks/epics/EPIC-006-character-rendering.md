@@ -48,5 +48,10 @@ Branch: `feature/EPIC-006-character` (from `main`).
 ## Definition of Done
 All six tasks DONE per CLAUDE.md §18; character suites green via `swift test`; Momo demonstrably alive (idle + reactions) on a debug canvas with correct pause behavior; reviews APPROVED; atomic TASK-ID commits on `feature/EPIC-006-character`, pushed; epic merged to `main`; orchestrator status update.
 
+## Carried-in observations (REVIEW-TASK-019; catalog-era obligations)
+
+- **OBS-A — cross-context seed lockstep:** the engine's one day-stable copy seed (`LineSelection.copySeed`, §4.10 `.copy` salt) is shared by ALL react families AND slots — the contract's own seed formula omits context. Once real pools exceed 1 (TASK-025-era `MomoCopy.xcstrings` work), equal pool counts yield the SAME index across contexts on a day (e.g. `touch.03` / `feed.03` / `morning.03` all day). Contract-conformant; if varied-feeling lines are wanted, add a context segment to the seed — an epoch-bump-class change (`CopyRules.copyEpoch`). Decide when real pools land.
+- **OBS-B — declined/warm cells share the family key:** e.g. `politelyFull` (feed refusal) and `eating` both carry `momo.line.react.feed.<nn>` — spec-conformant per 04 §10.4's per-family keyspace. The catalog era decides whether declined cells warrant their own entries (a pool split = an epoch bump).
+
 ## Status
 TODO

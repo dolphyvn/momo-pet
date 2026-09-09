@@ -95,7 +95,8 @@ struct EngineReduceTests {
             processedIntents: [],
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: nil
         )
     }
 
@@ -119,7 +120,12 @@ struct EngineReduceTests {
         #expect(outcome.newState.lastEvaluatedAt == now)
         #expect(outcome.changed)
         #expect(outcome.response == nil)
-        #expect(outcome.moments.isEmpty)
+        // TASK-019 supersession (in place, per the contract): the "moments
+        // empty" pin was the greeting seam and is now filled — the 23 h gap
+        // across the dayKey boundary at a daytime hour selects .freshMorning
+        // (evaluate-only, first), and the stamp lands on the new state.
+        #expect(outcome.moments == [.greeting(.freshMorning)])
+        #expect(outcome.newState.lastGreeting == GreetingStamp(kind: .freshMorning, at: now))
     }
 
     @Test("evaluate at an instant that changes nothing reports changed = false")
@@ -182,7 +188,8 @@ struct EngineReduceTests {
             processedIntents: state.processedIntents,
             highestCelebratedStage: state.highestCelebratedStage,
             lastOpenedAt: state.lastOpenedAt,
-            lastEvaluatedAt: state.lastEvaluatedAt
+            lastEvaluatedAt: state.lastEvaluatedAt,
+            lastGreeting: nil
         )
         let now = state.lastEvaluatedAt
         var rng = SeededGenerator(seed: 0)
@@ -213,23 +220,34 @@ struct EngineReduceTests {
         let expectedMoments: [[CharacterMoment]] = [
             [.questCompleted], [.questCompleted], [], [],
         ]
+        // TASK-019 supersession (in place, per the contract): the lineKey
+        // seam is filled — each plan carries its intent family's day-stable
+        // key (raw literals restating the momo.line.react.<family>.<nn>
+        // keyspace + the placeholder-era single-slot draw, index 00; pat and
+        // stroke are both the touch family).
+        let expectedLineKeys = [
+            "momo.line.react.touch.00",
+            "momo.line.react.feed.00",
+            "momo.line.react.play.00",
+            "momo.line.react.touch.00",
+        ]
         for (index, intent) in intents.enumerated() {
             let outcome = reduce(current, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
             // TASK-016 supersession (in place, per the contract): the "no
             // response / no dynamics" half of this pin WAS the documented
             // TASK-016 seam and is now filled — every fresh intent yields
-            // exactly one ResponsePlan (seam-nils stay nil: lineKey/haptic
-            // are TASK-019/presentation; moments stay [] for TASK-017/018),
-            // and effect/count writes touch `days`. What this pin still owns
-            // is the INV-10 belt's honesty: exactly-once recording in arrival
-            // order, identity untouched, `changed` honest. NITPICK-1's noted
-            // case is now asserted for real: intent 1's ~23 h fold lands
-            // .waking and mints the `.wake` handshake, and the remaining
-            // intents run mid-waking WITHOUT displacing it (Req 9 — wake is
-            // never cancelled; the play intent here is the waking-decline
-            // cell).
+            // exactly one ResponsePlan (lineKey now the family's key per
+            // TASK-019 above; haptic stays the presentation seam; moments
+            // stay [] for TASK-017/018), and effect/count writes touch
+            // `days`. What this pin still owns is the INV-10 belt's honesty:
+            // exactly-once recording in arrival order, identity untouched,
+            // `changed` honest. NITPICK-1's noted case is now asserted for
+            // real: intent 1's ~23 h fold lands .waking and mints the `.wake`
+            // handshake, and the remaining intents run mid-waking WITHOUT
+            // displacing it (Req 9 — wake is never cancelled; the play intent
+            // here is the waking-decline cell).
             #expect(outcome.response != nil)
-            #expect(outcome.response?.lineKey == nil)
+            #expect(outcome.response?.lineKey == expectedLineKeys[index])
             #expect(outcome.response?.haptic == nil)
             #expect(outcome.moments == expectedMoments[index])
             #expect(outcome.newState.pet == current.pet)
@@ -402,7 +420,8 @@ struct EngineReduceTests {
             processedIntents: base.processedIntents,
             highestCelebratedStage: base.highestCelebratedStage,
             lastOpenedAt: base.lastOpenedAt,
-            lastEvaluatedAt: base.lastEvaluatedAt
+            lastEvaluatedAt: base.lastEvaluatedAt,
+            lastGreeting: nil
         )
         var rng = SeededGenerator(seed: 0)
         let outcome = reduce(settling, .characterReport(.settleFinished), clock: ManualEngineClock(at: now), calendar: calendar, rng: &rng)

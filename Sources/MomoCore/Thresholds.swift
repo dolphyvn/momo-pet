@@ -63,4 +63,18 @@ public enum Thresholds {
         /// Q6 "Tuck-in" window ends at 07:00 local (PRD §5.2).
         public static let q6WindowEndHour: Int = 7
     }
+
+    /// Greeting selection (FR-12 AC-2; UX §4's open flows; TASK-019
+    /// Requirement 5).
+    public enum Greeting {
+        /// The re-greet floor: 5 minutes (engine-owned starting value — the
+        /// contract's recorded judgment call). An in-session re-evaluation
+        /// less than this far after the previous open is not an arrival:
+        /// scenePhase flapping must not re-greet. Half-open: the floor-th
+        /// minute is the first greeting-eligible gap.
+        public static let regreetFloorMinutes: Int = 5
+        /// The missed-you threshold: 36 hours (PRD-normative — FR-12 AC-2's
+        /// "first open after ≥ 36 h shows the warm missed-you greeting").
+        public static let missedYouAfterHours: Int = 36
+    }
 }

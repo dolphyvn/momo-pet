@@ -15,10 +15,17 @@ import Foundation
 ///   day rollovers — ever decreases bond, including sequences spanning
 ///   midnight.
 /// - **Guard discipline (AC-4; TASK-018's named re-pin, amended per
-///   REVIEW-TASK-018 MINOR-1):** at most three moments per event — at most
+///   REVIEW-TASK-018 MINOR-1; TASK-019's named re-pin):** at most three
+///   moments per event — at most one `.greeting` (evaluate steps only —
+///   the TASK-019 greeting is evaluate-only — FIRST when present), at most
 ///   two `.questCompleted` (one per completing quest) and one
 ///   `.bondStageReached`, quest moments first, the stage moment last — and
 ///   the stage guard advances only WITH an emission, and never regresses.
+///   This suite's steps advance 10–20 minutes, past the 5-minute regreet
+///   floor, so every `.evaluate` step WILL fire a greeting; the kind
+///   itself is pinned exhaustively in `GreetingSelectionTests` — here the
+///   property is the discipline (which steps may greet, and where the
+///   moment composes).
 /// - **Twin equality (AC-5/FR-13):** identical (state, event stream, clock,
 ///   calendar, seed) tuples produce whole-state-equal final states, bond
 ///   fields included.
@@ -50,7 +57,7 @@ struct BondLedgerPropertyTests {
             let kind = StepKind.allCases[Int(rng.next() % UInt64(StepKind.allCases.count))]
             let outcome = step(kind, state: state, now: now, dayKey: dayKey, id: i)
             state = outcome.newState
-            check(boundaries.last!, outcome)
+            check(boundaries.last!, outcome, kind)
             boundaries.append(state)
         }
         return boundaries
@@ -91,7 +98,7 @@ struct BondLedgerPropertyTests {
 
     /// The per-step invariants (see the suite header). Every assertion is a
     /// property of the WHOLE state, so each step re-proves them.
-    private func check(_ prev: EngineState, _ outcome: EngineOutcome) {
+    private func check(_ prev: EngineState, _ outcome: EngineOutcome, _ kind: StepKind) {
         let next = outcome.newState
         // INV-3: monotonic, in range.
         #expect(next.state.bond >= prev.state.bond)
@@ -109,17 +116,26 @@ struct BondLedgerPropertyTests {
         // both — QuestTickTests.doubleCompletionLoops is the live coverage).
         // This property generator cannot reach a double (its fixture set has
         // no Q7 and its intent clock is monotone), which is why the bound is
-        // wider than what this suite observes. At most three moments: ≤ 2
-        // questCompleted (one per completing quest; the Q1+Q7 pair is the
-        // only reachable one) and ≤ 1 bondStageReached — quest moments FIRST,
-        // the stage moment LAST (the completions are what cause any
-        // crossing); the stage guard advances only WITH a bondStageReached
-        // emission and never regresses.
+        // wider than what this suite observes. At most three moments: ≤ 1
+        // greeting (TASK-019's named re-pin — the greeting is evaluate-only,
+        // so ONLY the `.evaluate` step kind may carry one, FIRST when
+        // present; this suite's 10–20-minute steps sit past the 5-minute
+        // regreet floor and the fixture anchors `lastOpenedAt` at the prior
+        // step, so an evaluate step WILL fire), ≤ 2 questCompleted (one per
+        // completing quest; the Q1+Q7 pair is the only reachable one) and
+        // ≤ 1 bondStageReached — quest moments FIRST, the stage moment LAST
+        // (the completions are what cause any crossing); the stage guard
+        // advances only WITH a bondStageReached emission and never regresses.
         #expect(outcome.moments.count <= 3)
+        var greetingSeen = false
         var questCount = 0
         var stageSeen = false
         for moment in outcome.moments {
             switch moment {
+            case .greeting:
+                #expect(kind == .evaluate, "the greeting is evaluate-only; \(kind) must never emit one")
+                #expect(!greetingSeen && questCount == 0 && !stageSeen) // first when present, at most one
+                greetingSeen = true
             case .questCompleted:
                 #expect(!stageSeen) // quest moments compose first…
                 #expect(questCount < 2) // …at most two completions per event
@@ -128,8 +144,6 @@ struct BondLedgerPropertyTests {
                 #expect(!stageSeen) // at most one stage moment, always last
                 stageSeen = true
                 #expect(next.highestCelebratedStage == stage) // the guard advanced WITH the emission
-            default:
-                Issue.record("unexpected moment kind in the re-pinned era: \(moment)")
             }
         }
         if !stageSeen {

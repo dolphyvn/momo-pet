@@ -92,7 +92,8 @@ struct QuestTickTests {
             processedIntents: base.processedIntents,
             highestCelebratedStage: base.highestCelebratedStage,
             lastOpenedAt: instant,
-            lastEvaluatedAt: instant
+            lastEvaluatedAt: instant,
+            lastGreeting: nil
         )
     }
 
