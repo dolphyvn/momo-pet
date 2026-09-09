@@ -248,7 +248,15 @@ Implementation-agent entries (2026-09-09; orchestrator disposition entries pendi
 - Test command + counts: `swift test` → **"Test run with 515 tests in 54 suites passed after 0.499 seconds."** (run 1) and **"… passed after 0.550 seconds."** (run 2) — the contract's ×2; baseline @ `9baa49d` identical at 515/54; zero failures/skips on every run today.
 - Coverage: llvm-cov **TOTAL 88.86 % lines** (90.77 % regions, 91.30 % functions) — exact command + full per-file table + all-77-missed-line classification in Implementation Notes above; the reviewer reproduces the command and compares the table (it reproduced identically across two instrumented runs).
 - Diff scope: `git diff --stat` = exactly `Tests/MomoKitTests/SnapshotStoreGoldenBytesTests.swift | 2 ++--` (Disclosure 1); `git diff Sources/MomoCore/` = 0 bytes; `git diff Sources/MomoKit/` = 0 bytes; tree DIRTY, nothing staged or committed.
-- Commit hash: (pending orchestrator — atomic commit with TASK-ID per Git Requirements; this is the EPIC-005 closer, after which the epic merges to `main` per CLAUDE.md §14).
+- Commit hash: **`4372913`** — `test(kit): TASK-024 MomoKit suite audit, §10.4 mapping, coverage floor` (this commit); pushed `9baa49d..4372913` → `origin/feature/EPIC-005-persistence` (success).
+
+Orchestrator entries (2026-09-09, housekeeping):
+
+- **Verification (pre-review):** HEAD `9baa49d` unmoved at handoff; tree confined to the two disclosed files; `Sources/MomoKit/` and `Sources/MomoCore/` diffs 0 bytes; all 117 named audit identifiers resolved to real test funcs (the 14 non-func matches are API/field symbols, zero phantom mappings); NFR-7 parity test body read personally — non-circular (independently-authored fixture expectation); `swift test` **515/54 green ×2** (0.551 s / 0.537 s); llvm-cov table **reproduced line-for-line** (TOTAL 691/77 = 88.86 %); warning provenance verified to `3acc54f`.
+- **Review:** REVIEW-TASK-024 **APPROVED_WITH_MINOR_NOTES** — reviewer re-derived both tables from the docs before comparing (no clause missed, no mapping unpinned), reproduced coverage digit-for-digit, mutation bit `WatchSyncGate.swift:68` `>` → `>=` with the exact named test failing (`boundarySeqEqualsWatermarkIsNoOp`) and sha256-proven restore (`806df6db…`, re-verified personally), 515/54 ×2 verified.
+- **Disposition (REVIEW-TASK-024 §8):** MINOR-1 applied (both NFR-7 overclaim sentences narrowed to populated fields; diagnosis reproduced personally against StoreFixture.swift:210–215 before applying); OBS-1 routed to status.md tracking; OBS-3 recorded as a standing obligation; OBS-2 confirmed. Prose-only edits post-review; final §19 confirmation `swift test` → **515/54 green** (0.547 s) on the exact committed tree state.
+- **Acceptance criteria:** AC-1 audit table 1 complete (§32 all three rows → named green tests; no gap); AC-2 audit table 2 complete (all seven §10.4 rows → Kit mapping + explicit non-Kit routing); AC-3 coverage 88.86 % ≥ 80 % measured, command + table + all-77-line classification recorded, no closing tests required; AC-4 515/54 green ×2, zero repo warnings, scans green zero new exemptions; AC-5 production diff EMPTY, MomoCore diff EMPTY (the single test-file edit disclosed and reviewer-adjudicated sound).
+- **Contract deviations:** zero new tests written (the audit's honest outcome — the expected NFR-7 gap was verified already pinned; no-padding rule held); one disclosed test-file edit (pre-existing warning fix inside audit scope). Epic AC-6 (MomoKit ≥ 80 % line coverage recorded) — **SATISFIED at 88.86 %**.
 
 ## Reviewer Findings
 **REVIEW-TASK-024 — APPROVED_WITH_MINOR_NOTES** (independent fresh adversarial reviewer, 2026-09-09; full record: `.claude/tasks/reviews/REVIEW-TASK-024.md`). 0 MAJOR / 1 MINOR / 0 NITPICK / 3 OBSERVATIONs.
@@ -265,7 +273,4 @@ Implementation-agent entries (2026-09-09; orchestrator disposition entries pendi
 
 **OBS-1** — audit table 1's save/load restatement leaves two §5.2 elements untested AND unrouted ("main thread never blocks on I/O beyond launch's initial read" — app-side threading property; "NSFileProtectionComplete — VERIFY-AT-BUILD" — EPIC-002-register obligation); table 2's routing discipline should extend to them in the orchestrator's EPIC-007/008 tracking. **OBS-2** — `EngineClockTests.swift:46` warning non-reproduction confirmed across all three of today's runs (standing TASK-021 record unchanged). **OBS-3** — when the first real migration ships, the parity fixture must carry a populated `processedIntents`/handshake/greeting through the walk (MINOR-1's remedy becomes a test obligation then) — record at epic merge.
 
-**Verdict: APPROVED_WITH_MINOR_NOTES** — task may proceed to commit after MINOR-1's prose correction is applied to this task file.
-
-## Completion Evidence
-(orchestrator fills at housekeeping)
+**Verdict: APPROVED_WITH_MINOR_NOTES** — task may proceed to commit after MINOR-1's prose correction is applied to this task file. *(Applied — see Status and REVIEW-TASK-024 §8.)*
