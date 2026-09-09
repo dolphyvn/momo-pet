@@ -69,7 +69,7 @@ Stand up the repo-local export pipeline (ADR-007's ratified runtime decision) an
 - No commit by the implementation agent. Orchestrator commits after review disposition: `feat(character): TASK-025 asset pipeline + generated rig Path constants` — atomic, TASK-ID included.
 
 ## Status
-APPROVED — fix round 1 delta APPROVED_WITH_MINOR_NOTES (n2 prose applied; orchestrator disposition below). Proceeding to the atomic commit per §12.
+DONE — commit `7681498` pushed (see Completion Evidence)
 
 ## Implementation Notes
 
@@ -168,10 +168,10 @@ PENDING — independent fresh review required (CLAUDE.md §10/§33; review brief
 - Fix round 1 complete (2026-09-09) — **awaiting delta review** of the M1/M2/m1/n1/O5 fix delta per §11 before any commit.
 
 ### Commit
-None — implementation agent has no commit rights; working tree left DIRTY for the orchestrator.
+`7681498` — `feat(character): TASK-025 asset pipeline + generated rig Path constants` (atomic; 41 files, +5371/−40; includes both review files + this task file)
 
 ### Push
-n/a (no commit)
+SUCCESS — `6a5fe4b..7681498` `feature/EPIC-006-character` → `origin` (github.com:dolphyvn/momo-pet)
 
 ### Recommended Next Step
 Independent review of TASK-025 per the Review Requirements (including the mutation-bite on a geometry pin), then orchestrator commit `feat(character): TASK-025 asset pipeline + generated rig Path constants`, push, and proceed to TASK-026 (rig layer tree + CharacterClock).
@@ -197,4 +197,7 @@ See .claude/tasks/reviews/REVIEW-TASK-025.md — CHANGES_REQUIRED (2 MAJOR / 1 M
 - **Cycle complete per §17/§18:** CHANGES_REQUIRED → fix round 1 (fresh agent) → delta re-review APPROVED_WITH_MINOR_NOTES → prose applied. No open findings. Committing per §12.
 
 ## Completion Evidence
-(orchestrator fills at housekeeping)
+
+**DONE 2026-09-09 — commit `7681498`, pushed to origin.** Full cycle: dispatch → implementation (547/59) → orchestrator verification (suite ×2, pipeline byte-identity, hex/naming/budget checks, visual evidence) → adversarial review **CHANGES_REQUIRED (2 MAJOR)** [REVIEW-TASK-025] → orchestrator-verified diagnoses (M1 by independent bézier measurement: bbox 120.5 vs true at-base 64.93 = 12.12%; M2 by shoelace: mixed winding −142k/+25.5k/+10.3k → nonzero cancellation holes; orchestrator's own crop-based visual read of M2 was WRONG and is recorded as a verification miss) → §11 fix round 1 by a fresh agent (at-base measurement both checkers; winding uniformity + regeneration + re-render + seam pins; explicit subpath starts; gitignore; sparkle nudge; **549/59 ×2**) → orchestrator re-verification (shoelace uniformity on committed bytes 6/6 + 4/4 negative; suite ×2; seam fill confirmed at 4×) → delta review **APPROVED_WITH_MINOR_NOTES** [REVIEW-TASK-025-FIXROUND1: independent tooling both sides, thin-ear counterexample now FAILS the at-base pin, one-ear winding mutation bite fails exactly `glyphSeamsFill`, 12/12 hash-proven restore, PNGs proven byte-exact projections of the constants] → n2 prose applied → final §19 run 549/59 → atomic commit `7681498` (41 files, no bytecode — `__pycache__/` gitignored per m1) → push SUCCESS.
+
+Acceptance criteria: all 6 satisfied (reproducibility pinned; naming/headers/hex-free; ADR-001 ear rule at-base + rounded tips, glyph merged per winding-uniform union, no bounce-loops — animation-layer pin carried to TASK-026 per O7; all variants + room + props present; budgets measured 50,096/20,647/70,743 B vs 307,200/256,000/1,572,864; visual evidence committed). Standing scans green, no new exemptions. Final suite: **549 tests / 59 suites green** (baseline 515/54).
