@@ -138,5 +138,13 @@ public enum CharacterReport: Sendable {
     case handshakeCancelled(HandshakeKind)
     /// Settling → engine flips `.asleep` (the tuck-in handshake).
     case settleFinished
+    /// Waking → engine flips `.awake` (the wake stretch's report). Added at
+    /// TASK-015 as the exact-type finalization 04 §9.2 delegates ("TASK-006
+    /// finalizes exact types"): 04 §9.2's wake prose ("report → engine sets
+    /// `.awake`") and 05 §4.7's diagram ("`waking ──wakeFinished──► awake`")
+    /// both name this report, but the sketch's enum omitted it. Expected never
+    /// to be cancelled — app-hide pauses waking and it completes on return
+    /// (04 §9.2; the `.wake` cancellation kind exists for totality only).
+    case wakeFinished
     case momentFinished(CharacterMoment)
 }

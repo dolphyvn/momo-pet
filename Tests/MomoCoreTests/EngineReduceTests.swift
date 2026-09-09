@@ -2,19 +2,45 @@ import Foundation
 import Testing
 @testable import MomoCore
 
-/// `reduce` bookkeeping semantics + determinism probes (TASK-014
-/// Requirement 4/9, AC-1/AC-5; 05 §4.1, FR-13 AC-3).
+/// `reduce` event-path semantics + determinism probes (TASK-014 Requirements
+/// 4/9 as adapted by TASK-015; 05 §4.1, §4.2, FR-13 AC-3).
 ///
-/// This task's semantics are bookkeeping-only by design: `.evaluate` stamps
-/// the two ledger instants; `.interaction`/`.characterReport` pass through.
-/// The tests pin exactly that — and the two purity probes (rng untouched,
-/// clock unread) pin that no hidden dynamics are smuggled in.
-@Suite("reduce — engine core bookkeeping (TASK-014)")
+/// TASK-015 replaced this task's bookkeeping-only `.evaluate` with the real
+/// time fold and gave interactions/reports their engine-half semantics. The
+/// adaptations, each minimal:
+///
+/// - every `reduce` call site carries the injected `calendar` (the documented
+///   §4.1 signature deviation),
+/// - `evaluateTouchesOnlyStamps` now pins the fields the fold genuinely does
+///   not touch — `state`/`days` are fold-owned since TASK-015 (the original
+///   untouched-everything pin was TASK-014's bookkeeping honesty, superseded
+///   by contract),
+/// - `handshakeCarrier`'s round-trip evaluate is zero-elapsed (a fold that
+///   transitions wakefulness now proactively clears an orphaned handshake —
+///   §4.7's never-stranded rule),
+/// - `interactionPassThrough` pins the INV-10 belt (fresh ids recorded,
+///   duplicates total no-ops) with PetState/days/response still untouched —
+///   the TASK-016/017 seam,
+/// - `characterReportPassThrough` gains `.wakeFinished` (the TASK-015
+///   exact-type finalization of 04 §9.2) and stays the no-op-with-nothing-
+///   pending pin.
+///
+/// The purity probes (rng untouched on non-minting paths, clock unread by
+/// evaluate/interaction) pin that no hidden dynamics are smuggled in.
+@Suite("reduce — engine core semantics + purity probes (TASK-014/015)")
 struct EngineReduceTests {
 
     // MARK: - Fixtures
 
     private let petID = UUID(uuidString: "7C47A9C4-2E5F-4B8A-9C1D-3E6F8A2B4C0D")!
+
+    /// Gregorian UTC calendar — injected, deterministic (D20's injected-
+    /// calendar pattern; ambient calendars never appear in engine tests).
+    private var calendar: Calendar {
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = TimeZone(identifier: "UTC")!
+        return gregorian
+    }
 
     /// Parses a UTC wall-clock string into the exact instant.
     private func utcInstant(_ iso: String) -> Instant {
@@ -84,7 +110,7 @@ struct EngineReduceTests {
         let state = anyState
         let now = utcInstant("2026-09-08T09:00:00Z")
         var rng = SeededGenerator(seed: 0)
-        let outcome = reduce(state, .evaluate(now: now), clock: ManualEngineClock(), rng: &rng)
+        let outcome = reduce(state, .evaluate(now: now), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
         #expect(outcome.newState.lastOpenedAt == now)
         #expect(outcome.newState.lastEvaluatedAt == now)
         #expect(outcome.changed)
@@ -97,23 +123,26 @@ struct EngineReduceTests {
         let now = utcInstant("2026-09-08T09:00:00Z")
         let state = fixtureState(lastOpenedAt: now, lastEvaluatedAt: now)!
         var rng = SeededGenerator(seed: 0)
-        let outcome = reduce(state, .evaluate(now: now), clock: ManualEngineClock(), rng: &rng)
+        let outcome = reduce(state, .evaluate(now: now), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
         #expect(outcome.newState == state)
         #expect(!outcome.changed)
     }
 
-    @Test("evaluate leaves every other field untouched")
+    @Test("evaluate leaves the fold-foreign fields untouched (identity, bookkeeping, ledger belts)")
     func evaluateTouchesOnlyStamps() {
+        // TASK-015 supersession: `state` and `days` are fold-owned now — this
+        // pin narrowed from "everything but the stamps" to the fields the
+        // fold genuinely never touches (the original pin was TASK-014's
+        // bookkeeping-only honesty).
         let state = anyState
         var rng = SeededGenerator(seed: 0)
-        let outcome = reduce(state, .evaluate(now: utcInstant("2026-09-08T09:00:00Z")), clock: ManualEngineClock(), rng: &rng)
+        let outcome = reduce(state, .evaluate(now: utcInstant("2026-09-08T09:00:00Z")), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
         #expect(outcome.newState.pet == state.pet)
-        #expect(outcome.newState.state == state.state)
-        #expect(outcome.newState.days == state.days)
         #expect(outcome.newState.settings == state.settings)
         #expect(outcome.newState.pendingHandshake == state.pendingHandshake)
         #expect(outcome.newState.processedIntents == state.processedIntents)
         #expect(outcome.newState.highestCelebratedStage == state.highestCelebratedStage)
+        #expect(outcome.newState.lastEvaluatedAt == utcInstant("2026-09-08T09:00:00Z"))
     }
 
     // MARK: - Handshake carrier (minimal §4.7 form; semantics are TASK-015's)
@@ -134,7 +163,11 @@ struct EngineReduceTests {
         #expect(settle != Handshake(kind: .wake, token: token))
         #expect(settle != Handshake(kind: .settle, token: UUID()))
 
-        // The state carries it and round-trips through evaluate untouched.
+        // The state carries it and round-trips through a zero-elapsed
+        // evaluate untouched (TASK-015 adaptation: a fold that TRANSITIONS
+        // wakefulness now proactively clears an orphaned handshake — §4.7's
+        // never-stranded rule — so the carrier pin uses an evaluation that
+        // folds nothing).
         let state = anyState
         let pending = EngineState(
             pet: state.pet,
@@ -147,15 +180,15 @@ struct EngineReduceTests {
             lastOpenedAt: state.lastOpenedAt,
             lastEvaluatedAt: state.lastEvaluatedAt
         )
-        let now = utcInstant("2026-09-08T09:00:00Z")
+        let now = state.lastEvaluatedAt
         var rng = SeededGenerator(seed: 0)
-        let outcome = reduce(pending, .evaluate(now: now), clock: ManualEngineClock(), rng: &rng)
+        let outcome = reduce(pending, .evaluate(now: now), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
         #expect(outcome.newState.pendingHandshake == settle)
     }
 
-    // MARK: - Pass-through events (documented owners: TASK-015–018)
+    // MARK: - Interaction belt + pass-through seam (documented owners: TASK-016/017)
 
-    @Test("interactions pass through with no dynamics, for both sources")
+    @Test("fresh interactions record exactly-once ids with no dynamics; duplicates are total no-ops")
     func interactionPassThrough() {
         let state = anyState
         let intents: [InteractionIntent] = [
@@ -165,20 +198,43 @@ struct EngineReduceTests {
             InteractionIntent(id: UUID(), source: .watch, localDayKey: "2026-09-08", timestamp: utcInstant("2026-09-08T09:03:00Z"), kind: .pat(gesture: .stroke, zone: nil)),
         ]
         var rng = SeededGenerator(seed: 0)
+        var ledger: [UUID] = []
+        var current = state
         for intent in intents {
-            let outcome = reduce(state, .interaction(intent), clock: ManualEngineClock(), rng: &rng)
-            #expect(outcome.newState == state)
-            #expect(!outcome.changed)
+            let outcome = reduce(current, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
+            // TASK-016/017 seam: no response, no moment, no bond-ledger or
+            // identity changes — the pet DYNAMICS here are the fold's (the
+            // first intent folds ~23 h; TimeFoldTests owns that arithmetic).
+            // What this pin owns: response stays nil, moments stay empty,
+            // identity/bookkeeping stay untouched, only the belt records.
+            // REVIEW-TASK-015 NITPICK-1 (noted for TASK-016): the first
+            // intent's ~23 h fold lands .waking, so a LATER intent in this
+            // loop legitimately mints the wake handshake (§4.7) — harmless
+            // here (nothing asserts pendingHandshake), but waking-interaction
+            // responses land in TASK-016 and must account for it.
             #expect(outcome.response == nil)
             #expect(outcome.moments.isEmpty)
+            #expect(outcome.newState.pet == current.pet)
+            #expect(outcome.newState.days == current.days) // landing day already recorded
+            ledger.append(intent.id)
+            #expect(outcome.newState.processedIntents == ledger)
+            #expect(outcome.changed)
+            current = outcome.newState
         }
+
+        // Replay of an already-processed id: total no-op (INV-10, FR-18 AC-1).
+        let replay = reduce(current, .interaction(intents[1]), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
+        #expect(replay.newState == current)
+        #expect(!replay.changed)
+        #expect(replay.response == nil)
     }
 
-    @Test("character reports pass through with no dynamics (incl. cancellation)")
+    @Test("character reports pass through with no dynamics when nothing is pending (incl. cancellation)")
     func characterReportPassThrough() {
         let state = anyState
         let reports: [CharacterReport] = [
             .settleFinished,
+            .wakeFinished,
             .playRoundFinished,
             .reactionFinished(ReactionID(rawValue: "react.tap.head")),
             .handshakeCancelled(.settle),
@@ -188,7 +244,7 @@ struct EngineReduceTests {
         ]
         var rng = SeededGenerator(seed: 0)
         for report in reports {
-            let outcome = reduce(state, .characterReport(report), clock: ManualEngineClock(), rng: &rng)
+            let outcome = reduce(state, .characterReport(report), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
             #expect(outcome.newState == state)
             #expect(!outcome.changed)
             #expect(outcome.response == nil)
@@ -198,23 +254,26 @@ struct EngineReduceTests {
 
     // MARK: - Purity probes: no hidden inputs (FR-13 AC-3's mechanical half)
 
-    @Test("reduce consumes zero rng draws (the generator is untouched)")
+    @Test("reduce consumes zero rng draws on non-minting paths (the generator is untouched)")
     func rngUntouched() {
         let state = anyState
         let events: [EngineEvent] = [
+            // Fold lands .waking but the fold itself never mints (the stretch
+            // is the NEXT event's emission) — zero draws.
             .evaluate(now: utcInstant("2026-09-08T09:00:00Z")),
+            // Nothing pending: a tolerated no-op report — zero draws.
             .characterReport(.settleFinished),
         ]
         var generator = SeededGenerator(seed: 0xE220A8397B1DCDAF)
         for event in events {
-            _ = reduce(state, event, clock: ManualEngineClock(), rng: &generator)
+            _ = reduce(state, event, clock: ManualEngineClock(), calendar: calendar, rng: &generator)
         }
         var untouchedTwin = SeededGenerator(seed: 0xE220A8397B1DCDAF)
         #expect(generator.next() == untouchedTwin.next()) // first draw still the reference first draw
         #expect(generator.state == untouchedTwin.state)
     }
 
-    @Test("reduce reads no wall time: wildly different clocks, identical outcomes")
+    @Test("evaluate and interactions read no wall time: wildly different clocks, identical outcomes")
     func clockUnread() {
         let state = anyState
         let event = EngineEvent.evaluate(now: utcInstant("2026-09-08T09:00:00Z"))
@@ -222,20 +281,20 @@ struct EngineReduceTests {
         let late = ManualEngineClock(at: utcInstant("2099-12-31T23:59:59Z"))
         var rngA = SeededGenerator(seed: 1)
         var rngB = SeededGenerator(seed: 1)
-        let outcomeA = reduce(state, event, clock: early, rng: &rngA)
-        let outcomeB = reduce(state, event, clock: late, rng: &rngB)
+        let outcomeA = reduce(state, event, clock: early, calendar: calendar, rng: &rngA)
+        let outcomeB = reduce(state, event, clock: late, calendar: calendar, rng: &rngB)
         #expect(outcomeA == outcomeB)
     }
 
     // MARK: - Determinism spot tests (FR-13 AC-3)
 
-    @Test("identical (state, event, clock, seed) ⇒ identical outcome, every event kind")
+    @Test("identical (state, event, clock, calendar, seed) ⇒ identical outcome, every event kind")
     func determinismAcrossEventKinds() {
         let state = anyState
         let now = utcInstant("2026-09-08T09:00:00Z")
         // Fixed distinct id (REVIEW-TASK-014 NITPICK-2): never reuse petID
-        // as an intent id — TASK-015's exactly-once tests key off id
-        // distinctness and must not inherit the habit.
+        // as an intent id — exactly-once tests key off id distinctness and
+        // must not inherit the habit.
         let intentID = UUID(uuidString: "3F2B7A64-1D4E-4C9B-8E2A-5B6C7D8E9F01")!
         let intent = InteractionIntent(id: intentID, source: .iPhone, localDayKey: "2026-09-08", timestamp: now, kind: .feed)
         let events: [EngineEvent] = [
@@ -248,8 +307,8 @@ struct EngineReduceTests {
             let clockB = ManualEngineClock(at: now)
             var rngA = SeededGenerator(seed: 1234)
             var rngB = SeededGenerator(seed: 1234)
-            let a = reduce(state, event, clock: clockA, rng: &rngA)
-            let b = reduce(state, event, clock: clockB, rng: &rngB)
+            let a = reduce(state, event, clock: clockA, calendar: calendar, rng: &rngA)
+            let b = reduce(state, event, clock: clockB, calendar: calendar, rng: &rngB)
             #expect(a == b)
             #expect(a.newState == b.newState)
         }
