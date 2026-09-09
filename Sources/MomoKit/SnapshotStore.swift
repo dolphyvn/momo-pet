@@ -27,6 +27,21 @@ import MomoCore
 /// customizes it. The load path verifies by re-deriving exactly this recipe
 /// from the decoded payload and comparing to the recorded checksum.
 ///
+/// **Documented limit — the recipe is toolchain-coupled (TASK-022, the
+/// TASK-021 review's OBS-3).** The canonical bytes above are the Swift
+/// toolchain's Codable output shape (for example, this toolchain encodes a
+/// simple enum case as a keyed object: `{"settle":{}}`). The checksum recipe
+/// is therefore coupled to that toolchain-canonical byte shape: a future
+/// toolchain whose Codable emits different canonical bytes fails EVERY
+/// generation's checksum at once, and every store falls through to the
+/// injected fresh default. That outcome is self-consistent (write and read
+/// share the encoder, so a store never rejects its own writes) and
+/// contract-compliant (§5.3's invisible-recovery stance), but it is a real
+/// limit — such a toolchain transition forfeits persisted state rather than
+/// serving it. The `SnapshotStoreGoldenBytesTests` pin (recorded
+/// out-of-process bytes) makes this coupling explicit and testable: any
+/// canonical-byte drift fails the pin, forcing a deliberate fixture re-record.
+///
 /// **Write sequence and its crash windows (Requirement 2).** Per save, in
 /// this order — the order is forced: demoting `prev` down BEFORE renaming
 /// `current` away is what keeps generation N−1 from being clobbered, and
@@ -75,16 +90,49 @@ import MomoCore
 /// **Totality (Requirement 3).** Neither public API throws. `load` falls
 /// through current → `.prev` → `.prev2` → the injected fresh default on ANY
 /// failure (missing file, garbage/truncated/empty bytes, decode failure,
-/// checksum mismatch, unsupported `schemaVersion`) and returns a state, never
+/// checksum mismatch, a `schemaVersion` above the current one, a below-current
+/// version whose migration walk is missing a hop) and returns a state, never
 /// an error. `save` is internally total: an encoding or I/O failure leaves
 /// the existing chain untouched (it trips `assertionFailure` in DEBUG — the
 /// `MomoCopy` discipline — and stays silent in release, where the stale-but-
 /// valid chain remains the recovery target).
 ///
+/// **Retention on the write path (05 §5.4, TASK-022).** Every save prunes the
+/// state through `LedgerRetention.pruned` BEFORE encoding, so every on-disk
+/// payload satisfies §5.4's caps (the 7-newest-day ledger, the
+/// ≤ `processedIntentsCapacity` intent belt) — the engine stays append-only
+/// (REVIEW-TASK-015 routing) and demoted generations are untouched bytes that
+/// were pruned when they were written. Applying the prune on EVERY save (the
+/// doc says "pruned at each rollover") is a deterministic SUPERSET of §5.4's
+/// intent, not a deviation: under ADR-002 write-through, a rollover that
+/// changed state is immediately followed by a save, and pruning at every save
+/// yields exactly the payloads a rollover-time discipline would have written
+/// at those points — plus the same guarantee at every other save, where the
+/// rollover rule said nothing. Same deterministic outputs wherever the caps
+/// can actually bind; strictly stronger enforcement everywhere else.
+///
+/// **Migration on the read path (05 §5.5, TASK-022).** The store carries an
+/// INJECTED `MigrationChain` (production ships `MigrationChain.empty` —
+/// additive evolution is the norm and schema 1 is correct as shipped; no
+/// version bump). The read path's amended gate order:
+///
+///     1. bytes exist → envelope (incl. payload) decodes
+///     2. version RANGE check — above `currentSchemaVersion` is unreadable
+///        (the chain's above-head rule) regardless of its bytes
+///     3. checksum re-derived over the on-disk payload (the recipe above)
+///     4. migration walk v → v+1 → … → current (pure, in-memory); any
+///        missing hop ⇒ generation unreadable
+///     5. serve
+///
+/// The checksum gate precedes the walk BY DESIGN: it verifies what is on
+/// disk, and a below-current generation that fails it falls through — it
+/// never migrates (pinned by name). Migration is pure in-memory afterward:
+/// loading a migrated generation writes nothing and prunes nothing. A state
+/// that entered memory through migration is simply the state there is; the
+/// next save persists it at `currentSchemaVersion` with a fresh checksum.
+///
 /// The persisted payload graph's `Codable` support lives in MomoCore as
-/// additive conformances (enumerated in the TASK-021 Implementation Notes);
-/// ledger pruning (§5.4) and the migration chain (§5.5) are TASK-022's — this
-/// store saves what it is given.
+/// additive conformances (enumerated in the TASK-021 Implementation Notes).
 public actor SnapshotStore {
 
     /// The envelope written to and read from every generation file
@@ -118,6 +166,11 @@ public actor SnapshotStore {
     /// The only time source for `savedAt` (Requirement 6; 05 §4.10).
     private let clock: any EngineClock
 
+    /// The injected schema-migration chain the read path walks for
+    /// below-current generations (05 §5.5; see the header's gate order).
+    /// Production ships `MigrationChain.empty`.
+    private let chain: MigrationChain
+
     /// - Parameters:
     ///   - directory: the store directory; created if missing (the save path
     ///     needs it, and `load` over a missing directory is a valid fresh
@@ -126,25 +179,37 @@ public actor SnapshotStore {
     ///     MomoCore's `SystemEngineClock` so EPIC-007's wiring is one call;
     ///     tests inject `ManualEngineClock`. The ambient read stays inside
     ///     MomoCore's one sanctioned site — no `Date` literal exists here.
-    public init(directory: URL, clock: any EngineClock = SystemEngineClock()) {
+    ///   - chain: the injected migration chain (05 §5.5). Defaults to
+    ///     `MigrationChain.empty` — the production shape (additive evolution
+    ///     is the norm; schema 1 ships correct). A non-empty chain is
+    ///     registered only by a §5.5 schema-version bump.
+    public init(
+        directory: URL,
+        clock: any EngineClock = SystemEngineClock(),
+        chain: MigrationChain = .empty
+    ) {
         self.directory = directory
         self.clock = clock
+        self.chain = chain
     }
 
     // MARK: Write path (05 §5.2)
 
     /// Persists `state` as the new current generation, demoting the previous
-    /// generations down the chain per the header's sequence. Total: never
-    /// throws; on any internal failure the existing chain is left untouched.
+    /// generations down the chain per the header's sequence. The §5.4 prune
+    /// runs first (header: retention on the write path), so the encoded
+    /// payload always satisfies the retention caps. Total: never throws; on
+    /// any internal failure the existing chain is left untouched.
     ///
     /// Caller note (ADR-002 write-through): call once per engine event that
     /// changed state — loss is then bounded by the in-flight event (FR-13
     /// AC-1). EPIC-007 owns that wiring.
     public func save(_ state: EngineState) {
+        let retained = LedgerRetention.pruned(state)
         guard let envelopeData = Self.envelopeData(
             schemaVersion: StoreRules.currentSchemaVersion,
             savedAt: clock.now(),
-            payload: state
+            payload: retained
         ) else {
             // An `EngineState` that cannot encode would be a domain-model
             // regression (every persisted field is JSON-native). DEBUG-loud,
@@ -199,31 +264,51 @@ public actor SnapshotStore {
     ///   factory — the default is nobody's to invent here).
     public nonisolated func load(fallback: EngineState) -> EngineState {
         for fileName in StoreRules.generationFileNamesInReadOrder {
-            if let state = Self.loadGeneration(directory: directory, fileName: fileName) {
+            if let state = Self.loadGeneration(directory: directory, fileName: fileName, chain: chain) {
                 return state
             }
         }
         return fallback
     }
 
-    /// Reads one generation file through the full gate: bytes exist → envelope
-    /// decodes → schema version is supported → checksum matches the recipe.
-    /// Any failure returns nil (the caller falls through) — this is the ONLY
+    /// Reads one generation file through the full gate (the header's amended
+    /// order): bytes exist → envelope decodes → version RANGE check →
+    /// checksum over the on-disk payload → migration walk → serve. Any
+    /// failure returns nil (the caller falls through) — this is the ONLY
     /// internal error surface, and it is total by construction.
-    private static func loadGeneration(directory: URL, fileName: String) -> EngineState? {
+    private static func loadGeneration(
+        directory: URL,
+        fileName: String,
+        chain: MigrationChain
+    ) -> EngineState? {
         let url = directory.appendingPathComponent(fileName)
         guard let data = try? Data(contentsOf: url), !data.isEmpty else { return nil }
         guard let envelope = try? JSONDecoder().decode(SnapshotEnvelope.self, from: data) else {
             return nil
         }
-        // Version gate BEFORE the checksum: an unknown (higher) schema version
-        // is unreadable by definition (§5.5) regardless of its bytes — the
-        // migrate chain that would read it is TASK-022's. Until a chain
-        // exists, any version other than the current one falls through.
-        guard envelope.schemaVersion == StoreRules.currentSchemaVersion else { return nil }
+        // Gate 2 — the version RANGE check precedes the checksum: a version
+        // above `currentSchemaVersion` is unreadable by definition (§5.5's
+        // above-head rule) regardless of its bytes. Below-current generations
+        // pass this gate and are decided by the walk AFTER the checksum.
+        guard envelope.schemaVersion <= StoreRules.currentSchemaVersion else { return nil }
+        // Gate 3 — the checksum verifies what is ON DISK. It precedes the
+        // migration walk deliberately: a generation that fails its integrity
+        // gate falls through and is NEVER migrated (pinned by name). The
+        // payload decoded above is only now trusted.
         guard let payloadJSON = payloadJSONData(for: envelope.payload),
               checksumHex(of: payloadJSON) == envelope.checksum else {
             return nil
+        }
+        // Gates 4–5 — at the current version the payload IS the state; below
+        // it, the pure in-memory walk v → v+1 → … → current applies the
+        // injected chain, and any missing hop makes the generation unreadable
+        // (§5.5: a half-migrated state is never served).
+        guard envelope.schemaVersion == StoreRules.currentSchemaVersion else {
+            return chain.migrated(
+                envelope.payload,
+                from: envelope.schemaVersion,
+                to: StoreRules.currentSchemaVersion
+            )
         }
         return envelope.payload
     }

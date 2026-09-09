@@ -22,6 +22,11 @@ struct StoreRulesPinnedTests {
         #expect(StoreRules.currentSchemaVersion == 1)
     }
 
+    @Test("the retained day count is 7 (05 §5.4's 7-day DayRecord window)")
+    func retainedDayCount() {
+        #expect(StoreRules.retainedDayCount == 7)
+    }
+
     @Test("the generation count is 3 (current + two predecessors)")
     func generationCount() {
         #expect(StoreRules.generationCount == 3)

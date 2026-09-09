@@ -5,8 +5,9 @@ import Testing
 
 /// The TASK-021 store matrix (contract Requirement 8): roundtrip (populated
 /// anchor + every persisted enum case), envelope pins, generational chain,
-/// crash-window intermediates, corruption recovery, unknown-schemaVersion
-/// fall-through, and byte-stability of the `.sortedKeys` payload/checksum
+/// crash-window intermediates, corruption recovery, above-chain-head
+/// fall-through (rewritten against the §5.5 migration chain in TASK-022 —
+/// OBS-5), and byte-stability of the `.sortedKeys` payload/checksum
 /// portion. Corruption and crash windows are constructed DIRECTLY on disk
 /// through `@testable` helpers so each mode is pinned in isolation; every
 /// assertion goes through the public `save`/`load` API, whose non-throwing
@@ -378,17 +379,29 @@ struct SnapshotStoreTests {
         #expect(readBytes(StoreRules.oldestStateFileName, in: directory) == prev2BytesBefore)
     }
 
-    // MARK: - Unknown schemaVersion (Requirement 8, bullet 6; Requirement 5)
+    // MARK: - Versions above the chain head (Requirement 8, bullet 6;
+    // TASK-022's OBS-5 rewrite: the skip is the §5.5 migration chain's
+    // above-head rule — a version above `currentSchemaVersion` is unreadable
+    // regardless of its bytes — not a store special case. The store under
+    // test carries the production EMPTY chain; below-current walk behavior
+    // lives in MigrationChainTests.)
 
-    @Test("an unknown (higher) schemaVersion generation is skipped — prev serves even with a valid checksum")
-    func unknownSchemaVersionIsSkippedToPrev() async {
+    @Test("a generation above the chain head is skipped — prev serves even with a valid checksum")
+    func generationAboveTheChainHeadIsSkippedToPrev() async {
         let (store, directory, clock) = makeStore()
         let previousState = fixture.state(bond: 1)
         let futureState = fixture.state(bond: 2)
-        // Self-consistent envelope under version 2 (valid recipe checksum):
-        // it must STILL be refused — the version gate precedes the checksum.
+        // Self-consistent envelope one version ABOVE the chain head (valid
+        // recipe checksum): it must STILL be refused — the version range
+        // check precedes the checksum, and no registered walk can reach a
+        // version the store does not know.
         writeBytes(
-            envelopeBytes(for: futureState, schemaVersion: 2, checksumOverride: nil, savedAt: clock.current),
+            envelopeBytes(
+                for: futureState,
+                schemaVersion: StoreRules.currentSchemaVersion + 1,
+                checksumOverride: nil,
+                savedAt: clock.current
+            ),
             to: StoreRules.currentStateFileName,
             in: directory
         )
@@ -396,21 +409,36 @@ struct SnapshotStoreTests {
         #expect(store.load(fallback: fixture.state(bond: 999)) == previousState)
     }
 
-    @Test("unknown schemaVersion in every generation returns the injected fallback")
-    func unknownSchemaVersionEverywhereReturnsFallback() async {
+    @Test("versions above the chain head in every generation return the injected fallback")
+    func versionsAboveTheChainHeadEverywhereReturnFallback() async {
         let (store, directory, clock) = makeStore()
         writeBytes(
-            envelopeBytes(for: fixture.state(bond: 3), schemaVersion: 2, checksumOverride: nil, savedAt: clock.current),
+            envelopeBytes(
+                for: fixture.state(bond: 3),
+                schemaVersion: StoreRules.currentSchemaVersion + 1,
+                checksumOverride: nil,
+                savedAt: clock.current
+            ),
             to: StoreRules.currentStateFileName,
             in: directory
         )
         writeBytes(
-            envelopeBytes(for: fixture.state(bond: 2), schemaVersion: 2, checksumOverride: nil, savedAt: clock.current),
+            envelopeBytes(
+                for: fixture.state(bond: 2),
+                schemaVersion: StoreRules.currentSchemaVersion + 1,
+                checksumOverride: nil,
+                savedAt: clock.current
+            ),
             to: StoreRules.previousStateFileName,
             in: directory
         )
         writeBytes(
-            envelopeBytes(for: fixture.state(bond: 1), schemaVersion: 9, checksumOverride: nil, savedAt: clock.current),
+            envelopeBytes(
+                for: fixture.state(bond: 1),
+                schemaVersion: StoreRules.currentSchemaVersion + 8,
+                checksumOverride: nil,
+                savedAt: clock.current
+            ),
             to: StoreRules.oldestStateFileName,
             in: directory
         )

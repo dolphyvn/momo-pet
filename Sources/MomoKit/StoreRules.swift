@@ -15,17 +15,35 @@ import Foundation
 /// - **Spec-normative** (05-technical-architecture §5.2 + ADR-002): the three
 ///   file names, the retained generation count, and the envelope's
 ///   `schemaVersion` semantics. These are the record, not tunables.
-/// - **Migration posture (§5.5, TASK-022's land):** until a `migrate(v→v+1)`
-///   chain is registered, a generation whose `schemaVersion` differs from
-///   `currentSchemaVersion` is treated by the read path as unreadable — the
-///   safe total behavior for an unknown (higher) version, and equally the
-///   behavior for a stale (lower) one when no chain exists.
+/// - **Retention (§5.4, TASK-022's land):** `retainedDayCount` below — the
+///   7-day `DayRecord` window the store's write path enforces (the engine
+///   stays append-only; see `LedgerRetention`).
+/// - **Migration posture (§5.5, implemented by TASK-022):** the read path
+///   serves a generation at `currentSchemaVersion`, walks below-current
+///   versions through the store's injected `MigrationChain` (any missing hop
+///   makes the generation unreadable), and treats a version ABOVE the current
+///   one as unreadable — the chain's above-head rule. With the production
+///   chain (`MigrationChain.empty`) a below-current version is therefore
+///   unreadable too, which is exactly TASK-021's pre-chain behavior, now as a
+///   consequence of the empty walk rather than a special case.
 public enum StoreRules {
 
     /// The current envelope schema version (05 §5.2's `schemaVersion`). `1` is
     /// the initial schema. Bumping it is a breaking-schema change owned by the
-    /// §5.5 migration policy — TASK-022 registers the migrate chain.
+    /// §5.5 migration policy — the bump's steps are registered in the store's
+    /// injected `MigrationChain` (production ships `MigrationChain.empty`).
     public static let currentSchemaVersion = 1
+
+    /// Day-ledger retention (05 §5.4): the store's write path keeps the 7
+    /// most-recent `DayRecord`s (by `dayKey` — zero-padded `"YYYY-MM-DD"`, so
+    /// lexicographic order is chronological order). The window simultaneously
+    /// serves §4.8's rolling 3-day quest-generation window, §6.4's late
+    /// Watch-intent attribution, and §4.3's dayKey-keyed once-only resets.
+    /// Applied by `LedgerRetention.pruned` before every encode; the engine
+    /// stays append-only (REVIEW-TASK-015 routing — this constant is NEW
+    /// normative surface, unlike the belt cap which MomoCore owns as
+    /// `EngineState.processedIntentsCapacity`).
+    public static let retainedDayCount = 7
 
     /// Retained generations: current + two predecessors (05 §5.2's three-file
     /// layout). The read path's recovery depth.

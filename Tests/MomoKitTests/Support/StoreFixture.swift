@@ -216,6 +216,63 @@ struct StoreFixture {
         )
     }
 
+    /// A state carrying exactly the given day ledger and intent belt over an
+    /// otherwise minimal pet — the retention tests' carrier (TASK-022). The
+    /// ledger is taken AS GIVEN (any order, any size, duplicates allowed at
+    /// the caller's request): retention fixtures construct their adversarial
+    /// inputs explicitly and assert on what the prune keeps.
+    func state(days: [DayRecord], processedIntents: [UUID]) -> EngineState {
+        EngineState(
+            pet: Pet(id: petID, name: "Momo", createdAt: instant("2026-01-01T00:00:00Z"))!,
+            state: PetState(
+                mood: 60, energy: 80, bond: 10,
+                wakefulness: .awake, activity: nil, lastFedAt: nil, satietyPhase: .hungry
+            )!,
+            days: days,
+            settings: SettingsState(onboardingComplete: true, hapticsEnabled: true),
+            pendingHandshake: nil,
+            processedIntents: processedIntents,
+            highestCelebratedStage: .newFriends,
+            lastOpenedAt: instant("2026-03-03T09:00:00Z"),
+            lastEvaluatedAt: instant("2026-03-03T09:00:00Z"),
+            lastGreeting: nil
+        )
+    }
+
+    /// A minimal valid record for `dayKey` (zero counters, placeholder quest
+    /// set, no awards) — the bulk filler for oversized retention fixtures.
+    func minimalDay(_ dayKey: String) -> DayRecord {
+        day(
+            dayKey: dayKey,
+            feed: 0, play: 0, care: 0, pat: 0,
+            questSet: [quest(.q1, progress: 0, completed: false),
+                       quest(.q2, progress: 0, completed: false),
+                       quest(.q6, progress: 0, completed: false)],
+            helloAwarded: false,
+            familiesUsed: [],
+            bondAwarded: 0
+        )
+    }
+
+    /// `count` zero-padded dayKeys on consecutive UTC days starting at the
+    /// `startingISO` instant — derived through MomoCore's `DayKey.make` with
+    /// an injected UTC calendar (the sanctioned derivation; no ambient
+    /// anything), so fixture keys are guaranteed to be in the production
+    /// format the retention function's lexicographic rule relies on.
+    func consecutiveDayKeys(startingISO: String, count: Int) -> [String] {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let start = instant(startingISO)
+        return (0..<count).map { offset in
+            DayKey.make(from: start.addingTimeInterval(Double(offset) * 86_400), calendar: utc)
+        }
+    }
+
+    /// Deterministic distinct intent id `n` — stable bytes for the belt pins.
+    func intentID(_ n: Int) -> UUID {
+        UUID(uuidString: String(format: "00000000-0000-4000-8000-%012X", n))!
+    }
+
     // MARK: - Persisted enum case sets (compile-pinned; a new case is a
     // BUILD ERROR here, so the matrix below can never silently miss one)
 
