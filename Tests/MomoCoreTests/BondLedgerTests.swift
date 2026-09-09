@@ -413,6 +413,35 @@ struct BondLedgerTests {
         #expect(outcome.newState.state.bond == start.state.bond + BondRules.helloBondDelta + BondRules.questBondDelta)
     }
 
+    // MARK: Monotonic under replay (AC-2's replay clause — 05 §10.3 row 2, TASK-020)
+
+    @Test("monotonic under replay: a re-delivered intent id is the total no-op — bond never decreases, the ledger never moves, the day never rolls")
+    func monotonicUnderReplay() {
+        let id = UUID(uuidString: "00000000-0000-0000-0000-0000000004D2")!
+        let start = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
+        let first = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day, intentID: id)
+        #expect(first.newState.state.bond == start.state.bond + BondRules.helloBondDelta + BondRules.questBondDelta)
+        #expect(first.newState.state.bond > start.state.bond) // there is an award for the replays to threaten
+
+        // The SAME id re-delivered — later the same day, at the day's edge,
+        // and past local midnight — is each time the INV-10 total no-op: the
+        // belt answers BEFORE any fold, so a replay cannot even roll the day
+        // over, let alone re-award or regress the bond (FR-10 AC-2 "no sync
+        // conflict ever decreases bond", §10.3's "monotonicity incl. replay").
+        var current = first.newState
+        for replayAt in ["2026-09-08T11:00:00Z", "2026-09-08T23:30:00Z", "2026-09-09T00:30:00Z"] {
+            let replayKey = DayKey.make(from: fixture.instant(replayAt), calendar: fixture.calendar)
+            let replay = fixture.send(current, .pat(gesture: .tap, zone: .head), at: fixture.instant(replayAt), dayKey: replayKey, intentID: id)
+            #expect(replay.newState == current)
+            #expect(!replay.changed)
+            #expect(replay.newState.state.bond >= current.state.bond)
+            current = replay.newState
+        }
+        #expect(current.days.count == 1) // the past-midnight replay rolled nothing
+        #expect(current.days.first?.bondAwarded == BondRules.helloBondDelta + BondRules.questBondDelta)
+        #expect(current.days.first?.patCount == 1) // replays counted nothing either
+    }
+
     // MARK: Determinism (AC-5)
 
     @Test("twin runs over identical tuples produce whole-state-equal outcomes, bond fields included")

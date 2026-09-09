@@ -314,6 +314,43 @@ struct TimeFoldTests {
         #expect(floored.newState.state.mood == 25.0)
     }
 
+    /// TASK-020 (05 §10.3 row 1, FR-9 AC-3's self-reversal clause): the
+    /// energy-coupled pull is not a ratchet — the segment-start band read
+    /// that ENGAGES the coupling also RELEASES it once energy recovers.
+    @Test("named: the coupling self-reverses on energy recovery — the pull releases when the band lifts")
+    func couplingSelfReversesOnEnergyRecovery() {
+        // A Drowsy pet's waking hour: mood converges DOWN toward the coupled
+        // target (re-derived independently from the §4.3 formula).
+        let coupled = evaluate(
+            state(mood: 40, energy: 30, lastEvaluatedAt: instant("2026-09-08T09:00:00Z")),
+            at: instant("2026-09-08T10:00:00Z"),
+            calendar: utcCalendar
+        )
+        let expectedCoupled = 40.0
+            - (40.0 - FoldRules.moodCoupledTarget) * (1.0 - exp(-1.0 / FoldRules.moodAttractorTauHours))
+        #expect(abs(coupled.newState.state.mood - expectedCoupled) < 1e-9)
+        #expect(coupled.newState.state.mood < 40.0) // the pull dragged mood down
+
+        // Energy recovers past the band cut-off (Relaxed again): the SAME
+        // one-hour waking segment now attracts toward the plain target —
+        // mood RISES, where the coupled reading would keep dragging it down.
+        // The coupling self-reversed.
+        let recovered = evaluate(
+            state(
+                mood: coupled.newState.state.mood,
+                energy: 60,
+                lastEvaluatedAt: instant("2026-09-08T10:00:00Z")
+            ),
+            at: instant("2026-09-08T11:00:00Z"),
+            calendar: utcCalendar
+        )
+        let mood = recovered.newState.state.mood
+        let expectedReleased = coupled.newState.state.mood
+            + (FoldRules.moodAttractorTarget - coupled.newState.state.mood) * (1.0 - exp(-1.0 / FoldRules.moodAttractorTauHours))
+        #expect(abs(mood - expectedReleased) < 1e-9)
+        #expect(mood > coupled.newState.state.mood) // released: mood recovers toward 60
+    }
+
     @Test("INV-2: energy never leaves 0…100 even after long waking stretches")
     func energyClampsHold() {
         let outcome = evaluate(
@@ -363,6 +400,105 @@ struct TimeFoldTests {
         let again = evaluate(outcome.newState, at: instant("2026-09-09T01:00:00Z"), calendar: utcCalendar)
         #expect(again.newState.days == outcome.newState.days)
         #expect(!again.changed)
+    }
+
+    /// TASK-020 (05 §10.3 row 3's "across folded spans" clause; FR-11 AC-2):
+    /// every event kind folds, so the once-only rollover must hold on EVERY
+    /// folded span — the evaluate path, the interaction path's fold to the
+    /// intent's own timestamp, and the report path's fold-to-now — with
+    /// re-delivery never doubling the record on any of them.
+    @Test("named: midnight rollover is exactly once across EVERY folded span — evaluate, interaction, and report paths")
+    func midnightRolloverExactlyOnceAcrossFoldedSpans() {
+        let before = instant("2026-09-08T23:30:00Z")
+        let after = instant("2026-09-09T00:30:00Z")
+
+        // The evaluate path (fold to the stated instant).
+        let evaluated = evaluate(state(lastEvaluatedAt: before), at: after, calendar: utcCalendar)
+        #expect(evaluated.newState.days.count == 2)
+        #expect(evaluated.newState.days.last?.dayKey == "2026-09-09")
+        let evaluatedAgain = evaluate(evaluated.newState, at: after, calendar: utcCalendar)
+        #expect(evaluatedAgain.newState.days.count == 2)
+        #expect(!evaluatedAgain.changed)
+
+        // The interaction path (fold to the intent's own timestamp; the
+        // caller attributes the intent to the NEW day per D20).
+        let intent = InteractionIntent(
+            id: UUID(uuidString: "22222222-3333-4444-5555-666666666666")!,
+            source: .iPhone,
+            localDayKey: "2026-09-09",
+            timestamp: after,
+            kind: .pat(gesture: .tap, zone: .head)
+        )
+        var rng = SeededGenerator(seed: 5)
+        let interacted = reduce(state(lastEvaluatedAt: before), .interaction(intent), clock: ManualEngineClock(), calendar: utcCalendar, rng: &rng)
+        #expect(interacted.newState.days.count == 2)
+        #expect(interacted.newState.days.last?.dayKey == "2026-09-09")
+        var replayRng = SeededGenerator(seed: 5)
+        let replayed = reduce(interacted.newState, .interaction(intent), clock: ManualEngineClock(), calendar: utcCalendar, rng: &replayRng)
+        #expect(replayed.newState.days.count == 2)
+        #expect(!replayed.changed)
+
+        // The report path (fold-to-now via the injected clock — the one
+        // event kind that reads it).
+        var reportRng = SeededGenerator(seed: 5)
+        let reported = reduce(
+            state(lastEvaluatedAt: before),
+            .characterReport(.reactionFinished(ReactionKeys.tapHead)),
+            clock: ManualEngineClock(at: after),
+            calendar: utcCalendar,
+            rng: &reportRng
+        )
+        #expect(reported.newState.days.count == 2)
+        #expect(reported.newState.days.last?.dayKey == "2026-09-09")
+        var reportReplayRng = SeededGenerator(seed: 5)
+        let reportedAgain = reduce(
+            reported.newState,
+            .characterReport(.reactionFinished(ReactionKeys.tapHead)),
+            clock: ManualEngineClock(at: after),
+            calendar: utcCalendar,
+            rng: &reportReplayRng
+        )
+        #expect(reportedAgain.newState.days.count == 2)
+        #expect(!reportedAgain.changed)
+    }
+
+    /// TASK-020 (05 §10.3 row 3; FR-11 AC-2 + FR-12 AC-1): absent-day ledger
+    /// EMPTINESS — not one skipped dayKey has a record, the landing day is a
+    /// full daily reset whose quest set the rollover generates, and the bond
+    /// simply paused (absence is never an award or a penalty).
+    @Test("named: absent-day ledger emptiness — skipped days have no records, the landing day resets, bond pauses")
+    func absentDayLedgerIsEmpty() {
+        // A bond-carrying, greeted day goes absent for six days.
+        var start = state(dayKey: "2026-09-08", helloAwarded: true, lastEvaluatedAt: instant("2026-09-08T10:00:00Z"))
+        start = start.with(state: PetState(
+            mood: 70,
+            energy: 60,
+            bond: 130,
+            wakefulness: .awake,
+            activity: nil,
+            lastFedAt: nil,
+            satietyPhase: .hungry
+        )!)
+        let outcome = evaluate(start, at: instant("2026-09-15T10:00:00Z"), calendar: utcCalendar)
+
+        // The ledger holds exactly the pre-absence day and the landing day —
+        // no absent dayKey ever gained a record (FR-11 AC-2's "quests reset /
+        // counters reset … exactly once" — by NOT existing, not by zeroing).
+        #expect(outcome.newState.days.map(\.dayKey) == ["2026-09-08", "2026-09-15"])
+        for absentKey in ["2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"] {
+            #expect(!outcome.newState.days.contains { $0.dayKey == absentKey })
+        }
+
+        // FR-12 AC-1: bond unchanged (it paused), and the landing day is a
+        // fresh daily reset — zero counters, hello un-awarded, and the
+        // rollover generated its quest set under the current epoch (§4.8).
+        #expect(outcome.newState.state.bond == 130)
+        let landing = outcome.newState.days.last!
+        #expect(landing.feedCount == 0 && landing.playCount == 0 && landing.careCount == 0 && landing.patCount == 0)
+        #expect(landing.helloAwarded == false)
+        #expect(landing.bondAwarded == 0)
+        #expect(landing.questGenEpoch == QuestGeneration.currentEpoch)
+        #expect(landing.questSet.contains { $0.questID == .q1 }) // the mandatory anchor
     }
 
     @Test("named: seven absent days produce only the landing day's record (FR-12)")
