@@ -217,28 +217,55 @@ enum TimeFold {
         mood = max(FoldRules.moodFloor, min(Thresholds.Scalar.upper, mood))
         energy = max(Thresholds.Scalar.lower, min(Thresholds.Scalar.upper, energy))
 
+        // Fold-side handshake disposition (see FoldResult.pendingHandshake):
+        // a transition that orphans the pending handshake clears it; a `.wake`
+        // token survives a landing in `.waking` (it IS the wake stretch's
+        // token). A `.play` token orphaned by a wakefulness transition ends
+        // its round HERE WITHOUT effects or count (disclosed TASK-016 edit,
+        // out of TASK-015's letter: night overtook the round — no report can
+        // arrive for a token the fold cleared, and leaving `activity ==
+        // .playing` would strand it forever; the unified cease stays the
+        // character reports' alone, so this path applies no arithmetic).
+        var foldedHandshake = pendingHandshake
+        var foldedActivity = activity
+        if wakefulness != incomingWakefulness, let pending = pendingHandshake {
+            let survives = (wakefulness == .waking && pending.kind == .wake)
+            if !survives {
+                foldedHandshake = nil
+                if pending.kind == .play { foldedActivity = nil }
+            }
+        }
+
         let foldedState = PetState(
             mood: mood,
             energy: energy,
             bond: petState.bond,
             wakefulness: wakefulness,
-            activity: activity,
+            activity: foldedActivity,
             lastFedAt: petState.lastFedAt,
-            satietyPhase: petState.satietyPhase // TASK-016 owns the satiety derivation
+            // §4.5 satiety derivation — the fold owns time-derived state
+            // (TASK-016 Requirement 4): the phase at the fold's END instant.
+            satietyPhase: satietyPhase(lastFedAt: petState.lastFedAt, at: to)
         )!
 
         let foldedDays = rollover(days: days, landingDay: DayKey.make(from: to, calendar: calendar))
 
-        // Fold-side handshake disposition (see FoldResult.pendingHandshake):
-        // a transition that orphans the pending handshake clears it; a `.wake`
-        // token survives a landing in `.waking` (it IS the wake stretch's token).
-        var foldedHandshake = pendingHandshake
-        if wakefulness != incomingWakefulness, let pending = pendingHandshake {
-            let survives = (wakefulness == .waking && pending.kind == .wake)
-            if !survives { foldedHandshake = nil }
-        }
-
         return FoldResult(petState: foldedState, days: foldedDays, pendingHandshake: foldedHandshake)
+    }
+
+    /// §4.5's satiety window derivation, from `lastFedAt` to `instant`:
+    /// no `lastFedAt` (never fed) or ≥ 90 min → `.hungry`; [0, 30) min →
+    /// `.full`; [30, 90) min → `.recentlyFed` — half-open windows per the
+    /// DECISION table (30:00 is recentlyFed's first minute, 90:00 hungry's).
+    /// Window values come from `InteractionRules` (the constants home).
+    /// Negative elapsed (unreachable under forward-only folds) reads `.full`
+    /// — the feed is still "just now".
+    static func satietyPhase(lastFedAt: Instant?, at instant: Instant) -> SatietyPhase {
+        guard let lastFedAt else { return .hungry }
+        let minutes = instant.timeIntervalSince(lastFedAt) / 60.0
+        if minutes < Double(InteractionRules.satietySplitMinutes) { return .full }
+        if minutes < Double(InteractionRules.satietyWindowMinutes) { return .recentlyFed }
+        return .hungry
     }
 
     // MARK: Segment rules

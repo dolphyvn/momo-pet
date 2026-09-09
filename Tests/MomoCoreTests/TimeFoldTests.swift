@@ -479,6 +479,11 @@ struct TimeFoldTests {
         #expect(outcome.newState.state.wakefulness == .asleep) // the fold carried it past 22:00
         #expect(outcome.newState.lastEvaluatedAt == intent.timestamp)
         #expect(outcome.newState.processedIntents == [intent.id])
-        #expect(outcome.response == nil) // TASK-016 seam
+        // TASK-016 supersession (in place): the nil-response pin WAS the
+        // documented TASK-016 seam. The plan now exists — and the fact that
+        // it is the asleep-stir (not the tap-head touch beat) is extra
+        // evidence the semantics evaluated the FOLDED state at the intent's
+        // instant.
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: nil, haptic: nil))
     }
 }

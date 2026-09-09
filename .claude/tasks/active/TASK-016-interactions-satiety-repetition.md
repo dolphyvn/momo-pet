@@ -70,13 +70,87 @@ TASK-015 shipped the fold, wakefulness machine, and handshakes; the `.interactio
 - Push to origin after orchestrator commit; record hash in Completion Evidence.
 
 ## Status
-READY (contract materialized 2026-09-09 from 05 §4.4–4.5, PRD §4/FR-5–8, 04 §6/§8.4/§9.2/§9.6)
+APPROVED (REVIEW-TASK-016 APPROVED_WITH_MINOR_NOTES 0 MAJOR / 1 MINOR / 1 NITPICK; disposition applied pre-commit 2026-09-09 — see Reviewer Findings; `swift test` **236/29** green; committed and pushed — see Completion Evidence)
 
 ## Implementation Notes
-- (implementing agent fills)
+- (filled by the implementing agent, 2026-09-09)
+
+**Source layout (Sources/MomoCore/, all new files Foundation-only, zero `var` stored properties):**
+- `InteractionRules.swift` — the constants home (FoldRules discipline carried over): every §4.4–4.5 number with authority labels (PRD-normative vs engine-owned starting value), `repetitionMultiplier(instanceIndex:)` clamped lookup, `isTuckInWindow(_:calendar:)` = local hour ≥ 20 || < `FoldRules.morningWakeHour` (the window's close IS the D11 wake bound — one constant, two gates).
+- `ReactionKeys.swift` — the concrete reaction keys the matrix emits, each citing its 04 §4.3/§6 row; header documents the `lineKey`/`haptic` seams and the four extension keys the PRD §4 matrix needs but 04 §4.3's table predates (`react.playReady`, `react.cheer`, `react.decline`, `react.nibble` — the last owner-confirmed I-2).
+- `InteractionEffects.swift` — pure arithmetic + ledger: `moodAfterGain` (ceiling clamps the GAIN: `min(mood+gain, max(mood, ceiling))` — never lowers, D18), `energyAfterDelta` (INV-2 clamp), `updatingDay` (missing dayKey = no-op — the expired-dayKey rule by construction), `repetitionMultiplier(in:dayKey:familyCount:)` (prior count ?? 0), `applyPlayRoundEffects` (cease-day key, multiplier BEFORE increment).
+- `InteractionSemantics.swift` — `apply(intent, to:calendar:rng:) -> (state, ResponsePlan)` dispatching per intent; mints `.play`/`.settle` tokens via the shared 2-draw `mintToken` (now `internal`, shared with `Reduce`).
+- `HandshakeMachine.swift` — signature now `apply(_ report:, to:, at: Instant, calendar:)`; `playRoundFinished` and `handshakeCancelled(.play)` both route to one private `completePlayRound` (the unified cease; stale/mismatched-kind = tolerated no-op).
+- `TimeFold.swift` — `satietyPhase(lastFedAt:at:)` derivation at every fold end (half-open 30/90); the orphaned-handshake disposition extended to clear `activity == .playing` alongside an orphaned `.play` token (disclosed out-of-letter edit, doc comment in place).
+- `Reduce.swift` — `.interaction` path: belt → fold → wake-stretch mint → `InteractionSemantics.apply` → belt record → stamps; response now flows out (`moments` stay `[]`).
+
+**Test layout (Tests/MomoCoreTests/):** `Support/InteractionFixture.swift` (zero-elapsed send/report over `reduce`, injected UTC calendar by default, explicit intent-id pinning for whole-state twin comparisons) + six suites: `InteractionResponseTests` (matrix cells, transitional wakefulness, seams sweep, rng draw discipline), `SatietyWindowTests`, `RepetitionCurveTests`, `PlayRoundTests`, `CareInteractionTests`, `InteractionRulesPinnedTests` (the ONLY file with raw literals, mirroring `FoldRulesPinnedTests`).
+
+**Verbatim test result (final line, two consecutive green runs — deterministic):**
+```
+✔ Test run with 235 tests in 29 suites passed after 0.373 seconds.
+✔ Test run with 235 tests in 29 suites passed after 0.393 seconds.
+```
+(164/23 baseline + 71 new tests in 6 new suites.) Standing scans green with NO new exemptions: engine purity, D-R1 import whitelist, banned vocabulary (vacuously — no .xcstrings yet), token purity, no-numeric-leakage. `swift build` clean, zero warnings.
+
+**Test reshapes (supersessions):** the two contract-named ones (`interactionPassThrough` → belt + exactly-once + NITPICK-1 `.wake`-survival now asserted; `playRoundFinishedClearsTokenOnly` → unified-cease effects + count) PLUS a third, not contract-named: `TimeFoldTests.interactionFoldsToItsOwnInstant` pinned `response == nil`; reshaped minimally to pin the asleep-stir plan (which additionally proves semantics see the FOLDED state). Also reshaped inside the same named tests: `interactionDuringSettleDoesNotQueue` now pins the stir plan instead of `nil`.
+
+**Judgment calls, ranked for reviewer scrutiny (highest first):**
+1. **`.waking` choreography declines** play and tuck-in (warm) while pat/feed/nap apply normally: the single slot holds the never-cancelled `.wake` token (NITPICK-1); settling would have to displace it (forbidden), and a play authorization's token would strand. Req 9's "apply normally (band-gated)" is followed for everything that touches no slot. Recorded in `InteractionSemantics`'s header.
+2. **Disclosed out-of-letter edit (TimeFold):** the fold-side orphaning of a `.play` token also clears `activity == .playing` — no effects, no count. Without it a night-straddling round strands `.playing` forever. Consequence to note: rounds crossing 22:00 local end silently (product consideration for EPIC-006: character should avoid late-evening rounds).
+3. **Nibble arithmetic = ×0.25 × feed-repetition** (contract Req 6) vs 05 §4.4's effects-table nibble row "Multiplied by: —" (readable as flat 0.25). Followed the contract (orchestrator-authored from the same docs); one-line change in `InteractionSemantics` if the reviewer rules otherwise.
+4. **Blanket-adjust while asleep applies the care effects (+3/+2)** — Req 8 says "still counts" and names no effect exemption; `RepetitionCurveTests.careExempt` pins the full warmth at any volume.
+5. **Mid-settle reaffirm: no count, no effects, no token** — the settle's care was counted at authorization; a reaffirm is warmth, not a second care event.
+6. **Feed clock writes:** refusal (`.full`) and asleep/settling declines leave `lastFedAt` untouched (Req 4 "a feed sets lastFedAt" with the refusal's zero-effect as the named exception); nibble and meal re-anchor `lastFedAt = intent.timestamp`.
+7. **Feed sets NO activity** (no `.eating` state) — no report exists that would clear it; the meal beat IS `state.eating` through the plan (04 §4.2's state entry convention).
+8. **`sleepyNibbles` covers both Drowsy and Exhausted feed cells**, decided by the energy BAND before the satiety class (a hungry Drowsy pet gets sleepy nibbles at FULL meal effect — the PRD's "smaller effect" there is the nibble/×0.25 cell, band-first is the §4 matrix's row order).
+9. **Tuck-in AND nap decline while a play round is in flight** — a settle would orphan the unified-cease application (fold-side disposition) and strand the count.
+10. **Nap during `.waking` applies** (band-gated, touches no slot) per Req 9's letter.
+
+**Expired-dayKey note for the reviewer:** effects land instance-1 with zero ledger attribution (counters, no retroactive `DayRecord`) — pinned for feed, pat, and structurally for play (the cease counts only into an EXISTING day record; `reduce` guarantees the landing day exists via the fold's rollover before any report applies, pinned in `ceaseDayAttribution`).
+
+## Handoff
+
+### Completed
+- All ten Requirements implemented; AC-1–AC-7 satisfied (AC-7 evidence above); Required Tests all present as named tests across the six new suites.
+
+### Files Changed
+- Sources/MomoCore/: `InteractionRules.swift`, `ReactionKeys.swift`, `InteractionEffects.swift`, `InteractionSemantics.swift` (new); `Reduce.swift`, `HandshakeMachine.swift`, `TimeFold.swift` (edited).
+- Tests/MomoCoreTests/: `Support/InteractionFixture.swift`, `InteractionResponseTests.swift`, `SatietyWindowTests.swift`, `RepetitionCurveTests.swift`, `PlayRoundTests.swift`, `CareInteractionTests.swift`, `InteractionRulesPinnedTests.swift` (new); `EngineReduceTests.swift`, `WakefulnessHandshakeTests.swift`, `TimeFoldTests.swift` (reshaped per supersession note above).
+
+### Tests Run
+- `swift test` (full suite, including standing purity/scan suites) — repeated twice.
+
+### Test Results
+- `✔ Test run with 235 tests in 29 suites passed after 0.373 seconds.` and `✔ Test run with 235 tests in 29 suites passed after 0.393 seconds.` — zero failures, zero warnings; baseline 164/23 preserved except the three disclosed reshapes.
+
+### Known Issues
+- None blocking. Product consideration (not a defect): night-straddling play rounds fold away without effects/count (disclosed edit #2); midnight-spanning ceases are unreachable through `reduce` by construction.
+
+### Decisions Made
+- The ten ranked judgment calls above; all are recorded in source doc comments at their sites.
+
+### Reviewer Status
+- Not yet reviewed (no review agent has inspected this work).
+
+### Commit
+- None (agent does not commit, per contract).
+
+### Push
+- None.
+
+### Recommended Next Step
+- Orchestrator: spawn the fresh adversarial review agent (§10/§33) against this diff and the ranked judgment calls; record to `.claude/tasks/reviews/REVIEW-TASK-016.md`.
 
 ## Reviewer Findings
-- (orchestrator records)
+- **REVIEW-TASK-016 (fresh adversarial reviewer, Jupiter, 2026-09-09): APPROVED_WITH_MINOR_NOTES — 0 MAJOR / 1 MINOR / 1 NITPICK.** Full record: `.claude/tasks/reviews/REVIEW-TASK-016.md`.
+- Method: independent re-derivation of every number (repetition indexing, nibble 6×0.6×0.25 = 0.9, ceiling `min(mood+gain, max(mood, 92))` at 88/90/95, half-open satiety bounds 29:59/30:00/89:59/90:00, tuck-in window), 235/29 reproduced twice, scanner bite re-proven via seeded violations in /tmp copies, six adversarial probes, full 5×5 matrix sweep, I-1 counting audit, purity/determinism audit.
+- **MINOR-1:** a zero-elapsed `wakeFinished` after a mid-waking nap voided the counted nap (`complete(…)` unconditionally cleared `activity` before the fold could complete it — zero-width instant, energy integrity gap). **Disposition (applied):** reviewer's option (a) — `complete` preserves `activity` for `.wake` (`kind == .wake ? state.state.activity : nil`, settle paths always carry `activity == nil`) + regression pin `wakeFinishedAfterMidWakingNapPreservesNap` (zero-elapsed completion preserves the nap; the next fold lands `+FoldRules.napRestoreEnergy`).
+- **NITPICK-1:** `ReactionKeys`' header undercounted its extension keys (four vs the actual eight non-table keys incl. the zone-less Watch forms). **Disposition (applied):** header now enumerates all eight for the EPIC-006 catalog manifest.
+- All ten ranked judgment calls adjudicated **benign** (call 10 benign modulo MINOR-1); the three test reshapes verified honest; both §9.6 discharges (items 4 + 8) confirmed **real**; routed to EPIC-006: PRD "smaller effect" errata note (standing follow-up) and the feed-during-round presentation consideration.
+- Post-fix: `swift test` **236/29 green** (235 reviewed + 1 new pin), zero build warnings.
 
 ## Completion Evidence
-- (commit hash + push, by orchestrator)
+- Commit: (this commit) — `feat(engine): TASK-016 interaction semantics, satiety window, repetition curve` on `feature/EPIC-004-engine`; sources (4 new + 3 modified), tests (6 new suites + fixture + 3 modified incl. the MINOR-1 pin), this task file, REVIEW-TASK-016.md.
+- Push: to `origin feature/EPIC-004-engine` — success (hash recorded in `.claude/tasks/status.md` at housekeeping).
+- Tests at commit: `swift test` → `✔ Test run with 236 tests in 29 suites passed after 0.355 seconds.` — zero build warnings; purity + import scans green in-suite with no new exemptions.

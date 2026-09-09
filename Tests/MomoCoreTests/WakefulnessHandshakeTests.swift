@@ -9,8 +9,10 @@ import Testing
 ///
 /// Interaction-during-settling is pinned structurally: `EngineState` has a
 /// single `pendingHandshake` slot, so "declines warm, never queues" holds by
-/// construction — the interaction leaves the settle handshake untouched and
-/// the (TASK-016) warm-decline response is the only missing piece.
+/// construction — the interaction leaves the settle handshake untouched.
+/// (TASK-016 filled the response half: the warm-decline plan is asserted in
+/// `interactionDuringSettleDoesNotQueue`; the play round's unified cease is
+/// asserted in `playRoundFinishedClearsTokenOnly`.)
 @Suite("Wakefulness + handshakes — INV-8, idempotency, mint")
 struct WakefulnessHandshakeTests {
 
@@ -119,15 +121,69 @@ struct WakefulnessHandshakeTests {
         #expect(outcome.changed)
     }
 
-    @Test("playRoundFinished: clears the token and the activity; effects are TASK-016's seam")
+    @Test("REVIEW-TASK-016 MINOR-1: a zero-elapsed wakeFinished after a mid-waking nap preserves the counted nap")
+    func wakeFinishedAfterMidWakingNapPreservesNap() {
+        // The waking stretch accepts a band-gated nap (no token — the fold
+        // owns its completion, TASK-016 Req 9). A zero-elapsed wakeFinished
+        // skips reduce's fold (from >= to), so the handshake completion must
+        // not erase the nap: pre-fix, `complete` cleared `activity`, voiding
+        // a nap whose careCount already stood and dropping
+        // FoldRules.napRestoreEnergy with it.
+        let fixture = InteractionFixture()
+        let wakeToken = UUID()
+        let waking = fixture.state(
+            dayKey: "2026-09-08",
+            energy: 30, // Drowsy — the nap is offered
+            wakefulness: .waking,
+            pendingHandshake: Handshake(kind: .wake, token: wakeToken),
+            lastEvaluatedAt: instant("2026-09-08T07:10:00Z")
+        )
+        let nap = fixture.send(waking, .nap, at: instant("2026-09-08T07:10:00Z"), dayKey: "2026-09-08")
+        #expect(nap.newState.state.activity == .napping)
+        #expect(nap.newState.state.wakefulness == .waking)
+        #expect(nap.newState.state.energy == 30) // the +20 is the fold's, at nap end
+        #expect(nap.newState.days.first?.careCount == 1)
+        #expect(nap.newState.pendingHandshake == Handshake(kind: .wake, token: wakeToken))
+
+        let finished = fixture.report(nap.newState, .wakeFinished, at: instant("2026-09-08T07:10:00Z"))
+        #expect(finished.newState.state.wakefulness == .awake)
+        #expect(finished.newState.state.activity == .napping) // THE PIN — preserved, not erased
+        #expect(finished.newState.state.energy == 30) // restored by the fold later, never voided
+        #expect(finished.newState.pendingHandshake == nil)
+
+        // The next positive-elapsed fold then completes the nap exactly as
+        // TASK-015 pinned it: +FoldRules.napRestoreEnergy, the activity
+        // clears, landing .waking (the fold end is outside the night window).
+        var rng = SeededGenerator(seed: 7)
+        let completed = reduce(
+            finished.newState,
+            .evaluate(now: instant("2026-09-08T08:10:00Z")),
+            clock: ManualEngineClock(),
+            calendar: fixture.calendar,
+            rng: &rng
+        )
+        #expect(completed.newState.state.activity == nil)
+        #expect(completed.newState.state.energy == 30 + FoldRules.napRestoreEnergy)
+        #expect(completed.newState.state.wakefulness == .waking)
+    }
+
+    @Test("playRoundFinished: the unified cease — effects + count once, token and activity cleared")
     func playRoundFinishedClearsTokenOnly() {
+        // TASK-016 supersession (in place, per the contract): the "no effect
+        // arithmetic yet" pin WAS TASK-016's seam — the round's effects now
+        // land at this cease instant: energy −10, mood +6 (the day's first
+        // round → curve ×1.0), playCount +1 on the cease's ledger day, the
+        // activity clears with the round, the token with the handshake.
         let playing = state(wakefulness: .awake, activity: .playing, pending: Handshake(kind: .play, token: UUID()), lastEvaluatedAt: instant("2026-09-08T10:00:00Z"))
         let outcome = report(playing, .playRoundFinished)
         #expect(outcome.newState.state.wakefulness == .awake) // play never moves wakefulness
         #expect(outcome.newState.state.activity == nil)
         #expect(outcome.newState.pendingHandshake == nil)
-        #expect(outcome.newState.state.mood == playing.state.mood) // no effect arithmetic yet (TASK-016)
-        // And a second report finds nothing pending — never double-applies.
+        #expect(outcome.newState.state.energy == playing.state.energy + InteractionRules.playRoundEnergyDelta)
+        #expect(outcome.newState.state.mood == playing.state.mood + InteractionRules.playRoundMoodDelta)
+        #expect(outcome.newState.days.first?.playCount == 1)
+        // And a second report finds nothing pending — never double-applies
+        // (the duplicate is the exact no-op: no arithmetic, no count).
         let duplicate = report(outcome.newState, .playRoundFinished)
         #expect(duplicate.newState == outcome.newState)
     }
@@ -198,7 +254,10 @@ struct WakefulnessHandshakeTests {
         // The single-slot design makes queuing unrepresentable: the pending
         // handshake is EXACTLY the settle handshake, not replaced, not stacked.
         #expect(outcome.newState.pendingHandshake == Handshake(kind: .settle, token: settleToken))
-        #expect(outcome.response == nil) // TASK-016 owns the warm-decline plan
+        // TASK-016 supersession (in place, per the contract — "extends
+        // TASK-015's pin"): the warm-decline plan now EXISTS — the settling
+        // soft-stir (touch is never refused; it just never queues).
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: nil, haptic: nil))
         #expect(outcome.moments.isEmpty)
         #expect(outcome.newState.state.wakefulness == .settling)
         // And the settle choreography still completes normally afterwards.

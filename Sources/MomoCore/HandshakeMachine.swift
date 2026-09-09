@@ -49,8 +49,12 @@ import Foundation
 /// into a wakefulness change is one of those enumerated edges.
 enum HandshakeMachine {
 
-    /// Applies `report` to `state` (already folded to now). Pure.
-    static func apply(_ report: CharacterReport, to state: EngineState) -> EngineState {
+    /// Applies `report` to `state` (already folded to `instant` by `reduce`).
+    /// The instant + calendar are injected so the play round's unified-cease
+    /// effects attribute to the CEASE instant's ledger day (TASK-016
+    /// Requirement 7 — a round authorized 23:58 ceasing 00:01 counts on the
+    /// new day). Pure.
+    static func apply(_ report: CharacterReport, to state: EngineState, at instant: Instant, calendar: Calendar) -> EngineState {
         switch report {
         case .settleFinished:
             return complete(kind: .settle, from: .settling, to: .asleep, state: state)
@@ -61,13 +65,10 @@ enum HandshakeMachine {
             return complete(kind: .wake, from: .waking, to: .awake, state: state)
 
         case .playRoundFinished:
-            // The unified play application point (04 §9.6 item 4, confirmed
-            // 05 §4.7): round effects land HERE at the single instant the
-            // round ceases — TASK-016 owns the effect arithmetic and the
-            // round authorization that mints `.play` tokens. Until then the
-            // machine owns the mechanics: clear the token, never double-apply
-            // (a second report finds nothing pending and no-ops).
-            return complete(kind: .play, from: state.state.wakefulness, to: state.state.wakefulness, state: state)
+            // The unified play cease (04 §9.6 item 4, confirmed 05 §4.7;
+            // TASK-016 Requirement 7): the round's effects + `playCount` land
+            // HERE at the single instant the round ceases.
+            return completePlayRound(state: state, at: instant, calendar: calendar)
 
         case .handshakeCancelled(let kind):
             // The preemption path (04 §9.2): clears the matching pending
@@ -76,20 +77,42 @@ enum HandshakeMachine {
             // cancellation exists "so the engine is never stranded in an
             // intermediate wakefulness" (04 §9.2; REVIEW-TASK-015 MINOR-2).
             // The wake stretch is never cancelled (04 §9.2: app-hide pauses
-            // it and it completes on return) and `.play` never moves
-            // wakefulness — those cancellations clear the token only.
+            // it and it completes on return).
             guard state.pendingHandshake?.kind == kind else { return state }
             if kind == .settle, state.state.wakefulness == .settling {
                 return complete(kind: .settle, from: .settling, to: .awake, state: state)
             }
+            if kind == .play {
+                // Cancellation is the SAME unified cease (TASK-016 Req 7):
+                // the round ends here — effects + count once, exactly as a
+                // finished round.
+                return completePlayRound(state: state, at: instant, calendar: calendar)
+            }
             return state.with(pendingHandshake: nil)
 
         case .reactionFinished, .momentFinished:
-            // No handshake association: reaction completion feeds TASK-016's
-            // response bookkeeping; moment display is presentation-side. A
-            // tolerated no-op at the engine core.
+            // No handshake association: reaction completion is presentation
+            // bookkeeping; moment display is presentation-side. A tolerated
+            // no-op at the engine core.
             return state
         }
+    }
+
+    /// The unified play-round cease, shared by `playRoundFinished` and
+    /// `handshakeCancelled(.play)`: with a `.play` handshake pending, the
+    /// round's effects + count apply exactly once (`InteractionEffects.
+    /// applyPlayRoundEffects` — the cease instant's ledger day, repetition
+    /// curve, ceiling-clamped mood), the token clears, and the playing
+    /// activity clears with the round. Nothing pending → tolerated no-op
+    /// that applies nothing (a stale/duplicate report must not re-count —
+    /// idempotency by structure). Pure.
+    private static func completePlayRound(state: EngineState, at instant: Instant, calendar: Calendar) -> EngineState {
+        guard state.pendingHandshake?.kind == .play else {
+            return state // stale/duplicate — nothing to cease, applies nothing
+        }
+        return InteractionEffects
+            .applyPlayRoundEffects(to: state, at: instant, calendar: calendar)
+            .with(pendingHandshake: nil)
     }
 
     /// The shared transition path (completion AND the settle preemption
@@ -111,7 +134,14 @@ enum HandshakeMachine {
             energy: state.state.energy,
             bond: state.state.bond,
             wakefulness: target,
-            activity: nil,
+            // REVIEW-TASK-016 MINOR-1: the activity clears with the settle
+            // kinds only — a `.wake` completion preserves it, so a nap
+            // accepted during the waking stretch (band-gated, contract Req 9)
+            // survives to be completed by the next fold (+20) instead of
+            // being voided by a zero-elapsed report while its careCount
+            // already stands. Settle paths always carry `activity == nil`
+            // (everything declines warm during settling).
+            activity: kind == .wake ? state.state.activity : nil,
             lastFedAt: state.state.lastFedAt,
             satietyPhase: state.state.satietyPhase
         )!

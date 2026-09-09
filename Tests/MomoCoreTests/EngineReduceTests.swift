@@ -188,7 +188,7 @@ struct EngineReduceTests {
 
     // MARK: - Interaction belt + pass-through seam (documented owners: TASK-016/017)
 
-    @Test("fresh interactions record exactly-once ids with no dynamics; duplicates are total no-ops")
+    @Test("fresh interactions record exactly-once ids; duplicates are total no-ops")
     func interactionPassThrough() {
         let state = anyState
         let intents: [InteractionIntent] = [
@@ -202,27 +202,33 @@ struct EngineReduceTests {
         var current = state
         for intent in intents {
             let outcome = reduce(current, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
-            // TASK-016/017 seam: no response, no moment, no bond-ledger or
-            // identity changes — the pet DYNAMICS here are the fold's (the
-            // first intent folds ~23 h; TimeFoldTests owns that arithmetic).
-            // What this pin owns: response stays nil, moments stay empty,
-            // identity/bookkeeping stay untouched, only the belt records.
-            // REVIEW-TASK-015 NITPICK-1 (noted for TASK-016): the first
-            // intent's ~23 h fold lands .waking, so a LATER intent in this
-            // loop legitimately mints the wake handshake (§4.7) — harmless
-            // here (nothing asserts pendingHandshake), but waking-interaction
-            // responses land in TASK-016 and must account for it.
-            #expect(outcome.response == nil)
+            // TASK-016 supersession (in place, per the contract): the "no
+            // response / no dynamics" half of this pin WAS the documented
+            // TASK-016 seam and is now filled — every fresh intent yields
+            // exactly one ResponsePlan (seam-nils stay nil: lineKey/haptic
+            // are TASK-019/presentation; moments stay [] for TASK-017/018),
+            // and effect/count writes touch `days`. What this pin still owns
+            // is the INV-10 belt's honesty: exactly-once recording in arrival
+            // order, identity untouched, `changed` honest. NITPICK-1's noted
+            // case is now asserted for real: intent 1's ~23 h fold lands
+            // .waking and mints the `.wake` handshake, and the remaining
+            // intents run mid-waking WITHOUT displacing it (Req 9 — wake is
+            // never cancelled; the play intent here is the waking-decline
+            // cell).
+            #expect(outcome.response != nil)
+            #expect(outcome.response?.lineKey == nil)
+            #expect(outcome.response?.haptic == nil)
             #expect(outcome.moments.isEmpty)
             #expect(outcome.newState.pet == current.pet)
-            #expect(outcome.newState.days == current.days) // landing day already recorded
             ledger.append(intent.id)
             #expect(outcome.newState.processedIntents == ledger)
             #expect(outcome.changed)
             current = outcome.newState
         }
+        #expect(current.pendingHandshake?.kind == .wake) // minted after intent 1, survived intents 2–4
 
-        // Replay of an already-processed id: total no-op (INV-10, FR-18 AC-1).
+        // Replay of an already-processed id: total no-op (INV-10, FR-18 AC-1)
+        // — no fold, no semantics, no response.
         let replay = reduce(current, .interaction(intents[1]), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
         #expect(replay.newState == current)
         #expect(!replay.changed)

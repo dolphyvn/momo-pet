@@ -33,16 +33,20 @@ import Foundation
 /// - `.interaction(intent)` — the INV-10 belt first (FR-18 AC-1): an intent
 ///   id already in `processedIntents` is a total no-op — replay/duplicate
 ///   delivery must not even fold. A fresh id folds to the intent's own
-///   timestamp (its instant is authoritative, §4.8's window-check rule) and
-///   is recorded with oldest-first eviction at
-///   `EngineState.processedIntentsCapacity`. The §4.4 response matrix and
-///   interaction effects remain TASK-016/017 (`response` stays `nil`) — the
-///   documented seam; this task ships the exactly-once belt and the fold.
+///   timestamp (its instant is authoritative, §4.8's window-check rule),
+///   mints the wake stretch if due, then applies the interaction semantics —
+///   the §4.4–4.5 response matrix, effects, and counting (TASK-016;
+///   `InteractionSemantics`), whose ResponsePlan is the outcome's `response`.
+///   The intent is then recorded with oldest-first eviction at
+///   `EngineState.processedIntentsCapacity`. `moments` stays `[]` (TASK-017
+///   bond awards / TASK-018 quest moments — recorded seams).
 /// - `.characterReport(report)` — fold-to-now FIRST (§4.2's trigger table),
 ///   using the injected clock: reports carry no instant of their own, so
 ///   `clock.now()` is their fold target — the one event kind that reads the
-///   clock. Then `HandshakeMachine` applies the report (INV-8's legal
-///   transitions; idempotent matching; stale discard without stranding).
+///   clock. Then `HandshakeMachine` applies the report at that instant
+///   (INV-8's legal transitions; idempotent matching; stale discard without
+///   stranding) — the instant parameter is what dates the play round's
+///   unified-cease effects and count to the cease's ledger day (TASK-016).
 ///
 /// **The wake-stretch mint (§4.3 closing / §4.7).** A fold that lands
 /// `.waking` deliberately issues no handshake (nothing was listening); the
@@ -111,7 +115,13 @@ private func evaluate(_ state: EngineState, at now: Instant, calendar: Calendar,
 }
 
 /// `.interaction`: INV-10 belt, then fold to the intent's instant, then the
-/// ledger record. Response semantics stay TASK-016/017's (seam).
+/// wake-stretch mint, then the interaction semantics (05 §4.4–4.5; TASK-016):
+/// effects, counts, machine writes, and the ResponsePlan all derive from the
+/// FOLDED state at the intent's instant. `moments` stays `[]` — bond awards
+/// are TASK-017's and quest-completion moments TASK-018's (recorded seams).
+/// Token mints happen in wake-stretch-then-interaction order, so the draw
+/// lineage is: stretch (if it fires) first, then the interaction's own
+/// authorization token, if any.
 private func interaction(_ state: EngineState, _ intent: InteractionIntent, calendar: Calendar, rng: inout SeededGenerator) -> EngineOutcome {
     guard !state.processedIntents.contains(intent.id) else {
         // Duplicate delivery: a total no-op (INV-10 — "replay/duplicate
@@ -131,12 +141,14 @@ private func interaction(_ state: EngineState, _ intent: InteractionIntent, cale
         .with(days: fold.days)
         .with(pendingHandshake: fold.pendingHandshake)
     next = mintWakeStretchIfNeeded(next, incomingWakefulness: state.state.wakefulness, rng: &rng)
+    let applied = InteractionSemantics.apply(intent, to: next, calendar: calendar, rng: &rng)
+    next = applied.state
     next = next.with(processedIntents: record(intent.id, in: next.processedIntents))
     next = next.with(
         stamps: nil,
         lastEvaluatedAt: max(state.lastEvaluatedAt, intent.timestamp)
     )
-    return EngineOutcome(newState: next, response: nil, moments: [], changed: next != state)
+    return EngineOutcome(newState: next, response: applied.response, moments: [], changed: next != state)
 }
 
 /// `.characterReport`: fold-to-now via the injected clock (the one clock
@@ -155,7 +167,7 @@ private func characterReport(_ state: EngineState, _ report: CharacterReport, cl
         .with(state: fold.petState)
         .with(days: fold.days)
         .with(pendingHandshake: fold.pendingHandshake)
-    let applied = HandshakeMachine.apply(report, to: folded)
+    let applied = HandshakeMachine.apply(report, to: folded, at: now, calendar: calendar)
     let next = mintWakeStretchIfNeeded(applied, incomingWakefulness: folded.state.wakefulness, rng: &rng)
         .with(
             stamps: nil,
@@ -181,8 +193,10 @@ private func mintWakeStretchIfNeeded(_ state: EngineState, incomingWakefulness: 
 /// A handshake token: 16 bytes from two generator draws, big-endian — no
 /// system randomness (§4.10; the purity scan bans the ambient `UUID()`
 /// initializer in MomoCore, so the deterministic 16-byte initializer is
-/// reached via `.init`).
-private func mintToken(rng: inout SeededGenerator) -> UUID {
+/// reached via `.init`). Internal: shared with `InteractionSemantics`, whose
+/// play/tuck-in authorizations mint with the same two-draw discipline
+/// (TASK-016 Requirements 7–8).
+func mintToken(rng: inout SeededGenerator) -> UUID {
     let high = rng.next()
     let low = rng.next()
     var bytes: [UInt8] = []
