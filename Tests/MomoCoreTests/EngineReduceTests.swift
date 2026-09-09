@@ -55,15 +55,19 @@ struct EngineReduceTests {
 
     /// A valid, fully-populated state fixture (all counts zero; the exact
     /// invariants of the domain types are TASK-012's concern, not re-tested).
+    /// The bond presets (TASK-017) default to fresh: bond 0, guard
+    /// `.newFriends`.
     private func fixtureState(
         lastOpenedAt: Instant,
-        lastEvaluatedAt: Instant
+        lastEvaluatedAt: Instant,
+        bond: Int = 0,
+        highestCelebratedStage: BondStage = .newFriends
     ) -> EngineState? {
         guard let pet = Pet(id: petID, name: "Momo", createdAt: utcInstant("2026-01-01T00:00:00Z")),
               let petState = PetState(
                   mood: 60,
                   energy: 80,
-                  bond: 0,
+                  bond: bond,
                   wakefulness: .awake,
                   activity: nil,
                   lastFedAt: nil,
@@ -89,7 +93,7 @@ struct EngineReduceTests {
             settings: SettingsState(onboardingComplete: true, hapticsEnabled: true),
             pendingHandshake: nil,
             processedIntents: [],
-            highestCelebratedStage: .newFriends,
+            highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
             lastEvaluatedAt: lastEvaluatedAt
         )
@@ -318,5 +322,80 @@ struct EngineReduceTests {
             #expect(a == b)
             #expect(a.newState == b.newState)
         }
+    }
+
+    // MARK: - Stage reconciliation on every event path (TASK-017, §4.6)
+
+    /// The reconciliation is state-based, so a stage the bond crossed at any
+    /// time — including while the app was closed (UX-10) — surfaces at the
+    /// next event of ANY kind, exactly once. Bond 200 stands in `.gettingClose`
+    /// while the guard still reads `.newFriends` in each fixture below.
+
+    @Test("evaluate path: a crossing made while closed surfaces at the next evaluation (and flips changed)")
+    func evaluatePathReconcilesStage() {
+        let now = utcInstant("2026-09-08T09:00:00Z")
+        // Same scenario as evaluateNoChange, except the bond stands above the
+        // stage threshold: the ONLY change is the reconciliation — and
+        // `changed` honestly reports it.
+        let state = fixtureState(lastOpenedAt: now, lastEvaluatedAt: now, bond: 200)!
+        var rng = SeededGenerator(seed: 0)
+        let outcome = reduce(state, .evaluate(now: now), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
+        #expect(outcome.moments == [.bondStageReached(.gettingClose)])
+        #expect(outcome.newState.highestCelebratedStage == .gettingClose)
+        #expect(outcome.changed)
+        // The guard advanced WITH the emission: the next evaluation is silent.
+        var rngAgain = SeededGenerator(seed: 0)
+        let again = reduce(outcome.newState, .evaluate(now: now), clock: ManualEngineClock(), calendar: calendar, rng: &rngAgain)
+        #expect(again.moments.isEmpty)
+        #expect(again.newState.highestCelebratedStage == .gettingClose)
+    }
+
+    @Test("interaction path: a hello-carrying first pat crosses and emits on the same event")
+    func interactionPathReconcilesStage() {
+        let now = utcInstant("2026-09-08T09:00:00Z")
+        let state = fixtureState(lastOpenedAt: now, lastEvaluatedAt: now, bond: 145)!
+        let intent = InteractionIntent(
+            id: UUID(uuidString: "3F2B7A64-1D4E-4C9B-8E2A-5B6C7D8E9F02")!,
+            source: .iPhone,
+            localDayKey: "2026-09-08",
+            timestamp: now,
+            kind: .pat(gesture: .tap, zone: .head)
+        )
+        var rng = SeededGenerator(seed: 0)
+        let outcome = reduce(state, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)
+        #expect(outcome.newState.state.bond == 145 + BondRules.helloBondDelta) // the hello crossed 150
+        #expect(outcome.moments == [.bondStageReached(.gettingClose)])
+        #expect(outcome.newState.highestCelebratedStage == .gettingClose)
+        #expect(outcome.response != nil) // the pat's own plan still fired
+    }
+
+    @Test("characterReport path: a crossing surfaces when the report applies")
+    func reportPathReconcilesStage() {
+        let now = utcInstant("2026-09-08T09:00:00Z")
+        let base = fixtureState(lastOpenedAt: now, lastEvaluatedAt: now, bond: 200)!
+        let settling = EngineState(
+            pet: base.pet,
+            state: PetState(
+                mood: 60,
+                energy: 80,
+                bond: 200,
+                wakefulness: .settling,
+                activity: nil,
+                lastFedAt: nil,
+                satietyPhase: .hungry
+            )!,
+            days: base.days,
+            settings: base.settings,
+            pendingHandshake: Handshake(kind: .settle, token: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-000000000005")!),
+            processedIntents: base.processedIntents,
+            highestCelebratedStage: base.highestCelebratedStage,
+            lastOpenedAt: base.lastOpenedAt,
+            lastEvaluatedAt: base.lastEvaluatedAt
+        )
+        var rng = SeededGenerator(seed: 0)
+        let outcome = reduce(settling, .characterReport(.settleFinished), clock: ManualEngineClock(at: now), calendar: calendar, rng: &rng)
+        #expect(outcome.newState.state.wakefulness == .asleep) // the settle applied…
+        #expect(outcome.moments == [.bondStageReached(.gettingClose)]) // …and the crossing surfaced on this path
+        #expect(outcome.newState.highestCelebratedStage == .gettingClose)
     }
 }

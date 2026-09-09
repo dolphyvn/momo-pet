@@ -15,8 +15,11 @@ import Foundation
 /// or pre-dating the pet) applies its current-state effects and drops ALL
 /// day-ledger attribution: no counters, no retroactive `DayRecord`, and its
 /// repetition instance reads as 1 (full effect). Quest-progress ticking is
-/// TASK-018's; `familiesUsed` stays engine-untouched here (the variety
-/// bonus's input is TASK-017's to consume/write — recorded seam, §22).
+/// TASK-018's; the family-ledger writes live with the counting events
+/// themselves (TASK-017): the cease-side `.play` record composes here, the
+/// intent-side `.feed`/`.care` records in `InteractionSemantics` — each via
+/// `BondLedger.recordFamilyUse`, so the variety award fires at exactly the
+/// event that completes the trio (§4.6).
 enum InteractionEffects {
 
     // MARK: Clamps
@@ -124,6 +127,11 @@ enum InteractionEffects {
             lastFedAt: pet.lastFedAt,
             satietyPhase: pet.satietyPhase
         )!
-        return updatingDay(state.with(state: ceased), dayKey) { incremented($0, play: 1) }
+        // The unified cease is the round's ONE counting event — so it is the
+        // round's ONE family-record event (§4.6; the variety award rides the
+        // trio-completing cease, never a round start).
+        return BondLedger.recordFamilyUse(.play, to: updatingDay(state.with(state: ceased), dayKey) {
+            incremented($0, play: 1)
+        }, dayKey: dayKey)
     }
 }

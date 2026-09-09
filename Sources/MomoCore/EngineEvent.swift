@@ -34,12 +34,13 @@ public struct EngineOutcome: Equatable, Sendable {
     public let newState: EngineState
 
     /// The interaction's response plan (04 §9.2) — "one per interaction
-    /// event"; nil for every other event kind (and for interactions until the
-    /// response matrix lands, TASK-016/017).
+    /// event"; nil for every other event kind. (Populated by
+    /// `InteractionSemantics` since TASK-016.)
     public let response: ResponsePlan?
 
     /// Moment requests (greeting / questCompleted / bondStageReached —
-    /// 04 §9.2); TASK-015/018 populate these.
+    /// 04 §9.2). `bondStageReached` is populated by `BondLedger.reconcileStage`
+    /// (TASK-017); greeting is TASK-019+ and questCompleted is TASK-018's.
     public let moments: [CharacterMoment]
 
     /// False ⇒ the app layer persists nothing and pushes no snapshot

@@ -45,12 +45,16 @@ struct InteractionResponseTests {
             (.stroke, nil, ReactionKeys.stroke),
         ]
         for cell in cells {
-            let start = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
+            // TASK-017 (the contract's named pat touch point): the day's
+            // hello is PRESET so the pins below pin the post-hello G2 form —
+            // pats beyond the first move nothing. The hello award itself is
+            // pinned in BondLedgerTests.
+            let start = fixture.state(dayKey: day, helloAwarded: true, lastEvaluatedAt: fixture.instant(t))
             let outcome = fixture.send(start, .pat(gesture: cell.gesture, zone: cell.zone), at: fixture.instant(t), dayKey: day)
             #expect(outcome.response == ResponsePlan(reaction: cell.beat, lineKey: nil, haptic: nil),
                     "\(cell.gesture) × \(String(describing: cell.zone)) must map to \(cell.beat.rawValue)")
             #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
-            #expect(outcome.newState.state.bond == start.state.bond) // G2: petting banks no bond, ever
+            #expect(outcome.newState.state.bond == start.state.bond) // G2: past the preset hello, petting banks nothing
             #expect(outcome.newState.days.first?.patCount == 1)
             #expect(outcome.newState.days.first?.bondAwarded == 0)
             #expect(outcome.moments.isEmpty)

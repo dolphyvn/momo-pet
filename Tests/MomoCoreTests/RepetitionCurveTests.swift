@@ -43,11 +43,14 @@ struct RepetitionCurveTests {
     @Test("pat curve: mood gains 1.0/0.6/0.25/0.0 exactly; the 4th still counts and still responds")
     func patCurveExact() {
         for (instance, priorPats) in [(0, 0), (1, 1), (2, 2), (3, 3)] {
-            let start = fixture.state(dayKey: day, pat: priorPats, lastEvaluatedAt: fixture.instant(t))
+            // TASK-017 (the contract's named pat touch point): the hello is
+            // PRESET so this curve pins the post-hello G2 form — the hello
+            // award itself is pinned in BondLedgerTests.
+            let start = fixture.state(dayKey: day, pat: priorPats, helloAwarded: true, lastEvaluatedAt: fixture.instant(t))
             let outcome = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
             #expect(outcome.newState.state.mood == start.state.mood
                 + InteractionRules.touchMoodDelta * curveInstance(instance))
-            #expect(outcome.newState.state.bond == start.state.bond) // G2 at every volume
+            #expect(outcome.newState.state.bond == start.state.bond) // G2 at every volume past the preset hello
             #expect(outcome.newState.days.first?.patCount == priorPats + 1)
             #expect(outcome.response?.reaction == ReactionKeys.tapHead)
         }

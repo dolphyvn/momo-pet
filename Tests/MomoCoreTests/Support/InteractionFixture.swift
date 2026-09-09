@@ -29,9 +29,19 @@ struct InteractionFixture {
         QuestProgress(questID: id, progress: 0, completed: false)!
     }
 
-    /// A ledger record with the given counters (placeholder quest set — real
-    /// generation is TASK-018's).
-    func day(dayKey: String, feed: Int = 0, play: Int = 0, care: Int = 0, pat: Int = 0) -> DayRecord {
+    /// A ledger record with the given counters and bond-ledger fields
+    /// (placeholder quest set — real generation is TASK-018's; the
+    /// bond-ledger fields are TASK-017's, defaulted to a fresh day).
+    func day(
+        dayKey: String,
+        feed: Int = 0,
+        play: Int = 0,
+        care: Int = 0,
+        pat: Int = 0,
+        helloAwarded: Bool = false,
+        familiesUsed: Set<QuestFamily> = [],
+        bondAwarded: Int = 0
+    ) -> DayRecord {
         DayRecord(
             dayKey: dayKey,
             feedCount: feed,
@@ -39,14 +49,16 @@ struct InteractionFixture {
             careCount: care,
             patCount: pat,
             questSet: [quest(.q1), quest(.q2), quest(.q6)],
-            helloAwarded: false,
-            familiesUsed: [],
-            bondAwarded: 0,
+            helloAwarded: helloAwarded,
+            familiesUsed: familiesUsed,
+            bondAwarded: bondAwarded,
             questGenEpoch: 0
         )!
     }
 
-    /// A state over an explicit ledger (the multi-day cases).
+    /// A state over an explicit ledger (the multi-day cases). The bond-era
+    /// presets (TASK-017) all default to fresh: bond 0, hello un-awarded, no
+    /// families, guard at `.newFriends`.
     func state(
         mood: Double = 60,
         energy: Double = 80,
@@ -56,6 +68,7 @@ struct InteractionFixture {
         lastFedAt: Instant? = nil,
         satietyPhase: SatietyPhase = .hungry,
         pendingHandshake: Handshake? = nil,
+        highestCelebratedStage: BondStage = .newFriends,
         days: [DayRecord],
         lastEvaluatedAt: Instant
     ) -> EngineState {
@@ -75,7 +88,7 @@ struct InteractionFixture {
             settings: SettingsState(onboardingComplete: true, hapticsEnabled: true),
             pendingHandshake: pendingHandshake,
             processedIntents: [],
-            highestCelebratedStage: .newFriends,
+            highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastEvaluatedAt,
             lastEvaluatedAt: lastEvaluatedAt
         )
@@ -88,6 +101,9 @@ struct InteractionFixture {
         play: Int = 0,
         care: Int = 0,
         pat: Int = 0,
+        helloAwarded: Bool = false,
+        familiesUsed: Set<QuestFamily> = [],
+        bondAwarded: Int = 0,
         mood: Double = 60,
         energy: Double = 80,
         bond: Int = 0,
@@ -96,6 +112,7 @@ struct InteractionFixture {
         lastFedAt: Instant? = nil,
         satietyPhase: SatietyPhase = .hungry,
         pendingHandshake: Handshake? = nil,
+        highestCelebratedStage: BondStage = .newFriends,
         lastEvaluatedAt: Instant
     ) -> EngineState {
         state(
@@ -107,13 +124,29 @@ struct InteractionFixture {
             lastFedAt: lastFedAt,
             satietyPhase: satietyPhase,
             pendingHandshake: pendingHandshake,
-            days: [day(dayKey: dayKey, feed: feed, play: play, care: care, pat: pat)],
+            highestCelebratedStage: highestCelebratedStage,
+            days: [day(
+                dayKey: dayKey,
+                feed: feed,
+                play: play,
+                care: care,
+                pat: pat,
+                helloAwarded: helloAwarded,
+                familiesUsed: familiesUsed,
+                bondAwarded: bondAwarded
+            )],
             lastEvaluatedAt: lastEvaluatedAt
         )
     }
 
-    func intent(_ kind: InteractionIntent.Kind, at timestamp: Instant, dayKey: String, id: UUID = UUID()) -> InteractionIntent {
-        InteractionIntent(id: id, source: .iPhone, localDayKey: dayKey, timestamp: timestamp, kind: kind)
+    func intent(
+        _ kind: InteractionIntent.Kind,
+        at timestamp: Instant,
+        dayKey: String,
+        source: InteractionIntent.Source = .iPhone,
+        id: UUID = UUID()
+    ) -> InteractionIntent {
+        InteractionIntent(id: id, source: source, localDayKey: dayKey, timestamp: timestamp, kind: kind)
     }
 
     /// Sends one interaction through `reduce` at zero elapsed — the semantics
@@ -125,13 +158,27 @@ struct InteractionFixture {
         _ kind: InteractionIntent.Kind,
         at timestamp: Instant,
         dayKey: String,
+        source: InteractionIntent.Source = .iPhone,
         seed: UInt64 = 7,
         intentID: UUID = UUID()
     ) -> EngineOutcome {
         var rng = SeededGenerator(seed: seed)
         return reduce(
             state,
-            .interaction(intent(kind, at: timestamp, dayKey: dayKey, id: intentID)),
+            .interaction(intent(kind, at: timestamp, dayKey: dayKey, source: source, id: intentID)),
+            clock: ManualEngineClock(),
+            calendar: calendar,
+            rng: &rng
+        )
+    }
+
+    /// Sends an `.evaluate` at the given instant (the identity fold when
+    /// `at == lastEvaluatedAt`).
+    func evaluate(_ state: EngineState, at instant: Instant) -> EngineOutcome {
+        var rng = SeededGenerator(seed: 7)
+        return reduce(
+            state,
+            .evaluate(now: instant),
             clock: ManualEngineClock(),
             calendar: calendar,
             rng: &rng

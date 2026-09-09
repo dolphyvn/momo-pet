@@ -59,13 +59,74 @@ Fresh independent adversarial review agent (§10/§33) after implementation, per
 - Final commit (orchestrator, after review + disposition): `feat(engine): TASK-017 bond ledger, variety bonus, stage moments` — atomic (sources + tests + task file + review file), TASK-ID in the message, then push (§12/§13).
 
 ## Status
-READY (contract materialized 2026-09-09 from 05 §4.6, PRD §3.3/FR-10, INV-3/5/7, UX-6/UX-10, delivery plan §3; implementation agent dispatch pending).
+APPROVED (REVIEW-TASK-017 APPROVED_WITH_MINOR_NOTES 0 MAJOR / 1 MINOR / 3 NITPICK; disposition applied pre-commit 2026-09-09 — see Reviewer Findings; suite green at **273 tests / 32 suites**; committed and pushed — see Completion Evidence).
 
 ## Implementation Notes
-- (filled by the implementing agent)
+Ranked judgment calls (1 = most consequential), for reviewer adjudication:
+
+1. **TASK-016 pin resolution — `helloAwarded: true` preset (contract named the pat touch point, not the pins).** `InteractionResponseTests.touchGestureZoneMap` and `RepetitionCurveTests.patCurveExact` pinned `bond == start.bond` on a day's FIRST pat — directly contradicted by the mandated hello. Rather than editing any assertion expression (the contract says pins keep passing unmodified), the fixtures now preset `helloAwarded: true`, so every assertion line stays byte-identical while correctly pinning the post-hello G2 form ("past the hello, pats bank nothing"); the hello award itself is fully pinned in `BondLedgerTests`. Two trailing comments on those assertion lines were reworded to stop misstating the old "ever" semantics. Alternative rejected: editing the assertions to expect +8 (that would supersede un-named pin text).
+2. **Multi-stage jumps emit ONE moment carrying the CURRENT stage.** A jump clearing several thresholds (e.g. guard `.newFriends`, bond 700) emits `momentRequest(.bondStageReached(.bestFriends))` once — the singular form of §4.6's `momentRequest(.bondStageReached(newStage))` — not one moment per threshold. Letter-of-spec reading; per-threshold backfill would need spec support.
+3. **Hello flag sets even when the award clamps to 0.** On a capped/plateaued day the first touch still consumes the day's hello (`helloAwarded: true`, `bondAwarded` unchanged): the touch happened once, and the ledger records the truth of both facts. A "flag sets only when applied > 0" variant would let a capped day's later touch re-award nothing but also re-flag — indistinguishable in effect but less honest.
+4. **Rank comparison kept local to `BondLedger`.** `BondStage` is presentation vocabulary, deliberately unordered; instead of a retroactive `Comparable` conformance (which would edit unlisted `Bands.swift`), the ledger owns a private `rank(_:)`. Precedence is ledger concern, not vocabulary concern.
+5. **`dailyBondCap` lives in both homes, pinned equal.** `BondRules.dailyBondCap = 20` (the award formula's operand) and `Thresholds.Bond.dailyCap` (the `DayRecord` init's INV-5 range bound) coexist; `BondRulesPinnedTests` pins them EQUAL (the `InteractionRules.tuckInWindowStartHour` == `Q6WindowStartHour` house discipline). Collapsing to one home would have edited TASK-012's `Thresholds` or made the award formula read through `Thresholds` — both unnecessary.
+6. **Family writes composed at the counting sites, not in `HandshakeMachine`.** The cease-side `.play` record lives inside `InteractionEffects.applyPlayRoundEffects` (the single function both cease kinds route through), and intent-side `.feed`/`.care` records at `InteractionSemantics`'s counting return sites. `HandshakeMachine` needed only the `with(highestCelebratedStage:)` helper — no semantic change. Contract listed the composition "if kept there"; kept in the effects layer instead.
+7. **Pre-existing stale doc left standing (unlisted file).** `EngineEvent.swift` still says `moments` is where "TASK-015/018 populate" (bond is 017's and now flows); the file was not in the contract's touch list, so the stale comment stands and is disclosed here rather than silently edited.
+8. **InteractionFixture gained an `evaluate(...)` wrapper** (additive, mirrors `send`/`report` zero-elapsed discipline) — the stage tests needed an evaluate entry point the fixture lacked; also additive `helloAwarded:`/`familiesUsed:`/`bondAwarded:`/`highestCelebratedStage:`/`source:` parameters, all defaulted (no existing call site changes).
+9. **Variety trigger uses subset arithmetic, not equality.** `completesTrio = trio ⊄ before ∧ trio ⊆ after` — correct even if a future spec ever recorded non-trio families into `familiesUsed`; an `after == trio` equality test would be wrong the moment the set could hold anything else.
+10. **Quest award exposed as `awardQuestCompletion(to:dayKey:)`** (mechanism only, per contract Req 4): no detection, no windows, no moments; tests drive it directly. Name keeps `BondLedger`'s surface self-describing for TASK-018's caller.
+
+Non-call notes: pre-existing diagnostics outside this task's files (EngineClockTests var-`let` warning, `/opt/extra/lib` linker search path in some invocations) were observed and left alone — not this task's debt. InteractionRulesPinnedTests' touch test TITLE ("bond never moves … no bond constant exists") is now historically inaccurate but its assertion (touchMoodDelta == 2) remains true and unmodified — left standing per the unmodified-pins rule, flagged for the reviewer.
 
 ## Reviewer Findings
-- (orchestrator records)
+- **REVIEW-TASK-017 (fresh adversarial reviewer, Jupiter, 2026-09-09): APPROVED_WITH_MINOR_NOTES — 0 MAJOR / 1 MINOR / 3 NITPICK.** Full record: `.claude/tasks/reviews/REVIEW-TASK-017.md`.
+- Method: every normative clause independently re-derived before comparing (clamp-at-award, hello, both PRD cap arithmetics, variety counting sites, stage once-guard); 273/32 reproduced twice + an independent HEAD baseline run (delta exactly +37/+3, reconciled by @Test count); **16 adversarial probes** (mixed-device hello, replayed-intent no-op, duplicate/stale reports after a stage moment, cap-exact/plateau truncations, multi-stage jumps on both paths, variety at all four completing-event flavors incl. a refusal feed, organic midnight hello, bond-field seed-invariance, guard-relative boundaries 149/150/749/750); both scanner bites proven with exact attribution (seeded `Date()` and `import Combine` in the new files); three initial probe failures were the reviewer's own construction errors, documented.
+- **MINOR-1:** one new build warning from a task file (dead `let id`, BondLedgerPropertyTests.swift:47) + handoff/status lines claiming zero warnings. **Disposition (applied):** dead line deleted, both prose lines corrected. **NITPICK-2** (17→23 count) fixed. **NITPICK-3/4** (stale `touchDelta` title; stale `moments`/`response` doc-comments in EngineEvent.swift) fixed comment-only, riding the task commit.
+- All ten judgment calls adjudicated APPROVED/ACCEPTED — incl. #1: the `helloAwarded: true` fixture preset in the two TASK-016 first-pat pins is the contract's own Req-3-vs-pins tension resolved least-invasively (assertion expressions byte-identical, G2 re-scoped to its true volume-reading, the preset ADDS idempotency-gate coverage per cell, hello fully pinned in BondLedgerTests) — and #5: `dailyBondCap` in both homes is the house cross-home equality-pin discipline (`BondRules` award operand vs pre-existing `Thresholds.Bond.dailyCap` model bound), following the `tuckInWindowStartHour == q6WindowStartHour` precedent.
+- Post-fix: `swift test` **273/32 green** (dead code + comments only); build clean except the two pre-existing diagnostics.
 
 ## Completion Evidence
-- (commit hash + push, by orchestrator)
+- Commit: (this commit) — `feat(engine): TASK-017 bond ledger, variety bonus, stage moments` on `feature/EPIC-004-engine`; sources (2 new + 5 modified), tests (3 new suites + 4 modified incl. the disposition touches), this task file, REVIEW-TASK-017.md.
+- Push: to `origin feature/EPIC-004-engine` — success (hash recorded in `.claude/tasks/status.md` at housekeeping).
+- Tests at commit: `swift test` → `✔ Test run with 273 tests in 32 suites passed after 0.398 seconds.`; `swift build --build-tests` clean of new warnings (MINOR-1's dead-code warning removed at disposition; two pre-existing diagnostics disclosed).
+
+## Handoff
+
+### Completed
+- `BondRules` (constants home): hello 8 / quest 4 / variety 6 / cap 20, each PRD-normative-labeled; `varietyTrio = [.feed, .play, .care]`; cross-home cap equality pinned.
+- `BondLedger` (the only bond writer): `award(_:)` clamp-at-award (`min(event, cap − awarded, 1000 − bond)`, ≥ 0 by construction, ledger exact); `awardHello` (once/dayKey, device-agnostic, never window-gated, flag-truthful under clamping); `recordFamilyUse` (trio subset trigger, fires at the completing event, once/day by set membership); `awardQuestCompletion` (mechanism only); `reconcileStage` (state-based, once-guard advances only WITH emission, single current-stage moment on multi-stage jumps).
+- Touch points: hello rides `applyPat`'s counting return; `.feed` records on every feed intent (refusal/decline included) via the shared count closure; `.care` records at settle-authorization, blanket-adjust, nap-acceptance; `.play` records inside `applyPlayRoundEffects` (both cease kinds); `reduce` reconciles on all three paths with `moments` flow-through and honest `changed`; `EngineState.with(highestCelebratedStage:)` added.
+- Expired-dayKey: no bond, no flag, no family, no retroactive DayRecord (current-state effects kept).
+- Tests: `BondRulesPinnedTests` (8 pins incl. both PRD cap arithmetics + trio membership); `BondLedgerTests` (23 tests: hello idempotency/device/window/clamp-flag, variety per-family triggers + once-only, PRD sequences, 1000-pat AC-3 both halves, plateau truncation, stage once-guard incl. evaluate-surfacing + multi-stage + report path, expired-dayKey, pat-semantics non-disturbance, twin equality); `BondLedgerPropertyTests` (seeded randomized sequences ×4/×3 seeds: cap-by-construction, monotonicity across midnight rollover, whole-trajectory twin equality, per-step ledger exactness `bond == Σ bondAwarded`, guard discipline); `EngineReduceTests` +3 every-path reconciliation tests; fixture gained additive defaulted params (`helloAwarded`/`familiesUsed`/`bondAwarded`/`highestCelebratedStage`/`source`/`evaluate` wrapper).
+
+### Files Changed
+- New: `Sources/MomoCore/BondRules.swift`, `Sources/MomoCore/BondLedger.swift`, `Tests/MomoCoreTests/BondRulesPinnedTests.swift`, `Tests/MomoCoreTests/BondLedgerTests.swift`, `Tests/MomoCoreTests/BondLedgerPropertyTests.swift`.
+- Modified (contract-named): `Sources/MomoCore/InteractionSemantics.swift`, `Sources/MomoCore/InteractionEffects.swift`, `Sources/MomoCore/Reduce.swift`, `Sources/MomoCore/HandshakeMachine.swift` (helper only).
+- Modified (disclosed): `Tests/MomoCoreTests/Support/InteractionFixture.swift` (additive params), `Tests/MomoCoreTests/InteractionResponseTests.swift` + `Tests/MomoCoreTests/RepetitionCurveTests.swift` (the two first-pat pins: `helloAwarded: true` fixture preset — assertion expressions byte-identical), `Tests/MomoCoreTests/EngineReduceTests.swift` (fixture bond params + 3 new tests), `.claude/tasks/active/TASK-017-bond-ledger.md` (this file).
+
+### Tests Run
+- `swift test` (full suite) — verbatim result line:
+  `✔ Test run with 273 tests in 32 suites passed after 0.378 seconds.`
+- Baseline at dispatch: 236 tests / 29 suites, exit 0 → +37 cases, zero regressions.
+- Standing scanners all green inside the suite: engine purity scan, import whitelist, banned vocabulary, numeric-leakage.
+- `swift build --build-tests`: zero errors; **corrected at disposition (REVIEW-TASK-017 MINOR-1):** the handoff's original "zero warnings from this task's files" was inaccurate — one dead-code warning existed (`let id` never used, BondLedgerPropertyTests.swift:47, the loop passes `id: i` directly); the dead line was deleted at disposition. Two pre-existing diagnostics remain and are unrelated to this task (`EngineClockTests.swift` var-let; `ld` search-path `/opt/extra/lib`).
+
+### Test Results
+All acceptance criteria exercised: AC-1 (cap-by-construction property, 4 seeds), AC-2 (monotonicity property incl. rollover, 3 seeds), AC-3 (1000-pat loop, both halves), AC-4 (once-guard incl. closed-surfacing, multi-stage, all three event paths), AC-5 (whole-trajectory twin equality), AC-6 (idempotent/device-agnostic/14:00/23:50), AC-7 (both PRD arithmetic sequences pinned exactly; variety once at the completing event).
+
+### Known Issues
+- None blocking. Disclosed for review: stale `moments` doc in `EngineEvent.swift` (unlisted file, left standing — judgment call 7); historically inaccurate TITLE on `InteractionRulesPinnedTests.touchDelta` (assertion still true and unmodified — see non-call notes); pre-existing non-task diagnostics (EngineClockTests var-`let` warning, `/opt/extra/lib` linker search path on some invocations).
+
+### Decisions Made
+- See Implementation Notes (10 ranked judgment calls; #1 — the `helloAwarded: true` pin preset — is the one needing explicit reviewer adjudication).
+
+### Reviewer Status
+NOT STARTED — fresh independent review agent required (§10/§33) before commit; review record to `.claude/tasks/reviews/REVIEW-TASK-017.md`. Reviewer should independently re-derive both PRD cap arithmetics, probe the once-guards (hello, variety, stage), and adjudicate judgment call #1.
+
+### Commit
+NONE — implementation agent committed nothing (per contract). Working tree carries the change set on `feature/EPIC-004-engine`, clean at dispatch commit `f61093a` before these edits.
+
+### Push
+NOT APPLICABLE — nothing to push yet.
+
+### Recommended Next Step
+Orchestrator: spawn the fresh review agent (contract §Review Requirements) against the uncommitted diff; after APPROVAL and finding disposition, run the task commit `feat(engine): TASK-017 bond ledger, variety bonus, stage moments` and push per §12/§13.

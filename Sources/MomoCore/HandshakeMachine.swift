@@ -230,4 +230,21 @@ extension EngineState {
             lastEvaluatedAt: lastEvaluatedAt
         )
     }
+
+    /// A copy with `highestCelebratedStage` replaced — the §4.6 once-guard
+    /// advance (`BondLedger.reconcileStage`, TASK-017: it advances only WITH
+    /// the `bondStageReached` emission, so each crossing emits exactly once).
+    func with(highestCelebratedStage: BondStage) -> EngineState {
+        EngineState(
+            pet: pet,
+            state: state,
+            days: days,
+            settings: settings,
+            pendingHandshake: pendingHandshake,
+            processedIntents: processedIntents,
+            highestCelebratedStage: highestCelebratedStage,
+            lastOpenedAt: lastOpenedAt,
+            lastEvaluatedAt: lastEvaluatedAt
+        )
+    }
 }

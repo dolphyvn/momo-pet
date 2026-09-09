@@ -24,9 +24,13 @@ import Foundation
 /// COMPLETION only (a stir-only state never starts a round, so nothing
 /// counts; effects land at the unified cease — `HandshakeMachine`); pat
 /// counts always, any state; care counts when performed (in-window tuck-in
-/// including blanket-adjust; nap). An expired-dayKey intent (no ledger entry)
+/// including blanket-adjust; nap). The SAME events write the bond-ledger
+/// families (`BondLedger.recordFamilyUse` — §4.6's variety input, TASK-017).
+/// An expired-dayKey intent (no ledger entry)
 /// keeps its current-state effects and drops all day attribution
-/// (`InteractionEffects.updatingDay` no-ops).
+/// (`InteractionEffects.updatingDay` no-ops) — bond included: the hello flag
+/// and the cap context both live on the ledger, so an un-ledgered touch earns
+/// nothing (TASK-017 Requirement 6).
 ///
 /// **§9.6 item 8 — the formal confirmation this file records.** During
 /// `.settling` every interaction declines warm and NOTHING queues: the
@@ -78,8 +82,12 @@ enum InteractionSemantics {
 
     /// Touch is never refused (FR-5 AC-2): +2 mood in EVERY state — the
     /// asleep stir is a touch that happened (05 §4.4's pet/touch row lists no
-    /// state exemption) — × the pet-family repetition curve, `patCount` +1,
-    /// bond untouched ever (G2). Reaction per §6.1's gesture×zone map; asleep
+    /// state exemption) — × the pet-family repetition curve, `patCount` +1.
+    /// The day's FIRST touch also carries the §4.6 hello (+8 once, via
+    /// `BondLedger.awardHello` — device-agnostic, never window-gated); every
+    /// later pat moves no bond (G2/FR-10 AC-3). The mood/repetition
+    /// arithmetic is untouched by the hello — it wraps the finished pat
+    /// result. Reaction per §6.1's gesture×zone map; asleep
     /// and settling collapse to the stir (the §6.2 sleeping cell / the
     /// settling soft-stir), napping counts as sleeping. The pending
     /// handshake is never touched (a mid-`.wake` pat leaves the stretch
@@ -115,7 +123,9 @@ enum InteractionSemantics {
         let next = InteractionEffects.updatingDay(state.with(state: petted), intent.localDayKey) {
             InteractionEffects.incremented($0, pat: 1)
         }
-        return (next, plan(reaction))
+        // The §4.6 hello rides the same event that counted the pat — once per
+        // dayKey, then an exact no-op (G2: pats beyond the first move nothing).
+        return (BondLedger.awardHello(to: next, dayKey: intent.localDayKey), plan(reaction))
     }
 
     /// 04 §6.1's gesture×zone map (FR-5 AC-1 — distinguishable). Double-tap
@@ -158,7 +168,10 @@ enum InteractionSemantics {
     /// (both non-refusal classes) sets `lastFedAt` = the intent's instant
     /// and `.full` (§4.5). Asleep/settling → the gentle decline (§4.3 —
     /// half-turn away, eyes stay closed): counts, zero effect, no clock
-    /// write. Every feed counts (I-1). The beat follows 04 §6.2's state
+    /// write. Every feed counts (I-1) AND records the `.feed` family use —
+    /// refusal and asleep decline included (§4.6's variety input,
+    /// `BondLedger.recordFamilyUse`; the variety award rides the
+    /// trio-completing event). The beat follows 04 §6.2's state
     /// gating: Drowsy/Exhausted → `sleepyNibbles` (§4.3's L2-variant — the
     /// PRD matrix's "nibbles happily, smaller effect" / "sleepy nibbles"
     /// cells; tempo is character-side), otherwise hungry → the `state.eating`
@@ -170,7 +183,9 @@ enum InteractionSemantics {
     private static func applyFeed(_ intent: InteractionIntent, to state: EngineState) -> (EngineState, ResponsePlan) {
         let pet = state.state
         let count = { (s: EngineState) in
-            InteractionEffects.updatingDay(s, intent.localDayKey) { InteractionEffects.incremented($0, feed: 1) }
+            BondLedger.recordFamilyUse(.feed, to: InteractionEffects.updatingDay(s, intent.localDayKey) {
+                InteractionEffects.incremented($0, feed: 1)
+            }, dayKey: intent.localDayKey)
         }
         guard !isSleeping(pet), pet.wakefulness != .settling else {
             // Gentle decline-warm: counts, zero state effect, clock untouched.
@@ -255,9 +270,9 @@ enum InteractionSemantics {
 
     /// The 20:00-local clock gate (FR-8 AC-1 — evaluated at the intent's own
     /// timestamp through the injected calendar, D20/DST-safe). Out of window
-    /// the offer does not exist: gentle warm decline, no settle, no count
-    /// ("in its window" qualifies WHEN care is performed — recorded
-    /// interpretation). In window: a waking pet settles (+3/+2, `careCount`
+    /// the offer does not exist: gentle warm decline, no settle, no count, no
+    /// family use ("in its window" qualifies WHEN care is performed — recorded
+    /// interpretation; §4.6: no care count ⇒ no family record). In window: a waking pet settles (+3/+2, `careCount`
     /// +1, `.settling` with a minted `.settle` token — this is what makes
     /// settling reachable and TASK-015's preemption edge live); an asleep
     /// pet gets the blanket-adjust moment (still counts, effects still the
@@ -294,7 +309,9 @@ enum InteractionSemantics {
             let next = InteractionEffects.updatingDay(state.with(state: adjusted), intent.localDayKey) {
                 InteractionEffects.incremented($0, care: 1)
             }
-            return (next, plan(ReactionKeys.blanketAdjust))
+            // The care happened — counts AND records the family (§4.6).
+            return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+                    plan(ReactionKeys.blanketAdjust))
         }
         if pet.wakefulness == .settling {
             return (state, plan(ReactionKeys.blanketAdjust)) // warm reaffirm — token untouched, settle still completes
@@ -324,7 +341,11 @@ enum InteractionSemantics {
         ) {
             InteractionEffects.incremented($0, care: 1)
         }
-        return (next, plan(ReactionKeys.settling))
+        // Settle-authorization is the care event — counts AND records the
+        // family (§4.6). The reaffirm path above returns early: its care was
+        // counted here, so no second record.
+        return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+                plan(ReactionKeys.settling))
     }
 
     // MARK: Care — nap (PRD §4 care row; 05 §4.4's nap row)
@@ -363,7 +384,10 @@ enum InteractionSemantics {
             let next = InteractionEffects.updatingDay(state.with(state: napping), intent.localDayKey) {
                 InteractionEffects.incremented($0, care: 1)
             }
-            return (next, plan(ReactionKeys.settling))
+            // Nap acceptance is the care event — counts AND records the
+            // family (§4.6); the decline paths above record nothing.
+            return (BondLedger.recordFamilyUse(.care, to: next, dayKey: intent.localDayKey),
+                    plan(ReactionKeys.settling))
         case .energetic, .relaxed:
             return (state, plan(ReactionKeys.decline)) // not offered in these bands
         }

@@ -38,8 +38,9 @@ import Foundation
 ///   the §4.4–4.5 response matrix, effects, and counting (TASK-016;
 ///   `InteractionSemantics`), whose ResponsePlan is the outcome's `response`.
 ///   The intent is then recorded with oldest-first eviction at
-///   `EngineState.processedIntentsCapacity`. `moments` stays `[]` (TASK-017
-///   bond awards / TASK-018 quest moments — recorded seams).
+///   `EngineState.processedIntentsCapacity`. Bond awards (hello, variety)
+///   ride the counting events (TASK-017); quest-completion moments are
+///   TASK-018's (recorded seam).
 /// - `.characterReport(report)` — fold-to-now FIRST (§4.2's trigger table),
 ///   using the injected clock: reports carry no instant of their own, so
 ///   `clock.now()` is their fold target — the one event kind that reads the
@@ -111,14 +112,18 @@ private func evaluate(_ state: EngineState, at now: Instant, calendar: Calendar,
         stamps: now,
         lastEvaluatedAt: max(state.lastEvaluatedAt, now)
     )
-    return EngineOutcome(newState: next, response: nil, moments: [], changed: next != state)
+    // §4.6 stage reconciliation: state-based, after every path's mutation —
+    // a threshold crossed while the app was closed surfaces here (UX-10).
+    let reconciled = BondLedger.reconcileStage(next)
+    return EngineOutcome(newState: reconciled.state, response: nil, moments: reconciled.moments, changed: reconciled.state != state)
 }
 
 /// `.interaction`: INV-10 belt, then fold to the intent's instant, then the
 /// wake-stretch mint, then the interaction semantics (05 §4.4–4.5; TASK-016):
 /// effects, counts, machine writes, and the ResponsePlan all derive from the
-/// FOLDED state at the intent's instant. `moments` stays `[]` — bond awards
-/// are TASK-017's and quest-completion moments TASK-018's (recorded seams).
+/// FOLDED state at the intent's instant. The §4.6 bond ledger rides the
+/// counting events (TASK-017), and stage reconciliation closes the path —
+/// quest-completion moments remain TASK-018's (recorded seam).
 /// Token mints happen in wake-stretch-then-interaction order, so the draw
 /// lineage is: stretch (if it fires) first, then the interaction's own
 /// authorization token, if any.
@@ -148,7 +153,10 @@ private func interaction(_ state: EngineState, _ intent: InteractionIntent, cale
         stamps: nil,
         lastEvaluatedAt: max(state.lastEvaluatedAt, intent.timestamp)
     )
-    return EngineOutcome(newState: next, response: applied.response, moments: [], changed: next != state)
+    // §4.6 stage reconciliation after the interaction's mutation: a
+    // hello-carrying first pat can cross a stage threshold (contract Req 7).
+    let reconciled = BondLedger.reconcileStage(next)
+    return EngineOutcome(newState: reconciled.state, response: applied.response, moments: reconciled.moments, changed: reconciled.state != state)
 }
 
 /// `.characterReport`: fold-to-now via the injected clock (the one clock
@@ -173,7 +181,10 @@ private func characterReport(_ state: EngineState, _ report: CharacterReport, cl
             stamps: nil,
             lastEvaluatedAt: max(state.lastEvaluatedAt, now)
         )
-    return EngineOutcome(newState: next, response: nil, moments: [], changed: next != state)
+    // §4.6 stage reconciliation after the report's mutation (a care-side
+    // award can cross; the fold in this path can too).
+    let reconciled = BondLedger.reconcileStage(next)
+    return EngineOutcome(newState: reconciled.state, response: nil, moments: reconciled.moments, changed: reconciled.state != state)
 }
 
 // MARK: - Wake-stretch mint + intent ledger

@@ -28,7 +28,7 @@ struct InteractionRulesPinnedTests {
         #expect(InteractionRules.nibbleEffectMultiplier == 0.25)
     }
 
-    @Test("touch +2 mood in every state; bond never moves (G2 is a rule — no bond constant exists)")
+    @Test("touch +2 mood in every state; past the day's hello, bond never moves (G2 — petting VOLUME banks nothing; title corrected per REVIEW-TASK-017 NITPICK-3)")
     func touchDelta() {
         #expect(InteractionRules.touchMoodDelta == 2)
     }
