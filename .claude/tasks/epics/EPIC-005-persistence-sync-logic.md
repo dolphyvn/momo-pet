@@ -8,8 +8,8 @@ Momo's memory. Nothing the user does may be lost to a crash, a corrupt file, or 
 
 ## Scope
 - `SnapshotStore` (05 §5.1–5.3): write-temp-then-atomic-rename, serialized per event, write-through; read path current → `.prev` → `.prev2` → fresh default with **no error surface**; intent ledger travels inside the payload.
-- Migration (05 §5.4): additive decode defaults; explicit pure `migrate(v→v+1)` chain for breaking changes; fresh-install vs upgrade parity (NFR-7).
-- Retention/pruning (05 §5.5): 7-day DayRecord retention, processedIntents ≤ 64, deterministic.
+- Retention/pruning (05 §5.4): 7-day DayRecord retention, processedIntents ≤ 64, deterministic.
+- Migration (05 §5.5): additive decode defaults; explicit pure `migrate(v→v+1)` chain for breaking changes; fresh-install vs upgrade parity (NFR-7).
 - Sync pure logic (05 §6.2, §6.4): `WatchSnapshot` + `IntentEvent` Codable versioned DTOs; NDJSON journal; per-`watchSessionEpoch` watermarks (0-init on unseen epoch, epoch-matched pruning only, INV-10); expired-dayKey intent rule (current-state effects, day attribution dropped).
 - Test suites (TASK-024): roundtrip, corruption recovery, torn writes, migration chain, watermark/idempotency properties, codec versioning.
 
@@ -34,7 +34,7 @@ Branch: `feature/EPIC-005-persistence` (from `main`).
 1. Force-quit loses ≤ 1 in-flight event (write-through); store read on launch never throws to the caller (AC: FR-13 AC-1).
 2. Corrupt/truncated current file recovers via generations; total destruction yields fresh default — silently (05 §5.2).
 3. Migration chain pure and total; upgrade path produces identical engine-visible state to a fresh install seeded with the same history (NFR-7 parity test).
-4. Pruning deterministic; 7-day/64-item caps hold (INV-9).
+4. Pruning deterministic; 7-day/64-item caps hold (05 §5.4 + §4.1 `processedIntentsCapacity`). *(Errata fixed 2026-09-09: the §5.4/§5.5 section refs were swapped and "INV-9" was a mis-citation — INV-9 is the UTC-timestamps invariant, already satisfied by the envelope's `Instant` fields.)*
 5. Watermark arithmetic: duplicate delivery and replay are no-ops; unseen epoch initializes at 0; stale-epoch intents never prune (INV-10); expired-dayKey rule implemented.
 6. MomoKit ≥ 80 % line coverage recorded.
 
@@ -49,4 +49,4 @@ All four tasks DONE per CLAUDE.md §18; persistence + sync-pure suites green wit
 ## Status
 IN_PROGRESS (1/4) — branch `feature/EPIC-005-persistence` cut from `main` @ `04d07d6` (the EPIC-004 merge).
 - **TASK-021 DONE** — commit `5cca031` (pushed; + chore `0ca305f` routed warning fix). SnapshotStore: envelope `{schemaVersion, savedAt, checksum, payload}`, atomic writes with documented demotion + crash windows, generational recovery, no-error read path, serialized saves/nonisolated loads, StoreRules constants home, non-vacuous discipline scans. Disclosed enabler landed as contracted: 16-type additive Codable closure (conformance-only; `DayRecord` hand-written — `Set<QuestFamily>` bytes are non-canonical without declaration-order encoding, per-process AND per-encode-call). `swift test` 417/46 green (baseline was 369/43). Review: APPROVED_WITH_MINOR_NOTES (REVIEW-TASK-021) + a post-review flake (~14 %, unsound FIFO-assumption order-pins) fixed through a two-round §11 loop delta-verified APPROVED (REVIEW-TASK-021-FLAKEFIX-VERIFICATION; savedAt adjacency pins prove the convergence clause — an executable freeze mutation kills every weaker pin). Observation routings: OBS-1/OBS-5 → TASK-022 contract; OBS-3 documented-limit note rides TASK-022.
-- Next: TASK-022 migration chain + retention/pruning (05 §5.4–5.5).
+- Next: **TASK-022 IN PROGRESS** — contract READY (`.claude/tasks/active/TASK-022-migration-retention.md`, dispatched 2026-09-09; folds OBS-1/OBS-5/OBS-3; production chain ships EMPTY, no version bump; retention on the save path, `retainedDayCount = 7` new in StoreRules, `processedIntentsCapacity` reused).
