@@ -85,3 +85,80 @@ public struct DayRecord: Equatable, Sendable {
         self.questGenEpoch = questGenEpoch
     }
 }
+
+// MARK: - Codable (TASK-021 persistence enabler — the one DISCLOSED
+// hand-written conformance in the persisted graph)
+
+/// Every other persisted type (the whole `EngineState` transitive closure)
+/// takes the compiler-synthesized `Codable`. `DayRecord` cannot: the
+/// synthesized encoding of `familiesUsed: Set<QuestFamily>` emits the set's
+/// elements in the runtime's per-process hash-seeded iteration order, so the
+/// payload's `.sortedKeys` JSON bytes (the snapshot checksum's input, 05 §5.2)
+/// would differ run-to-run — a file written by one process would fail its own
+/// checksum verification in the next one and silently fall through the
+/// recovery chain. This conformance therefore encodes the set as a
+/// declaration-ordered array (a stable total order, `persistenceOrder` below)
+/// and decodes the array back into the set. Field names, types and values are
+/// untouched; nothing else about the type changes.
+///
+/// Deliberate posture shared with the synthesized conformances: decoding does
+/// NOT re-run the failable initializer's INV checks — the envelope checksum
+/// (verified by the store before the payload is trusted) gates the bytes.
+/// (The conformance is declared here in the extension, not on the struct,
+/// because Swift rejects a main-declaration `Codable` alongside an
+/// implementation extension as redundant.)
+extension DayRecord: Codable {
+
+    private enum CodingKeys: String, CodingKey {
+        case dayKey, feedCount, playCount, careCount, patCount
+        case questSet, helloAwarded, familiesUsed, bondAwarded, questGenEpoch
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        dayKey = try container.decode(String.self, forKey: .dayKey)
+        feedCount = try container.decode(Int.self, forKey: .feedCount)
+        playCount = try container.decode(Int.self, forKey: .playCount)
+        careCount = try container.decode(Int.self, forKey: .careCount)
+        patCount = try container.decode(Int.self, forKey: .patCount)
+        questSet = try container.decode([QuestProgress].self, forKey: .questSet)
+        helloAwarded = try container.decode(Bool.self, forKey: .helloAwarded)
+        familiesUsed = Set(try container.decode([QuestFamily].self, forKey: .familiesUsed))
+        bondAwarded = try container.decode(Int.self, forKey: .bondAwarded)
+        questGenEpoch = try container.decode(Int.self, forKey: .questGenEpoch)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(dayKey, forKey: .dayKey)
+        try container.encode(feedCount, forKey: .feedCount)
+        try container.encode(playCount, forKey: .playCount)
+        try container.encode(careCount, forKey: .careCount)
+        try container.encode(patCount, forKey: .patCount)
+        try container.encode(questSet, forKey: .questSet)
+        try container.encode(helloAwarded, forKey: .helloAwarded)
+        try container.encode(
+            familiesUsed.sorted(by: { $0.persistenceOrder < $1.persistenceOrder }),
+            forKey: .familiesUsed
+        )
+        try container.encode(bondAwarded, forKey: .bondAwarded)
+        try container.encode(questGenEpoch, forKey: .questGenEpoch)
+    }
+}
+
+/// The stable total order used when encoding `familiesUsed` — the
+/// `QuestFamily` declaration order in `Quest.swift`. Exhaustive without
+/// `default`: a new family fails the build here, forcing the persistence
+/// order to grow with the case set instead of silently reshuffling the
+/// encoded bytes.
+private extension QuestFamily {
+    var persistenceOrder: Int {
+        switch self {
+        case .greet: 0
+        case .feed: 1
+        case .play: 2
+        case .care: 3
+        case .pet: 4
+        }
+    }
+}

@@ -5,7 +5,7 @@ import Foundation
 /// The seven Phase 1 quest identifiers (PRD §5.2 catalog — complete list,
 /// FR-14 AC: exactly these, interaction-based only). Raw values match the
 /// PRD's ID column byte-for-byte.
-public enum QuestID: String, Equatable, Hashable, Sendable, CaseIterable {
+public enum QuestID: String, Equatable, Hashable, Sendable, CaseIterable, Codable {
     case q1 = "Q1"
     case q2 = "Q2"
     case q3 = "Q3"
@@ -19,7 +19,7 @@ public enum QuestID: String, Equatable, Hashable, Sendable, CaseIterable {
 /// feed/play/care subset (PRD §3.3: "all three families (feed, play, care)") —
 /// the engine records exactly those into `DayRecord.familiesUsed`; greet and
 /// pet exist because the catalog's Q1/Q7 rows name them.
-public enum QuestFamily: Equatable, Hashable, Sendable, CaseIterable {
+public enum QuestFamily: Equatable, Hashable, Sendable, CaseIterable, Codable {
     case greet
     case feed
     case play
@@ -105,7 +105,7 @@ public enum QuestCatalog {
 /// engine/store contract (FR-16, TR5) — the model makes a regressed record
 /// constructible-by-accident impossible by immutability: the engine produces
 /// a new value per tick.
-public struct QuestProgress: Equatable, Sendable {
+public struct QuestProgress: Equatable, Sendable, Codable {
 
     /// Which catalog quest this is (static data, PRD §5.2).
     public let questID: QuestID

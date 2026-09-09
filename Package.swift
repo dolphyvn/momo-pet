@@ -38,7 +38,7 @@ let package = Package(
         // Empty-but-present test targets: they prove `swift test` hostability (TASK-009 AC-4).
         // Suites are filled by EPIC-003…006; TASK-010 adds the harness + static scans.
         .testTarget(name: "MomoCoreTests", dependencies: ["MomoCore"]),
-        .testTarget(name: "MomoKitTests", dependencies: ["MomoKit"]),
+        .testTarget(name: "MomoKitTests", dependencies: ["MomoKit", "MomoCore"]),
         .testTarget(name: "MomoCharacterTests", dependencies: ["MomoCharacter"])
     ]
 )

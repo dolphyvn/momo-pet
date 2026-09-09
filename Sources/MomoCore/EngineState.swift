@@ -12,7 +12,7 @@ import Foundation
 /// the wakefulness/handshake task's contract (TASK-015; 05 §4.7, INV-8). The
 /// character runs its choreography and reports; the token is what the report
 /// is matched against.
-public struct Handshake: Equatable, Hashable, Sendable {
+public struct Handshake: Equatable, Hashable, Sendable, Codable {
 
     /// Which choreography class this handshake authorizes (04 §9.2).
     public let kind: HandshakeKind
@@ -40,7 +40,7 @@ public struct Handshake: Equatable, Hashable, Sendable {
 /// Presentation owns transience/fading: the stamp persists until the NEXT
 /// greeting replaces it — it is "the greeting in effect for the current
 /// open", not a timer.
-public struct GreetingStamp: Equatable, Sendable {
+public struct GreetingStamp: Equatable, Sendable, Codable {
 
     /// The selected kind (`Greeting.select`, TASK-019).
     public let kind: GreetingKind
@@ -64,7 +64,7 @@ public struct GreetingStamp: Equatable, Sendable {
 /// than mutating. `Equatable` is added beyond the sketch so FR-13 AC-3's
 /// determinism property ("identical (state, event, clock, seed) ⇒ identical
 /// outcome") is directly assertable on values.
-public struct EngineState: Equatable, Sendable {
+public struct EngineState: Equatable, Sendable, Codable {
 
     /// Capacity of the `processedIntents` ledger (05 §4.1: "recent intent ids
     /// (≤ 64) — belt for §6.4"). Single-sourced here because it is the state

@@ -19,7 +19,7 @@ public enum EnergyBand: Equatable, Sendable {
 }
 
 /// Bond relationship stages (PRD §3.3 — normative stage names; 04 §3.4).
-public enum BondStage: Equatable, Sendable {
+public enum BondStage: Equatable, Sendable, Codable {
     case newFriends
     case gettingClose
     case bestFriends

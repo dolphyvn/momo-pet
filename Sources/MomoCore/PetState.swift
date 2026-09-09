@@ -4,7 +4,7 @@ import Foundation
 
 /// The wakefulness machine's states (05 §3.1; INV-8's §4.7 transition diagram
 /// is engine-owned — EPIC-004 — while the closed case set is enforced here).
-public enum Wakefulness: Equatable, Sendable {
+public enum Wakefulness: Equatable, Sendable, Codable {
     case awake
     case settling
     case asleep
@@ -12,7 +12,7 @@ public enum Wakefulness: Equatable, Sendable {
 }
 
 /// The current sustained activity, if any (05 §3.1; 04 §4.2).
-public enum Activity: Equatable, Sendable {
+public enum Activity: Equatable, Sendable, Codable {
     case eating
     case playing
     case napping
@@ -22,7 +22,7 @@ public enum Activity: Equatable, Sendable {
 /// 30–90 min, Hungry > 90 min since last feed — the window value and the
 /// derivation from `lastFedAt` are engine-owned, EPIC-004; this type is the
 /// stored/rendered phase).
-public enum SatietyPhase: Equatable, Sendable {
+public enum SatietyPhase: Equatable, Sendable, Codable {
     case full
     case recentlyFed
     case hungry
@@ -45,7 +45,7 @@ public typealias SatietyHint = SatietyPhase
 /// INV-2/INV-3's ranges are enforced at this type boundary by the failable
 /// initializer; their across-mutation rules (monotonicity) are engine/store
 /// contracts pinned by tests in EPIC-004/005.
-public struct PetState: Equatable, Sendable {
+public struct PetState: Equatable, Sendable, Codable {
 
     /// Mood scalar, 0...100 (INV-2; PRD §3.1, D10).
     public let mood: Double
