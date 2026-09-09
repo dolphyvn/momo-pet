@@ -76,7 +76,7 @@ public struct CharacterDisplayState: Equatable, Sendable {
 
 /// Greeting kinds (04 §9.2: `.freshMorning` / `.welcomeBack` / `.missedYou`
 /// (≥ 36 h) / `.nightGlance` — the ≥ 36 h rule is engine-owned, FR-12 AC-2).
-public enum GreetingKind: Equatable, Hashable, Sendable {
+public enum GreetingKind: Equatable, Hashable, Sendable, Codable {
     case freshMorning
     case welcomeBack
     case missedYou
@@ -119,7 +119,7 @@ public struct ResponsePlan: Equatable, Sendable {
 
 /// Handshake classes (04 §9.2). `.wake` exists for contract totality — waking
 /// is expected never to cancel (04 §9.2; 05 §4.7).
-public enum HandshakeKind: Equatable, Hashable, Sendable {
+public enum HandshakeKind: Equatable, Hashable, Sendable, Codable {
     case settle
     case wake
     case play

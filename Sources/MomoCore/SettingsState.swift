@@ -5,7 +5,7 @@ import Foundation
 ///
 /// All properties are `let`: value semantics, immutable by construction —
 /// persistence produces a new value on each write (EPIC-005).
-public struct SettingsState: Equatable, Sendable {
+public struct SettingsState: Equatable, Sendable, Codable {
 
     /// Written atomically at the Enter tap (UX S3).
     public let onboardingComplete: Bool

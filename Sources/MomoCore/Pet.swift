@@ -4,7 +4,7 @@ import Foundation
 ///
 /// All properties are `let`: value semantics, immutable by construction —
 /// the engine produces new values rather than mutating shared state (05 §3).
-public struct Pet: Equatable, Sendable {
+public struct Pet: Equatable, Sendable, Codable {
 
     /// Stable identity, generated once at the onboarding Enter tap.
     public let id: UUID
