@@ -47,4 +47,4 @@ Branch: `feature/EPIC-005-persistence` (from `main`).
 All four tasks DONE per CLAUDE.md §18; persistence + sync-pure suites green with coverage floor recorded; reviews APPROVED; atomic TASK-ID commits on `feature/EPIC-005-persistence`, pushed; epic merged to `main`; orchestrator status update.
 
 ## Status
-TODO
+IN_PROGRESS (0/4) — branch `feature/EPIC-005-persistence` cut from `main` @ `04d07d6` (the EPIC-004 merge). TASK-021 dispatched 2026-09-09 (contract at `.claude/tasks/active/TASK-021-snapshot-store.md`); one disclosed enabler recorded there: the persisted `EngineState` graph needs additive `Codable` conformances (zero exist today — verified at dispatch), conformance-only, in TASK-021's scope.
