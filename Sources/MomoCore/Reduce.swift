@@ -58,14 +58,17 @@ import Foundation
 /// generator (16 bytes, big-endian): never `UUID()` (purity scan). The
 /// generator's seed lineage is §4.10's — the app layer seeds it from
 /// `DaySeed.make(…, salt: .choreography)`, so the token stream is
-/// day-stable-seeded and fully deterministic. The one engine-side `DaySeed`
-/// derivation is the fold's quest-domain one (§4.8, TASK-018 — the documented
-/// exception to the TASK-014/015 statement): the landing-day rollover derives
-/// the daily set's seed from
-/// `DaySeed.make(…, epoch: QuestGeneration.currentEpoch, salt: .quest)` —
-/// pure, injected values only (pet identity + day key + epoch + salt), and
-/// salt-separated from the choreography stream, whose draws it never touches.
-/// The determinism tuple stays exactly (state, event, clock, calendar, seed).
+/// day-stable-seeded and fully deterministic. The engine-side `DaySeed`
+/// derivations are the fold's quest-domain one (§4.8, TASK-018 — the
+/// documented exception to the TASK-014/015 statement: the landing-day
+/// rollover derives the daily set's seed from
+/// `DaySeed.make(…, epoch: QuestGeneration.currentEpoch, salt: .quest)`) and
+/// the interaction path's copy-domain one (§4.9, TASK-019 —
+/// `LineSelection.copySeed` over the `.copy` salt, minting the plan line
+/// keys) — both pure, injected values only (pet identity + day key + epoch +
+/// salt), and salt-separated from the choreography stream, whose draws they
+/// never touch. The determinism tuple stays exactly (state, event, clock,
+/// calendar, seed).
 ///
 /// **Forward-only folds.** `lastEvaluatedAt` is the fold's high-water mark:
 /// an event whose instant precedes it folds nothing and never regresses the
@@ -98,8 +101,15 @@ public func reduce(
 
 // MARK: - Event paths
 
-/// `.evaluate`: fold to `now`, mint check, stamps.
+/// `.evaluate`: fold to `now`, the open's greeting, mint check, stamps.
 private func evaluate(_ state: EngineState, at now: Instant, calendar: Calendar, rng: inout SeededGenerator) -> EngineOutcome {
+    // The open's greeting (§4.2's "Foreground / scenePhase → active …
+    // absence greeting"; TASK-019 Requirement 5): the selector reads the
+    // PRE-stamp `lastOpenedAt` — the PREVIOUS open — because the stamps
+    // below overwrite it with `now`. Evaluate-only (interactions and
+    // reports never greet); the moment, when present, is FIRST (the open's
+    // hello precedes any stage reconciliation from the fold), at most one.
+    let greetingKind = Greeting.select(previousOpen: state.lastOpenedAt, now: now, calendar: calendar)
     let fold = TimeFold.apply(
         petState: state.state,
         days: state.days,
@@ -119,10 +129,24 @@ private func evaluate(_ state: EngineState, at now: Instant, calendar: Calendar,
         stamps: now,
         lastEvaluatedAt: max(state.lastEvaluatedAt, now)
     )
+    // The greeting stamp rides the same open (the kind + the open instant —
+    // `GreetingStamp`'s header). The selection consumed no rng: the
+    // choreography stream's lineage is untouched.
+    if let greetingKind {
+        next = next.with(lastGreeting: GreetingStamp(kind: greetingKind, at: now))
+    }
     // §4.6 stage reconciliation: state-based, after every path's mutation —
     // a threshold crossed while the app was closed surfaces here (UX-10).
+    // Moments compose the greeting FIRST (the open's hello), the stage
+    // crossing after it (TASK-019 Requirement 6).
     let reconciled = BondLedger.reconcileStage(next)
-    return EngineOutcome(newState: reconciled.state, response: nil, moments: reconciled.moments, changed: reconciled.state != state)
+    let greetingMoments = greetingKind.map { [CharacterMoment.greeting($0)] } ?? []
+    return EngineOutcome(
+        newState: reconciled.state,
+        response: nil,
+        moments: greetingMoments + reconciled.moments,
+        changed: reconciled.state != state
+    )
 }
 
 /// `.interaction`: INV-10 belt, then fold to the intent's instant, then the

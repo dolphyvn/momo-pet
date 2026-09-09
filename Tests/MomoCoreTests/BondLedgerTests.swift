@@ -403,7 +403,7 @@ struct BondLedgerTests {
     func helloDoesNotDisturbPatSemantics() {
         let start = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
         let outcome = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.tapHead, lineKey: nil, haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.tapHead, lineKey: "momo.line.react.touch.00", haptic: nil))
         #expect(outcome.newState.state.mood == start.state.mood
             + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
         #expect(outcome.newState.days.first?.patCount == 1)

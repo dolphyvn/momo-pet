@@ -90,7 +90,8 @@ struct InteractionFixture {
             processedIntents: [],
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastEvaluatedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: nil
         )
     }
 

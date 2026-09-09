@@ -169,7 +169,8 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 
@@ -184,7 +185,8 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 
@@ -199,7 +201,8 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 
@@ -214,7 +217,8 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 
@@ -229,7 +233,8 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt ?? self.lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 
@@ -246,7 +251,25 @@ extension EngineState {
             processedIntents: processedIntents,
             highestCelebratedStage: highestCelebratedStage,
             lastOpenedAt: lastOpenedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
+        )
+    }
+
+    /// A copy with `lastGreeting` replaced — the `.evaluate` path's greeting
+    /// stamp (TASK-019; the `GreetingStamp` header).
+    func with(lastGreeting: GreetingStamp?) -> EngineState {
+        EngineState(
+            pet: pet,
+            state: state,
+            days: days,
+            settings: settings,
+            pendingHandshake: pendingHandshake,
+            processedIntents: processedIntents,
+            highestCelebratedStage: highestCelebratedStage,
+            lastOpenedAt: lastOpenedAt,
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: lastGreeting
         )
     }
 }

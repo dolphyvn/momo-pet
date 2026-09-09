@@ -160,4 +160,18 @@ struct ThresholdsPinnedToPRDTests {
         #expect(makeBondStage(750) == .soulCompanions)
         #expect(makeBondStage(1000) == .soulCompanions)
     }
+
+    // MARK: - Greeting thresholds (TASK-019; Thresholds.Greeting)
+
+    @Test("the greeting thresholds are exactly the 5-minute regreet floor and the 36-hour missed-you bound (TASK-019)")
+    func greetingThresholdsPinned() {
+        // FR-12 AC-2's normative absence bound: 36 hours ⇒ .missedYou.
+        #expect(Thresholds.Greeting.missedYouAfterHours == 36,
+                "FR-12 AC-2: an absence of 36 h or more greets .missedYou — changing it is a spec change")
+        // The engine-owned re-greet floor (an in-session re-evaluation is not
+        // an arrival; scenePhase flapping must not re-greet). Not PRD text —
+        // a TASK-019 tunable, pinned so a silent edit still bites.
+        #expect(Thresholds.Greeting.regreetFloorMinutes == 5,
+                "the re-greet floor is the engine-owned 5-minute starting value; retune deliberately, not silently")
+    }
 }

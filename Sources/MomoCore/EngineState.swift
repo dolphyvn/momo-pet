@@ -26,6 +26,34 @@ public struct Handshake: Equatable, Hashable, Sendable {
     }
 }
 
+// MARK: - Greeting stamp (TASK-019; 05 §4.2's "Foreground / scenePhase →
+// active … absence greeting")
+
+/// The greeting in effect for the current open: the kind plus the instant it
+/// was emitted. The minimal honest carrier (TASK-019 Requirement 5's named
+/// supersession): the greeting is the one L4 moment that OUTLIVES its event —
+/// `DisplayState.greeting` and `CharacterDisplayState.momentRequest` must
+/// project it across the events that follow the open, which a derivation
+/// alone cannot (the selector's inputs — the pre-stamp open — are consumed at
+/// emission time), so the kind persists in state once emitted.
+///
+/// Presentation owns transience/fading: the stamp persists until the NEXT
+/// greeting replaces it — it is "the greeting in effect for the current
+/// open", not a timer.
+public struct GreetingStamp: Equatable, Sendable {
+
+    /// The selected kind (`Greeting.select`, TASK-019).
+    public let kind: GreetingKind
+
+    /// The open instant the greeting was stamped at (UTC, INV-9).
+    public let at: Instant
+
+    public init(kind: GreetingKind, at: Instant) {
+        self.kind = kind
+        self.at = at
+    }
+}
+
 // MARK: - EngineState (05-technical-architecture §4.1)
 
 /// The full persisted domain state the engine reduces over (05 §4.1 sketch).
@@ -81,6 +109,13 @@ public struct EngineState: Equatable, Sendable {
     /// (§4.2/§4.3; segment folding decomposes `now − lastEvaluatedAt`).
     public let lastEvaluatedAt: Instant
 
+    /// The greeting in effect for the current open (TASK-019; the
+    /// `GreetingStamp` header). Stamped by `.evaluate` when the greeting
+    /// selector fires; nil in the initial state (onboarding's own flow is
+    /// the greeting — 04 §10.2's S1–S3). Persists until the next greeting;
+    /// presentation owns transience.
+    public let lastGreeting: GreetingStamp?
+
     public init(
         pet: Pet,
         state: PetState,
@@ -90,7 +125,8 @@ public struct EngineState: Equatable, Sendable {
         processedIntents: [UUID],
         highestCelebratedStage: BondStage,
         lastOpenedAt: Instant,
-        lastEvaluatedAt: Instant
+        lastEvaluatedAt: Instant,
+        lastGreeting: GreetingStamp?
     ) {
         self.pet = pet
         self.state = state
@@ -101,5 +137,6 @@ public struct EngineState: Equatable, Sendable {
         self.highestCelebratedStage = highestCelebratedStage
         self.lastOpenedAt = lastOpenedAt
         self.lastEvaluatedAt = lastEvaluatedAt
+        self.lastGreeting = lastGreeting
     }
 }

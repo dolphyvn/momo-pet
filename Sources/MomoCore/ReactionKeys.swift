@@ -10,10 +10,11 @@ import Foundation
 /// vocabulary row it realizes, so the catalog manifest (04 §8.5; EPIC-006)
 /// can enumerate them one-to-one. Keys are identifiers, never composed prose.
 ///
-/// **`lineKey`/`haptic` seams (documented, this task leaves both nil).** Copy
-/// selection is TASK-019's (05 §4.9 — lineKey from the copy classes); haptics
-/// are presentation-owned vocabulary (04 §9.2's `ResponsePlan.haptic`). The
-/// engine mints the reaction only.
+/// **`lineKey`/`haptic` seams.** `lineKey` is filled as of TASK-019 — every
+/// plan carries its day-stable family key via `LineSelection.reactLineKey`
+/// (05 §4.9); haptics remain the presentation seam, nil at every plan site
+/// (04 §9.2's `ResponsePlan.haptic`). The engine mints the reaction and the
+/// line key only.
 ///
 /// **Extension keys.** Eight keys this engine emits sit beyond 04 §4.3's
 /// vocabulary table (they postdate it, are Watch-only zone-less forms, or are

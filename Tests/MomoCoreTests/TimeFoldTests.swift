@@ -81,7 +81,8 @@ struct TimeFoldTests {
             processedIntents: [],
             highestCelebratedStage: .newFriends,
             lastOpenedAt: lastEvaluatedAt,
-            lastEvaluatedAt: lastEvaluatedAt
+            lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: nil
         )
     }
 
@@ -487,6 +488,6 @@ struct TimeFoldTests {
         // it is the asleep-stir (not the tap-head touch beat) is extra
         // evidence the semantics evaluated the FOLDED state at the intent's
         // instant.
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: nil, haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.00", haptic: nil))
     }
 }

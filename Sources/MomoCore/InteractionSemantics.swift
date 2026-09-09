@@ -142,7 +142,7 @@ enum InteractionSemantics {
             instant: intent.timestamp,
             calendar: calendar
         )
-        return (ticked.state, plan(reaction), ticked.moments)
+        return (ticked.state, plan(reaction, for: intent, in: state), ticked.moments)
     }
 
     /// 04 §6.1's gesture×zone map (FR-5 AC-1 — distinguishable). Double-tap
@@ -216,13 +216,13 @@ enum InteractionSemantics {
         guard !isSleeping(pet), pet.wakefulness != .settling else {
             // Gentle decline-warm: counts, zero state effect, clock untouched.
             let counted = count(state)
-            return (counted.state, plan(ReactionKeys.gentleDecline), counted.moments)
+            return (counted.state, plan(ReactionKeys.gentleDecline, for: intent, in: state), counted.moments)
         }
         guard pet.satietyPhase != .full else {
             // Politely full (§6.2 — a sated sigh, never a rejection): counts,
             // zero state effect, `lastFedAt` untouched.
             let counted = count(state)
-            return (counted.state, plan(ReactionKeys.politelyFull), counted.moments)
+            return (counted.state, plan(ReactionKeys.politelyFull, for: intent, in: state), counted.moments)
         }
         let satietyFactor = pet.satietyPhase == .recentlyFed ? InteractionRules.nibbleEffectMultiplier : 1.0
         let multiplier = InteractionEffects.repetitionMultiplier(in: state, dayKey: intent.localDayKey, familyCount: \.feedCount) * satietyFactor
@@ -245,7 +245,7 @@ enum InteractionSemantics {
             satietyPhase: .full
         )!
         let counted = count(state.with(state: fed))
-        return (counted.state, plan(beat), counted.moments)
+        return (counted.state, plan(beat, for: intent, in: state), counted.moments)
     }
 
     // MARK: Play (PRD §4 play row; FR-7; 04 §6.3; 05 §4.4's unified cease)
@@ -267,21 +267,21 @@ enum InteractionSemantics {
     private static func applyPlay(_ intent: InteractionIntent, to state: EngineState, rng: inout SeededGenerator) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.cheer), []) // round intact — never resets or extends
+            return (state, plan(ReactionKeys.cheer, for: intent, in: state), []) // round intact — never resets or extends
         }
         if isSleeping(pet) {
-            return (state, plan(ReactionKeys.stir), []) // sleeping: gentle stir only
+            return (state, plan(ReactionKeys.stir, for: intent, in: state), []) // sleeping: gentle stir only
         }
         switch pet.wakefulness {
         case .settling:
-            return (state, plan(ReactionKeys.stir), []) // declined-warm (§9.6 item 8)
+            return (state, plan(ReactionKeys.stir, for: intent, in: state), []) // declined-warm (§9.6 item 8)
         case .waking:
-            return (state, plan(ReactionKeys.decline), []) // the slot holds the never-cancelled .wake token
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // the slot holds the never-cancelled .wake token
         case .asleep, .awake:
             break
         }
         guard makeEnergyBand(pet.energy) != .exhausted else {
-            return (state, plan(ReactionKeys.stir), []) // exhausted: gentle stir only
+            return (state, plan(ReactionKeys.stir, for: intent, in: state), []) // exhausted: gentle stir only
         }
         let authorized = state
             .with(state: PetState(
@@ -294,7 +294,7 @@ enum InteractionSemantics {
                 satietyPhase: pet.satietyPhase
             )!)
             .with(pendingHandshake: Handshake(kind: .play, token: mintToken(rng: &rng)))
-        return (authorized, plan(ReactionKeys.playReady), [])
+        return (authorized, plan(ReactionKeys.playReady, for: intent, in: state), [])
     }
 
     // MARK: Care — tuck-in (PRD §4 care row; FR-8 AC-1; 05 §4.4 I-2 note)
@@ -324,7 +324,7 @@ enum InteractionSemantics {
     ) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         guard InteractionRules.isTuckInWindow(intent.timestamp, calendar: calendar) else {
-            return (state, plan(ReactionKeys.decline), []) // no count — no tick
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // no count — no tick
         }
         if isSleeping(pet) {
             // Blanket-adjust: counts, care effects, stays asleep exactly as it is.
@@ -351,16 +351,16 @@ enum InteractionSemantics {
                 instant: intent.timestamp,
                 calendar: calendar
             )
-            return (counted.state, plan(ReactionKeys.blanketAdjust), counted.moments)
+            return (counted.state, plan(ReactionKeys.blanketAdjust, for: intent, in: state), counted.moments)
         }
         if pet.wakefulness == .settling {
-            return (state, plan(ReactionKeys.blanketAdjust), []) // warm reaffirm — token untouched, settle still completes
+            return (state, plan(ReactionKeys.blanketAdjust, for: intent, in: state), []) // warm reaffirm — token untouched, settle still completes
         }
         if pet.wakefulness == .waking {
-            return (state, plan(ReactionKeys.decline), []) // the slot holds the never-cancelled .wake token
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // the slot holds the never-cancelled .wake token
         }
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.decline), []) // round in flight — cease first
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // round in flight — cease first
         }
         let mood = InteractionEffects.moodAfterGain(pet.mood, InteractionRules.tuckInMoodDelta)
         let energy = InteractionEffects.energyAfterDelta(pet.energy, InteractionRules.tuckInEnergyDelta)
@@ -392,7 +392,7 @@ enum InteractionSemantics {
             instant: intent.timestamp,
             calendar: calendar
         )
-        return (counted.state, plan(ReactionKeys.settling), counted.moments)
+        return (counted.state, plan(ReactionKeys.settling, for: intent, in: state), counted.moments)
     }
 
     // MARK: Care — nap (PRD §4 care row; 05 §4.4's nap row)
@@ -410,13 +410,13 @@ enum InteractionSemantics {
     private static func applyNap(_ intent: InteractionIntent, to state: EngineState, calendar: Calendar) -> (EngineState, ResponsePlan, [CharacterMoment]) {
         let pet = state.state
         if isSleeping(pet) {
-            return (state, plan(ReactionKeys.gentleDecline), []) // already sleeping — warm no-op
+            return (state, plan(ReactionKeys.gentleDecline, for: intent, in: state), []) // already sleeping — warm no-op
         }
         if pet.wakefulness == .settling {
-            return (state, plan(ReactionKeys.gentleDecline), []) // §9.6 item 8
+            return (state, plan(ReactionKeys.gentleDecline, for: intent, in: state), []) // §9.6 item 8
         }
         if pet.activity == .playing {
-            return (state, plan(ReactionKeys.decline), []) // round in flight — cease first
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // round in flight — cease first
         }
         switch makeEnergyBand(pet.energy) {
         case .drowsy, .exhausted:
@@ -442,9 +442,9 @@ enum InteractionSemantics {
                 instant: intent.timestamp,
                 calendar: calendar
             )
-            return (counted.state, plan(ReactionKeys.settling), counted.moments)
+            return (counted.state, plan(ReactionKeys.settling, for: intent, in: state), counted.moments)
         case .energetic, .relaxed:
-            return (state, plan(ReactionKeys.decline), []) // not offered in these bands
+            return (state, plan(ReactionKeys.decline, for: intent, in: state), []) // not offered in these bands
         }
     }
 
@@ -457,10 +457,27 @@ enum InteractionSemantics {
         pet.wakefulness == .asleep || pet.activity == .napping
     }
 
-    /// The interaction plan shape: reaction only — `lineKey` is TASK-019's
-    /// (§4.9 copy classes) and `haptic` is presentation-owned vocabulary
-    /// (04 §9.2); both seams stay nil on every engine-minted plan.
-    private static func plan(_ reaction: ReactionID) -> ResponsePlan {
-        ResponsePlan(reaction: reaction, lineKey: nil, haptic: nil)
+    /// The interaction plan shape: the reaction plus the family's day-stable
+    /// react line key — `momo.line.react.<family>.<nn>` (§4.9, TASK-019; the
+    /// documented TASK-016 nil seam is filled). The family is the INTENT's
+    /// (04 §10.4: pat → touch, feed → feed, play → play, tuck-in/nap → care
+    /// — every plan is announced, declined/asleep paths included), and the
+    /// key is stable per (pet, the intent's dayKey, family) via the `.copy`
+    /// salt seed. `haptic` stays presentation-owned vocabulary (04 §9.2) —
+    /// the one seam still nil on every engine-minted plan.
+    private static func plan(
+        _ reaction: ReactionID,
+        for intent: InteractionIntent,
+        in state: EngineState
+    ) -> ResponsePlan {
+        ResponsePlan(
+            reaction: reaction,
+            lineKey: LineSelection.reactLineKey(
+                petID: state.pet.id,
+                dayKey: intent.localDayKey,
+                family: CopyRules.ReactFamily(intent.kind)
+            ),
+            haptic: nil
+        )
     }
 }
