@@ -152,13 +152,13 @@ Full `swift test` (all 49 suites incl. discipline scans and concurrency suites),
 See "Design decisions + justifications" above (from-only step shape; prune-on-save superset equivalence; first-declaration-wins duplicate steps; multi-hop pinned at unit level; full-envelope golden literal with separately pinned hex; OBS-5 versions expressed as current+delta).
 
 #### Reviewer Status
-PENDING — independent adversarial review required (Review Requirements above, incl. sanctioned mutations: retainedDayCount 7→6, gate-order swap, both with byte-identical restore proof). Verdict to `.claude/tasks/reviews/REVIEW-TASK-022.md`.
+**APPROVED_WITH_MINOR_NOTES** — REVIEW-TASK-022 (0 MAJOR / 1 MINOR / 2 NITPICK / 4 OBS). Disposition applied pre-commit by the orchestrator: MINOR-1 dead fixture deleted, NITPICK-2 unused imports removed, NITPICK-1 resolved with a diagnosis correction (code was Set-LAST, not Set-first; reordered to Set-first + strengthened boundary pin, bite-proven live with hash-proven restore). Post-disposition suite green (see Completion Evidence).
 
 #### Commit
-None — implementation agent does not commit (CLAUDE.md §9). Working tree intentionally dirty for the orchestrator.
+(this commit) — `feat(persistence): TASK-022 migration chain + retention/pruning`.
 
 #### Push
-None — nothing committed to push.
+Pushed to `origin/feature/EPIC-005-persistence` — success.
 
 #### Recommended Next Step
 Orchestrator: verify `git status` shows exactly the 10 files above (5 modified + 5 new, nothing under Sources/MomoCore), spawn the fresh Jupiter review agent per Review Requirements, record verdict in `.claude/tasks/reviews/REVIEW-TASK-022.md`; on APPROVED, commit atomically as `feat(persistence): TASK-022 migration chain + retention/pruning` and push.
@@ -178,4 +178,9 @@ Orchestrator: verify `git status` shows exactly the 10 files above (5 modified +
 - Reviewer left the tree byte-identical to the as-found state (no stage, no commit) — commit-ready after the MINOR-1 disposition call by the orchestrator.
 
 ## Completion Evidence
-(orchestrator fills at housekeeping.)
+- **Commit:** `feat(persistence): TASK-022 migration chain + retention/pruning` = (this commit) — 12 files, +1342/−39 (10 TASK-022 code/test files incl. both disposition touches + the task file + REVIEW-TASK-022).
+- **Review chain:** REVIEW-TASK-022 **APPROVED_WITH_MINOR_NOTES** (0 MAJOR) → orchestrator disposition (above) → committed.
+- **Suite:** `swift test` **451 tests / 49 suites green** — implementer ×2, orchestrator verification ×2, reviewer ×3 (incl. post-restore confirming run), orchestrator post-disposition ×2. Reconciliation vs the 417/46 baseline: +14 LedgerRetentionTests, +16 MigrationChainTests, +3 SnapshotStoreGoldenBytesTests, +1 StoreRulesPinnedTests pin = 451; +3 suites = 49 — exact.
+- **AC mapping:** AC-1 caps pinned over oversized fixtures (30 days → 7 newest, 200 intents → last 64; boundary probe 8/65 → 7/64) — `LedgerRetentionTests.savePrunesBeforeEncode` + the retention suite; AC-2 determinism/idempotence/order/current-day pins + the strengthened duplicate-dayKey boundary pin (bite-proven); AC-3 chain walk + missing-hop/above-head fall-through with TASK-021's no-error pins intact; AC-4 NFR-7 fresh-vs-upgrade parity pin; AC-5 OBS-1 golden-bytes pin (1827-byte out-of-process literal, tamper-refusing); AC-6 OBS-5 rewritten against the chain + raw `schemaVersion == 1` pin + `Sources/MomoCore/` diff EMPTY (verified by orchestrator, impl agent, and reviewer).
+- **Mutations proven:** reviewer's A/B/C (10/1/2 exact bites, sha256-restored) + orchestrator's Set-ordering bite proof on the strengthened pin.
+- **Handoff state:** DONE per §18 — commit + push complete, hash recorded here and in status.md at housekeeping.
