@@ -59,7 +59,8 @@ Phase 0 complete (TASK-001…007, all pushed). **EPIC-002 complete — all four 
 - None. Owner gates pending but non-blocking: E1 (monetization) and E3 (location) closed for Phase 1 (D8/D19); E4 (name/trademark clearance) scheduled as TASK-050 release gate.
 
 ## Recent Commits
-- (this housekeeping commit) — docs(orchestration) — record TASK-028 completion (EPIC-006 4/6 DONE), task file to completed
+- `4a713e7` — docs(orchestration) — TASK-028 closeout part 2 — epic 4/6 + status refresh
+- `b203b71` — docs(orchestration) — record TASK-028 completion (EPIC-006 4/6 DONE) — task file to completed + both review records
 - `cc98b06` — TASK-028 — feat(character): TASK-028 reaction vocabulary, state choreography, CharacterReport emission (atomic; 21 files, +4617/−26)
 - `283310a` — docs(orchestration) — TASK-028 contract READY — reactions, choreography, CharacterReport
 - `d26b9d3` — TASK-027 — feat(character): TASK-027 deterministic idle sequencer + expression system (atomic; 28 files, +4637/−160; incl. REVIEW-TASK-027 + REVIEW-TASK-027-FIX1 + ADR-009/010/011/012 + the disposition's corrections)
