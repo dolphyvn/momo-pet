@@ -5,9 +5,10 @@ import Testing
 
 /// The expression system (04 §3): the §3.2 mood-band base rows, §3.3's
 /// energy overlays and conflict law, the aperture→lidScaleY conversion (the
-/// ONE documented conversion), §3.4's bond dials, and the INV-6 audit — the
-/// whole input cross-product must land inside its §3 ranges with the quiet,
-/// never-distressed character the product law demands.
+/// ONE documented conversion), §3.4's bond dials, the §3.5 grayscale-
+/// legibility anchor, and the INV-6 audit — the whole input cross-product
+/// must land inside its §3 ranges with the quiet, never-distressed character
+/// the product law demands.
 @Suite("MomoExpressions — §3.2 rows, §3.3 overlays + conflict law, conversion, §3.4 dials")
 struct MomoExpressionTests {
 
@@ -320,5 +321,81 @@ struct MomoExpressionTests {
         #expect(MomoExpressions.tailWagAmplitudeDegrees == 4.0)
         #expect(MomoExpressions.tailWagPeriodSeconds == 3.2)
         #expect(MomoCurves.tailRotationLimitDegrees.contains(MomoExpressions.tailWagAmplitudeDegrees))
+    }
+
+    // MARK: - §3.5 grayscale legibility (the in-suite anchor)
+
+    /// §3.5's grayscale-legibility clause: "every expression state in §3.2–3.3
+    /// must remain distinguishable rendered in pure grayscale (aperture/ear
+    /// angle/posture differences must survive with no hue information)". Two
+    /// of its preconditions are already pinned elsewhere — R4 makes color
+    /// state-free (RigLayerTreeTests' static part→token mapping, "state never
+    /// by color") and this suite pins the §3.2–3.3 values digit-for-digit —
+    /// but the clause itself had no named anchor. This is it: across all
+    /// 16 §3.2–3.3 cells (the 4 mood rows × 4 energy overlays, awake
+    /// baseline), every pair must differ in at least one of the composed
+    /// expression's hue-free carriers. The carriers tier as: static pose
+    /// (aperture, lid shape, ear angle, tail, posture — the doc's named
+    /// trio, generalized by lid shape and tail), achromatic motion tempo
+    /// (breath cycle/amplitude, the scheduler/blink multipliers — a
+    /// grayscale PREVIEW renders a moving rig, §8's `.grayscale(1)` note),
+    /// and event gates (the drowsy yawn/head-nod). TASK-029's committed
+    /// grayscale PNGs (docs/evidence/character/rm-*.png, the BT.709
+    /// harness) are the per-state VISUAL verification of the same clause;
+    /// this test is what keeps it true under future expression edits — any
+    /// change that collapses two cells into hue-only-distinguished fails
+    /// here. (The RM static set's ONE disclosed collision —
+    /// Content+Energetic == Content+Relaxed under RM — does not conflict:
+    /// under full motion those cells differ in breath cycle 4.704 vs 4.9 s;
+    /// see MomoReduceMotionEndPoseTests. Weakest pairs today: the four
+    /// relaxed-vs-energetic same-mood pairs — three tempo carriers, not
+    /// cycle-only (breath cycle ×0.96, scheduler intervals ×0.95, variant
+    /// cadence `energeticVariantIntervalMultiplier`) — and
+    /// Low+Drowsy vs Low+Exhausted, yawn/nod-gate-only — all genuinely
+    /// distinguishable in grayscale motion.)
+    @Test("§3.5: the §3.2–3.3 cells are pairwise distinguishable without hue")
+    func grayscaleLegibilityAcrossExpressionCells() {
+        let moods: [MoodBand] = [.joyful, .content, .wistful, .low]
+        let energies: [EnergyBand] = [.energetic, .relaxed, .drowsy, .exhausted]
+
+        // The expression's hue-free carriers, labeled (every field of the
+        // composed expression — R4 already pins color to carry nothing).
+        func carriers(_ e: MomoExpressions.MomoExpression) -> [(String, String)] {
+            [
+                ("aperture", "\(e.aperture)"),
+                ("lowerLid", "\(e.lowerLid)"),
+                ("earDegrees", "\(e.earDegrees)"),
+                ("tail", "\(e.tail)"),
+                ("postureScaleY", "\(e.postureScaleY)"),
+                ("breathCycleSeconds", "\(e.breathCycleSeconds)"),
+                ("breathAmplitude", "\(e.breathAmplitude)"),
+                ("intervalMultiplier", "\(e.intervalMultiplier)"),
+                ("variantIntervalMultiplier", "\(e.variantIntervalMultiplier)"),
+                ("blinkDurationMultiplier", "\(e.blinkDurationMultiplier)"),
+                ("yawnEnabled", "\(e.yawnEnabled)"),
+                ("headNodEnabled", "\(e.headNodEnabled)"),
+            ]
+        }
+
+        let cells = moods.flatMap { mood in
+            energies.map { energy -> (MoodBand, EnergyBand, MomoExpressions.MomoExpression) in
+                (mood, energy, MomoExpressions.expression(for: state(mood, energy)))
+            }
+        }
+        // Non-vacuous: the full 4 × 4 walked, all pairs compared.
+        #expect(cells.count == 16)
+
+        for i in 0..<cells.count {
+            for j in (i + 1)..<cells.count {
+                let (moodA, energyA, exprA) = cells[i]
+                let (moodB, energyB, exprB) = cells[j]
+                let differing = zip(carriers(exprA), carriers(exprB))
+                    .filter { $0.0.1 != $0.1.1 }
+                    .map { $0.0.0 }
+                #expect(
+                    !differing.isEmpty,
+                    "§3.5 violation: \(moodA)/\(energyA) and \(moodB)/\(energyB) are indistinguishable without hue (no hue-free carrier differs)")
+            }
+        }
     }
 }
