@@ -68,13 +68,72 @@ Atomic commit on `feature/EPIC-007-iphone-home` (orchestrator commits after revi
 Message includes the TASK-ID. Push follows the commit. The implementation agent does NOT commit — leave the tree DIRTY.
 
 ## Status
-READY (2026-09-10) — contract authored; fresh implementation agent dispatching.
+IN_REVIEW → findings addressed (2026-09-10): REVIEW-TASK-031 APPROVED_WITH_MINOR_NOTES; MINOR-1 + MINOR-2 applied; §19 green post-fix (851/85 ×3, MomoKit 91.42 %). Committing per §12.
 
 ## Implementation Notes
-(implementation agent fills: files created, decisions, deviations, test results with counts, build/launch evidence, handoff per CLAUDE.md §28)
+
+### Completed
+- Pure plan core in MomoKit (SwiftUI-free, D-R2): `Sources/MomoKit/AppModelPlan.swift` (`AppModelPlan` + `Step` enum: `.persist` / `.deliverResponse` / `.deliverMoments` / `.pushWatchSnapshot` reserved; `AppModelTrigger` — all five §4.2 entries; `AppModelPlanCore.plan(state:trigger:clock:calendar:)` emitting the §4.1 fixed order with the IFF rules; `choreographyEpoch = 1` + `choreographySeed`), `Sources/MomoKit/NextBoundary.swift` (`NextBoundary` + `NextBoundaryRules.next(from:state:calendar:)`), `Sources/MomoKit/AppModelLaunch.swift` (the presence probe for §5.2 fresh-vs-loaded). No MomoCore file was needed — boundary math lives in MomoKit over `FoldRules` constants; zero new MomoCore files (git diff over Sources/MomoCore/ is EMPTY).
+- Thin executor `Apps/Momo/MomoAppModel.swift` (@MainActor @Observable; ~371 lines) + `Apps/Momo/MomoApp.swift` wiring (`@State` app model, `.environment`, `scenePhase` onChange). Placeholder views untouched (placeholders persist; binding seam is the environment injection; Home composition is TASK-032/033).
+- pbxproj registration: `MomoAppModel.swift` added at 4 sites following the house `8A…NN` ID pattern.
+- Tests: `Tests/MomoKitTests/Support/AppModelFixture.swift` + `AppModelPlanTests.swift` (9 tests) + `NextBoundaryTests.swift` (12) + `AppModelLaunchTests.swift` (4).
+
+### Files Changed
+Modified: `Apps/Momo/MomoApp.swift`, `Momo.xcodeproj/project.pbxproj`. New: `Apps/Momo/MomoAppModel.swift`, `Sources/MomoKit/{AppModelPlan,NextBoundary,AppModelLaunch}.swift`, `Tests/MomoKitTests/{AppModelPlanTests,NextBoundaryTests,AppModelLaunchTests}.swift`, `Tests/MomoKitTests/Support/AppModelFixture.swift`. NOTHING under `Sources/MomoCore/` or `Sources/MomoCharacter/` (verified: `git diff` over both = empty; no new files there).
+
+### Decisions Made
+1. **Boundary-scheduling mechanism (the 05 §4.2 VERIFY-AT-BUILD)**: ONE cancellable Swift Concurrency `Task` per boundary, `Task.sleep(for:)` over the interval from the injected clock; the scheduled event carries the BOUNDARY instant (scheduler slack never shifts the fold target); `isForeground` guard + cancel in `backgrounded()` + iOS suspension make a backgrounded boundary inert by construction; cancel-on-re-derivation makes "re-schedule, never replay" structural. Documented in the executor type header.
+2. **Phase→boundary interpretation** (recorded in `NextBoundary`'s header): napping ⇒ earliest calendar boundary RELABELED `.napEnd` (the domain has no nap-start instant and no nap duration — TimeFold interpretation 3 completes the nap at fold end; inventing a duration would be un-sourced arithmetic); asleep ⇒ next 07:00 even when midnight is first (the wake fold subsumes the rollover; the midnight reset serves the interactive session); otherwise earliest of {22:00, 07:00, midnight} with natural kind. All boundaries strictly AFTER `now` (`enumerateDates(startingAfter:)`, `.nextTime` for DST) = structural no-replay.
+3. **Seed/clock convention** (per Requirement 5's verify-then-reuse): the engine's `reduce` takes an EXTERNAL rng; the app-side convention is a fresh `SeededGenerator` per application seeded via `DaySeed.make(petID:localDayKey:epoch:salt: .choreography)` over `DayKey.make(from: foldInstant, calendar:)`. `choreographyEpoch` had NO code home anywhere (verified by grep; 04 §5.1 names it only in prose) → `AppModelPlanCore.choreographyEpoch = 1` is now the single-sourced app-side home (matches `CopyRules.copyEpoch = 1` and `QuestGeneration.currentEpoch`'s epoch-1 start). The executor performs no seed arithmetic.
+4. **Fold-to-now via correct submission**: `.interaction` submits the intent as-is (the engine folds internally to the intent's OWN timestamp); `.characterReport` folds to `clock.now()`; foreground/STC/scheduled-boundary submit `.evaluate(now: carriedInstant)`. Pinned seed-for-seed by composition-equality tests (facade foreground→interaction == manual reduce→reduce; facade interaction plan == manually built plan over the same seed).
+5. **Fresh-vs-loaded**: `AppModelLaunch.hasGenerations` = existence probe over `StoreRules.generationFileNamesInReadOrder` (presence, never content — a corrupt store still reads "loaded", and `SnapshotStore.load(fallback:)` recovers invisibly per §5.3, landing `requiresOnboarding` on the fallback's own `onboardingComplete = false`). The load is the ONE sanctioned synchronous main-thread operation (executor init; **OBS-1 review-attention item** — header quotes 05 §5.2 and cites the REVIEW-TASK-024 routing).
+6. **D-R5 by construction**: `MomoAppModel.swift` is the only app-target file importing MomoCore; `reduce` is called only inside the plan core; views get the app model via `.environment`.
+7. **Swift 6 concurrency notes in the executor**: the NotificationCenter observer token is boxed in a private `@unchecked Sendable` struct (its only use is `removeObserver`), registered as the LAST init statement (escaping-closure capture of `self` is legal only after phase-1 init), removed via `isolated deinit`.
+
+### Tests Run
+1. `swift test` run 1 — `/tmp/task031_run1.log` — exit 0, **850 tests / 85 suites passed**, `grep -ci warning` = **0**.
+2. `swift test` run 2 — `/tmp/task031_run2.log` — exit 0, **850 tests / 85 suites passed**, `grep -ci warning` = **0**.
+3. Baseline delta: 825/82 @ `13a75bf` → 850/85 = exactly +25 tests / +3 suites (the three new suites: 9 + 12 + 4). No existing test touched or removed.
+4. `xcodebuild -project Momo.xcodeproj -scheme Momo -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=26.5' build` — exit 0, **BUILD SUCCEEDED** (`/tmp/task031_xcodebuild.log`; only warning line = appintentsmetadataprocessor's "No AppIntents.framework dependency" tool notice, pre-existing placeholder-shell behavior, not source).
+5. Launch evidence (simulator UDID `1F25E487-A78E-464C-95AF-0BD1A9B3E1BE`): `simctl install` OK; launch 1 pid 38955 logged `[com.momo.app:app-model] app model live — fresh store, onboarding input surfaced`; terminate + relaunch pid 40150 logged `app model live — loaded store, launch is the first open` — BOTH launch branches proven live behind the placeholder shell, and the second launch proves the first launch's foreground fold persisted a readable store (end-to-end save→load round trip on-device).
+
+### Known Issues
+- None functional. Minor: xcodebuild log carries the environment-level `ld: warning: search path '/opt/extra/lib' not found` during some link phases (machine toolchain config, pre-dates this task, absent from `swift test` logs).
+
+### Deviations & Disclosures
+- Three test-side premise errors were caught by the engine's own semantics and fixed on the TEST side (implementation untouched): (a) an awake pet folded to exactly 22:00 stays awake — the onset must be CROSSED (TimeFold's segment loop); the reschedule pin now uses the honest chain 21:00→22:00-sharp→midnight; (b) a mid-round play with a FRESH id is NOT a state no-op (the fold's decay + the intent-id recording move the state; `changed` is true) — the test now pins `[persist, cheer, watch]` and the exact deltas; (c) an awake post-midnight session's earliest boundary is the coming 07:00 segment end (kind `.morningWake`), not the evening onset.
+- `choreographyEpoch` had no existing code home; `AppModelPlanCore.choreographyEpoch = 1` introduces the single-sourced constant (disclosed above; reviewer should sanity-check the value against 04 §5.1's prose).
+- `AppModelLaunchTests` reuses `TickingClock`/`StoreFixture` from the TASK-021 fixtures (same test target) rather than duplicating them.
+
+### Handoff
+- **Completed**: all Requirements 1–8; all Acceptance Criteria 1–7 (AC-3's "backgrounded boundary provably inert" is pinned at the plan-core level as strictly-after + the executor's cancel/guard mechanism — the full background/foreground lifecycle is on-device UI-test territory, TASK-045's lane); Required Tests all present.
+- **Tests Run / Test Results**: see above — two full green runs with counts and timings, zero warnings, delta accounted.
+- **Build & Launch Evidence**: BUILD SUCCEEDED; both launch-origin log lines captured on the pinned simulator.
+- **Known Issues**: none functional (see above).
+- **Decisions Made**: see the numbered list above.
+- **Reviewer Status**: NOT YET REVIEWED — awaiting the fresh adversarial reviewer (review pointers: verify D-R5 confinement, OBS-1 single-synchronous-read claim, the boundary interpretation (Decision 2) against 05 §4.2's table, the seed convention (Decision 3) against the reduce header, and that the reserved Watch seam is inert).
+- **Commit**: NOT COMMITTED — tree left DIRTY per instruction (orchestrator commits after review).
+- **Push**: not applicable (no commit).
+- **Recommended Next Step**: independent review (REVIEW-TASK-031), then orchestrator commit/push; next implementation task = TASK-032 (onboarding flow over `requiresOnboarding` + the delivery seam), per the EPIC-007 task order.
+
+`git status --porcelain` at handoff:
+```
+ M Apps/Momo/MomoApp.swift
+ M Momo.xcodeproj/project.pbxproj
+?? Apps/Momo/MomoAppModel.swift
+?? Sources/MomoKit/AppModelLaunch.swift
+?? Sources/MomoKit/AppModelPlan.swift
+?? Sources/MomoKit/NextBoundary.swift
+?? Tests/MomoKitTests/AppModelLaunchTests.swift
+?? Tests/MomoKitTests/AppModelPlanTests.swift
+?? Tests/MomoKitTests/NextBoundaryTests.swift
+?? Tests/MomoKitTests/Support/AppModelFixture.swift
+```
 
 ## Reviewer Findings
-(orchestrator fills post-review)
+**REVIEW-TASK-031 — APPROVED_WITH_MINOR_NOTES** (fresh adversarial reviewer; obligations re-derived from 05 §4.1–4.2/§2.1/§2.3/§4.10/§5.2–5.3 + 04 §5.1 BEFORE comparing; full file at `.claude/tasks/reviews/REVIEW-TASK-031.md`). Reviewer independently reproduced: swift test 850/85 ×2, BUILD SUCCEEDED, both launch-origin log lines live on-device, frozen modules byte-clean, D-R5/reserved-seam/boundary-sourcing greps clean, three mutation bites. Findings: **MINOR-1** choreography-seed shape/epoch test-unpinned (bite-proven); **MINOR-2** executor interleave — scheduleBoundary after the save await let a one-event-stale plan's schedule survive a racing apply; NOTE-1 report-path microsecond clock skew (harmless); NOTE-2 nap/asleep interpretations confirmed sound; NOTE-3 implementer never measured coverage; NOTE-4 uncalled seams = correct scope posture; NOTE-5 run logs genuinely distinct.
+
+**Disposition (orchestrator, both findings verified personally then applied):** MINOR-1 → new pin test `choreographySeedShapePinnedToTheEngine` (expected seed derived from `DaySeed.make` with literal epoch 1 + `.choreography` salt, never the wrapper; epoch constant pinned to 1). MINOR-2 → `scheduleBoundary` moved before the effect awaits (immediately after step-0 apply). NOTE-3 → coverage measured: **MomoKit 91.42 % lines (341/373)**, floor holds. §19 re-run: 851/85 green ×3, zero source warnings. Full disposition appended to the review file.
 
 ## Completion Evidence
 (orchestrator fills at close: commit hash, push status, §19 run, coverage)

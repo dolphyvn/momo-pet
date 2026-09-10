@@ -12,6 +12,7 @@
 		8A4000000000000000000003 /* PlaceholderHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000003 /* PlaceholderHomeView.swift */; };
 		8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000004 /* PlaceholderRoomView.swift */; };
 		8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000005 /* PlaceholderSettingsView.swift */; };
+		8A4000000000000000000006 /* MomoAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000006 /* MomoAppModel.swift */; };
 		8A4000000000000000000011 /* MomoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000011 /* MomoWatchApp.swift */; };
 		8A4000000000000000000012 /* PlaceholderGlanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000012 /* PlaceholderGlanceView.swift */; };
 		8A4000000000000000000021 /* MomoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000001 /* MomoCore */; };
@@ -53,6 +54,7 @@
 		8A5000000000000000000003 /* PlaceholderHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderHomeView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000004 /* PlaceholderRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderRoomView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000005 /* PlaceholderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderSettingsView.swift; sourceTree = "<group>"; };
+		8A5000000000000000000006 /* MomoAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoAppModel.swift; sourceTree = "<group>"; };
 		8A5000000000000000000011 /* MomoWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchApp.swift; sourceTree = "<group>"; };
 		8A5000000000000000000012 /* PlaceholderGlanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderGlanceView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -124,6 +126,7 @@
 				8A5000000000000000000003 /* PlaceholderHomeView.swift */,
 				8A5000000000000000000004 /* PlaceholderRoomView.swift */,
 				8A5000000000000000000005 /* PlaceholderSettingsView.swift */,
+				8A5000000000000000000006 /* MomoAppModel.swift */,
 				8A5000000000000000000021 /* Info.plist */,
 			);
 			path = Momo;
@@ -312,6 +315,7 @@
 				8A4000000000000000000003 /* PlaceholderHomeView.swift in Sources */,
 				8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */,
 				8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */,
+				8A4000000000000000000006 /* MomoAppModel.swift in Sources */,
 				8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
