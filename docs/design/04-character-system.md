@@ -291,7 +291,7 @@ FR-4 AC-4 makes this set the **binding Phase 1 contract**. Battery note per row 
 | **Waking** | engine: night window ends, or nap end | 1.8–2.5 s one-shot (unhurried stretch = premium beat) | none | completes unless app hidden; new L2 may follow immediately on completion | one-shot; no residual timers |
 | **Happy** (burst) | engine ResponsePlan after warm interactions; Joyful-band idle accent | 0.6–1.2 s one-shot | none (recurs via reactions) | L3-class rules | one-shot transform sequence |
 | **Eating** | feed interaction (hungry class) | 2.5–4 s one-shot (2–3 bite cycles) | none | taps → glance-up only (rule 5); completes into content idle | pre-built mouth pose crossfades + paw/head transforms; no path re-generation (R1) |
-| **Playing** | play interaction round | 15–30 s per round (PRD FR-7) | round-internal cycle (three-phase follow shell, §6.3) | rule 6; Drowsy → low-key variant ending in yawn; Exhausted/sleeping → stir only | highest-cost Phase 1 animation: two moving transform groups (Momo + follow system) — still transform-only; bounded ≤ 30 s; fully pausable |
+| **Playing** | play interaction round | 15–30 s per round (PRD FR-7); Drowsy low-key variant ≈ 14.4 s, deliberately shorter (§7.1; REVIEW-TASK-028 NOTE-5) | round-internal cycle (three-phase follow shell, §6.3) | rule 6; Drowsy → low-key variant ending in yawn; Exhausted/sleeping → stir only | highest-cost Phase 1 animation: two moving transform groups (Momo + follow system) — still transform-only; bounded ≤ 30 s; fully pausable |
 | **Low-energy** (rest overlay) | Drowsy/Exhausted during waking hours | sustained while band holds | breath at drowsy rate; posture overlay per §3.3 | band change (engine) removes overlay | cheaper than idle (fewer L1 events scheduled) |
 
 ## 4.3 Phase 1 reaction vocabulary (required to satisfy the PRD interaction FRs)
@@ -440,7 +440,7 @@ One interaction: **pat** — tap anywhere on the Watch stage. Reaction is **stat
 | Settling | 2.5–3.5 s | yawn → lie down → blanket |
 | Quest sparkle | 0.9–1.2 s | PRD §5.4 — subtle inline, no modal |
 | Stage celebration | 1.6–2.0 s | FR-10 AC-4 — one-time, gentle |
-| Play round | 15–30 s | PRD FR-7 bound; character paces the follow phase to land in-window (§6.3) |
+| Play round | 15–30 s | PRD FR-7 bound; character paces the follow phase to land in-window (§6.3). Drowsy low-key variant: authored ≈ 14.4 s — deliberately below this band, per the TASK-028 contract's mandate that the drowsy follow be shorter (REVIEW-TASK-028 NOTE-5, 2026-09-10) |
 
 ## 7.2 Curves
 
@@ -516,7 +516,7 @@ The character is authored in a vector tool, exported, and checked in as **genera
 - Animation clips / states: `idle.breathe`, `state.sleep`, `react.tap.head`, `moment.stageCelebrate` — identifiers match §4/§6 vocabulary one-to-one (the ReactionID vocabulary of §9.2 **is** this namespace).
 - Poses: `pose.<band/state>.<variant>` — e.g., `pose.content.base`, `pose.sleep.side`, `pose.reduceMotion.celebrate`.
 - Colors: **token slots only** — the character defines required slots (`momo.fur.base`, `momo.fur.shade`, `momo.ear.inner`, `momo.eye.base`, `momo.eye.highlight`, `momo.cheek`, `momo.blanket`, `momo.sparkle`); the slots are the character's contract (R4), while slot **values** are assigned by the **EPIC-002 design-system pass** — one palette pass covering project.md §18 UI + these character slots together, so the palette coordinates across both (Appendix B item 3). No hex in rig code (R4).
-- Copy: String Catalog keys `momo.line.<slot>.<nn>` and `momo.line.react.<family>.<nn>` (§10.4; D12 — no string literals in views, FR-20 AC-4).
+- Copy: String Catalog keys `momo.line.<slot>.<nn>` and `momo.line.react.<family>.<nn>` (§10.4; D12 — no string literals in views, FR-20 AC-4); plus the fixed state-vocabulary keyspace `momo.line.vocab.<field>.<band>` (mood word / energy phrase / bond descriptor per §3.5) — keys named by band, a **fixed lookup, not a seeded selection**, so no day-stable/epoch machinery applies (ratifying REVIEW-TASK-019 OBS-D, 2026-09-09).
 
 ## 8.5 What Phase 1 actually ships (manifest)
 
@@ -533,6 +533,8 @@ The character is authored in a vector tool, exported, and checked in as **genera
 | Props | food, blanket, 2 sparkles (sparkles moment-scoped) | 4 |
 | Moments | stage celebration, quest sparkle, greeting sequences (fresh-morning / welcome-back / missed-you / night-glance) | 4 |
 | Copy | §10 line sets, String Catalog | ~50 lines |
+
+*Clarification (REVIEW-TASK-028 NOTE-6, 2026-09-10): the "sparkles moment-scoped" designation (this row and §2.2's props row) scopes the sparkle props' animation channels — they animate only in the payoff and moments, and hold identity elsewhere. The sparse static sparkle presence at rest is part of the shipped baseline: it pre-dates the TASK-028 reaction vocabulary, and at-rest rendering is unchanged (identity opacity). At-rest room dressing belongs to the TASK-025/026 room-scene design.*
 
 **Explicitly NOT in Phase 1** (§27 Phase 3): outfits, accessories, seasonal variants, additional pets, walking/locomotion, interactive room objects.
 

@@ -169,6 +169,8 @@ Product-level semantics; exact engine curves/rates are TASK-006's. Normative rul
 | **Care — Tuck in** | — | — | — | Offered from **20:00 local** through the night window; eases Momo toward sleep (mood+, small energy+); if already asleep, a blanket-adjust moment (still counts) | (unaffected) |
 | **Care — Nap** | Not offered | Offered; restores energy | Offered; restores energy | (asleep) | (unaffected) |
 
+*Errata (REVIEW-TASK-016 adjudication 8, 2026-09-09): in the Feed row, the mood band selects the response **beat** (the sleepy-nibbles presentation) while the satiety phase selects the state **effects** — so a hungry Drowsy/Exhausted feed lands at full meal effect with the sleepy beat, and these cells' "smaller effect" prose is realized only through the recently-fed nibble (×0.25, the I-2 refinement in this row's Just-fed cell), never as an additional band multiplier.*
+
 Every interaction in the matrix is countable and feeds DailyProgress counters (feedCount, playCount, careCount, patCount) — the Phase 1 field set only (K8; no `steps` until Phase 2, C5).
 
 ---
@@ -202,6 +204,7 @@ Every interaction in the matrix is countable and feeds DailyProgress counters (f
 - Each local day's set = **Q1 (anchor, always)** + **2 drawn from {Q2…Q7}** via the date-seeded RNG, subject to:
   - no duplicate quests in one set;
   - Q6 (Tuck-in) appears at least once in every 3-day window (keeps the evening anchor present);
+    *Clarification (REVIEW-TASK-018, open question 1, 2026-09-09 — normative reading): the window check earns a new day Q6 credit only when BOTH prior day-sets contain Q6; unknown or missing priors count as no credit and force Q6 (so a fresh install always opens with Q6). This strong reading is normative: the invariant above holds under it, and 05 §4.8's tightest-case non-emptiness arithmetic (≥ 4 pairs) is coherent and reachable only under it.*
   - the same pair of non-anchor quests MUST NOT repeat on two consecutive days.
 - Generation is deterministic given (date, seed) — required test.
 
