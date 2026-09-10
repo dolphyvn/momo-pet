@@ -1,56 +1,62 @@
 # EPIC-007 — iPhone Home Experience
 
 ## Objective
-Deliver the complete iPhone experience per FR-1…FR-8, FR-16, FR-19 and 03: the app-model facade (evaluate/apply loop, persistence wiring, boundary scheduling), onboarding S1–S3, Home composition with the living character, touch/petting with eye-follow, Feed/Play/Care flows, quest moments and celebrations, the Room tab, Settings with erase-all-data — and consolidate the iPhone accessibility audit. Completes the vertical slice up to (not including) the Watch leg.
+Make the first vertical slice REAL on iPhone: launch → onboarding → Momo visible → idle → touch → react → state change → **persist** (force-quit-safe). The app-model facade (05 §4.1–4.2) becomes the ONLY engine entry point (D-R5); the three tabs (Home · Room · Settings) leave their placeholders and render the live engine state through the TASK-019 read-models and the EPIC-006 character runtime. Slice (delivery plan): "Vertical slice minus Watch — launch → onboarding → Momo visible → idle → touch → react → state change → persist."
 
 ## User / Product Value
-The product a person actually holds: meet Momo in three taps, see her alive on Home, pet her and be answered, feed her and be politely refused when she is full, tuck her in, watch small quests complete without ever being nagged. Everything stays calm, permission-free, and offline.
+This is the first surface where the product exists for its user: a tiny companion that quietly shares everyday life — onboarded in three calm steps, alive on Home, respondable by touch and the three care families, progressing through quests and bond stages, and durable across force-quit. Every downstream surface (Watch glance, EPIC-008) renders the same engine truth this epic wires.
 
 ## Scope
-- Facade (05 §4.1–4.2, D-R5): fixed-order side effects (apply → persist if changed → deliver response/moments); fold-to-now triggers (foreground, interaction, report, boundaries 22:00/07:00/midnight/nap-end, time-change notifications); one scheduled next-boundary evaluation; views never touch the engine directly.
-- Onboarding (FR-1, UX §3): exactly 3 steps, zero dialogs/network/accounts, Enter writes completion flag atomically.
-- Home (FR-2, UX §5.1): status row (glyph + words, never numbers), pet canvas ≥ ~45 %, contextual line (UX-12), action pills, quest card (soft per-wish marks UX-4, window rendering UX-5); no-scroll at default type on the smallest pinned device (AC-1a), full function at accessibility sizes (AC-1b).
-- Touch & petting (FR-5, UX §5.1, 04 §2.3–2.4/§6.1): 4 gestures × 2 zones (y=550), eye-follow per 04 §2.4 (RM → single glance, UX-14), sleeping → stir, canvas as one VoiceOver element with Pat/Cuddle custom actions (UX-8).
-- Feed/Play/Care (FR-6/7/8, UX §5.2–5.4, 04 §6.2–6.3): refusal-warm and nibble paths; UX-3 play round ≤ 30 s with early-exit; Tuck-in chip only from 20:00 (clock-based); Nap chip when Drowsy/Exhausted.
-- Quest moments + celebrations (FR-16, UX §5.5–5.6, 04 §4.3): M1 inline, M2 stage banner once (UX-10, deferred-while-closed), M3 all-done; Q1 vanishes silently at 12:00; Q6 from 20:00; midnight silent reset.
-- Room (FR-3) and Settings + erase-all-data (FR-19, UX §1.2, S6.2 confirmation).
-- UI-test consolidation + per-surface accessibility audit (FR-20 AC-2, NFR-6).
+- **App model facade (TASK-031, 05 §4.1–4.2):** the fixed-order side-effect wrapper — apply `newState` → persist if `changed` (write-through) → deliver `response`/`moments` to the character/presentation layer → Watch push (EPIC-008; seam reserved, no transport built). Fold-to-now triggers per the §4.2 table (foreground, interaction, report, in-session boundaries 22:00/07:00/midnight/nap-end, significant time-change notifications); exactly ONE scheduled next-boundary evaluation; schedulers re-schedule, never replay; backgrounded ⇒ the next foreground catches up. Views never invoke the engine directly (D-R5). Launch path: store read (fresh ⇒ onboarding), main thread never blocks on I/O beyond the launch's initial KB-scale read (05 §5.2; the OBS-1 property REVIEW-TASK-024 routed here).
+- **Onboarding (TASK-032, FR-1; UX §3):** exactly 3 steps (S1→S2→S3), zero system dialogs, zero network, zero accounts; completion flag written atomically at the tap; name pre-filled "Momo", whitespace rejected (INV-1), changeable later in Settings.
+- **Home composition (TASK-033, FR-2; UX §5.1, §5.5):** status row (glyph + WORD bands — never numbers), pet canvas ≥ ~45 % hosting the EPIC-006 rig, contextual line (single rotating slot, UX-12 priority), action row pills, quest card (per-wish soft marks, no aggregate bar; window rendering UX-5); no-scroll at default type on the smallest pinned device (AC-1a), scroll-with-full-function at accessibility sizes (AC-1b); no Collection/customization entries.
+- **Touch & petting (TASK-034, FR-5; UX §5.1 gesture map; 04 §2.3–2.4, §6.1):** 4 gesture classes × 2 zones (y=550 partition) render the engine's distinct ResponsePlans; eye-follow per 04 §2.4 (pupil clamp, head trail, release ease; RM → single glance per UX-14); sleeping → stir, stays asleep; rapid-pat coalescing visual; canvas is ONE VoiceOver element with Pat/Cuddle custom actions + spoken reaction lines (UX-8); petting banks zero bond (G2 — engine-side, verified here E2E). Carries the naked lost-boundary press touch-cancel seam (REVIEW-TASK-028 FIX1-NOTE-1).
+- **Feed / Play / Care flows (TASK-035, FR-6/7/8; UX §5.2–5.4; 04 §6.2–6.3):** feed with politely-full refusal (warm, zero penalty) and the 30–90-min nibble shortened animation (owner-confirmed); play = UX-3 three-phase fingertip-follow round ≤ 30 s with early-exit pill, Drowsy low-key variant, counts on completion; care = Tuck-in chip only from 20:00 (absent by day — no disabled ghosts), blanket-adjust while asleep, Nap chip when Drowsy/Exhausted.
+- **Quest moments + celebrations (TASK-036, FR-16; UX §5.5–5.6; 04 §4.3 L4):** M1 inline completion (auto, no claim, no modal; tiny flourish + optional light haptic); M2 one-time stage banner (shown once incl. deferred-while-closed, UX-10; VoiceOver announcement); M3 all-done line; Q1 silently gone at 12:00; Q6 line from 20:00; midnight silent reset. Haptics delivery lands at the presentation seam here (the TASK-016/019 seam).
+- **Room tab (TASK-037, FR-3; UX §1.2 S5):** static charming scene renders offline from the TASK-025 room/props constants; zero interactive elements; single a11y image element ("{name}'s cozy room"); no customization UI.
+- **Settings + rename + erase-all-data (TASK-038, FR-19; UX §1.2 S6):** rename reflected on Home (Watch propagation verified in EPIC-008); haptics toggle (travels in the snapshot — no sound toggle exists, 04 §11); Erase all data with explicit S6.2-confirmation copy → store directory deleted → onboarding, fresh; reset marker flows to Watch at next sync (full E2E is TASK-044); About (version + short privacy statement); NO account/notification/Health/monetization rows (AC red lines).
+- **Consolidation + accessibility audit (TASK-039, FR-20 AC-2; NFR-6; 03 §10):** the FR-20 core-loop audit passes on iPhone surfaces — Dynamic Type per AC-1a/1b, VoiceOver formulas, Reduce Motion substitution, ≥ 44 pt targets, ≥ 4.5:1 contrast, never color-only; audit evidence recorded (launch-blocking per NFR-6).
 
 ## Non-Goals
-Watch app and transport (EPIC-008 — rename/haptics/erase reach the Watch there; TASK-038 ships the reset marker only), widgets/notifications/HealthKit (Phase 2), customization/collection UI (FR-2 AC-4), sound settings (no audio exists), punishment or streak mechanics (banned), analytics (D7).
+All Watch surfaces and sync transport (EPIC-008 — TASK-031 leaves the push seam reserved, TASK-038's reset-marker E2E completes in TASK-044); widgets/HealthKit/notifications/accounts (Phase 2 / never in Phase 1); Collection & customization (UX AC-4 red line); new engine semantics (EPIC-004 is frozen — this epic CONSUMES `reduce`, never edits it); new character motion (EPIC-006 is frozen — this epic CONSUMES the view API; §2.4's continuous pupil-follow refinement is carried as a TASK-034 contract item ONLY where the view seam exposes it); on-device performance-budget measurement beyond the structural launch-path property (§12 numbers are re-measured at TASK-045); monetization, streaks, ads (§24 MVP protection).
 
 ## Dependencies
-- EPIC-004 (engine), EPIC-005 (store), EPIC-006 (rig) — all complete.
+- EPIC-002 (targets, tokens, `MomoCopy` scaffolding), EPIC-003 (domain model), EPIC-004 (engine + read-models + copy selection — merged), EPIC-005 (SnapshotStore/sync logic — merged), EPIC-006 (the rig + view API — merged `13a75bf`).
+- The lanes CONVERGE here: this epic is the first consumer of BOTH LANE A (engine/store) and LANE B (character).
+- Merged `main` @ `13a75bf` (EPIC-006 merge; owner PR #7 at `aa072ea` reconciled).
 
 ## Tasks
-Branch: `feature/EPIC-007-iphone-home` (from `main`).
+Branch: `feature/EPIC-007-iphone-home` (from `main` @ `13a75bf`).
 
 | TASK | Title | Size | Depends on |
 |---|---|---|---|
-| TASK-031 | Implement the app model facade: evaluate/apply loop + persistence wiring + boundary scheduling (05 §4.1–4.2) | L | TASK-020, TASK-021 |
-| TASK-032 | Implement onboarding S1→S2→S3 (FR-1, UX §3) | M | TASK-031 |
-| TASK-033 | Implement Home composition (FR-2, UX §5.1/§5.5) | L | TASK-026, TASK-031 |
-| TASK-034 | Implement touch & petting (FR-5, UX §5.1, 04 §2.3–2.4/§6.1) | L | TASK-033 |
-| TASK-035 | Implement Feed / Play / Care flows (FR-6/7/8, UX §5.2–5.4, 04 §6.2–6.3) | L | TASK-034 |
-| TASK-036 | Implement quest moments + celebrations (FR-16, UX §5.5–5.6, 04 §4.3) | M | TASK-033, TASK-018 |
-| TASK-037 | Implement Room tab (FR-3, UX §1.2 S5) | S | TASK-025, TASK-031 |
-| TASK-038 | Implement Settings + rename + erase-all-data (FR-19, UX §1.2 S6) | M | TASK-031, TASK-022 |
-| TASK-039 | iPhone UI test consolidation + per-surface accessibility audit (FR-20 AC-2, NFR-6, 03 §10) | M | TASK-032…038 |
+| TASK-031 | App model facade: evaluate/apply loop + persistence wiring + boundary scheduling (05 §4.1–4.2; D-R5) | L | TASK-020, TASK-021 |
+| TASK-032 | Onboarding S1→S2→S3 (FR-1; UX §3) | M | TASK-031 |
+| TASK-033 | Home composition (FR-2; UX §5.1, §5.5) | L | TASK-026 (rig), TASK-031 |
+| TASK-034 | Touch & petting (FR-5; UX §5.1; 04 §2.3–2.4, §6.1) | L | TASK-033 |
+| TASK-035 | Feed / Play / Care flows (FR-6/7/8; UX §5.2–5.4; 04 §6.2–6.3) | L | TASK-034 |
+| TASK-036 | Quest moments + celebrations (FR-16; UX §5.5–5.6; 04 §4.3 L4) | M | TASK-033, TASK-018 (cascade/moments) |
+| TASK-037 | Room tab (FR-3; UX §1.2 S5) | S | TASK-025 (room art), TASK-031 |
+| TASK-038 | Settings + rename + erase-all-data (FR-19; UX §1.2 S6) | M | TASK-031, TASK-022 (delete+fresh path) |
+| TASK-039 | UI test consolidation + per-surface accessibility audit (FR-20 AC-2; NFR-6; 03 §10) | M | TASK-032…038 |
 
 ## Acceptance Criteria
-1. Every FR-1…FR-8, FR-16, FR-19 acceptance criterion passes on the iPhone (traceability: delivery plan Appendix A).
-2. Vertical slice minus Watch demonstrable: launch → onboarding → Momo visible → idle → touch → react → state change → **persist** (force-quit-safe, FR-13 AC-1).
-3. No permission dialog, network call, account, or numeric-stat UI anywhere (FR-1 AC-1/AC-4, FR-2 AC-3).
-4. Dynamic Type behavior per AC-1a/1b; VoiceOver announcements use engine-provided keys (INV-11 respected); Reduce Motion honored (UX-14).
-5. Accessibility audit (TASK-039) fully green — launch-blocking per NFR-6.
+1. The app-model facade is the ONLY engine entry (D-R5 review-gated): fixed §4.1 side-effect order, all five §4.2 fold triggers live, exactly one scheduled next-boundary evaluation in-session, launch path inside the structural I/O budget (store read ⇒ fresh ⇒ onboarding).
+2. Onboarding is exactly 3 calm steps with atomic completion-flag semantics (kill-before-Enter restarts the flow; post-Enter goes straight to Home) — zero dialogs, zero network, zero accounts.
+3. Home renders WORDS not numbers (status row bands, quest card soft marks), hosts the live rig with the contextual line and action pills, and does not scroll at default type on the smallest pinned device while remaining fully functional at accessibility sizes.
+4. Every §6.1 gesture×zone class renders its engine-distinct ResponsePlan on the composed Home; sleeping accepts only stir; VoiceOver exposes the canvas as one element with Pat/Cuddle custom actions and spoken reaction lines; petting banks zero bond (E2E).
+5. Feed/Play/Care complete the interaction loop: warm refusal, nibble shortened animation, play ≤ 30 s with completion counts, tuck-in/nap chips gated by time and wakefulness — always warm (D18/INV-6), never punitive.
+6. Quest moments surface inline (M1), once per stage (M2 incl. deferral), and as the all-done line (M3); expiry and midnight reset are silent; haptics honor the settings toggle at the presentation seam.
+7. Room renders offline with zero interactivity; Settings offers rename/haptics/erase/about and NOTHING else — erase deletes the store and lands on onboarding, fresh (TASK-022's delete+fresh path E2E).
+8. The FR-20 accessibility audit passes on all iPhone surfaces with recorded evidence (launch-blocking per NFR-6); full `MomoUITests` suite green.
 
 ## Test Requirements
-- project.md §32 **UI matrix (iPhone half)** per 05 §10.1 `MomoUITests` (iOS simulator): onboarding flow incl. kill-before-Enter restart; primary interactions (pet, feed refusal/nibble, play round, tuck-in/nap); quest completion inline + expiry silence + stage-once; settings rename/erase roundtrip; no-scroll layout check on smallest pinned device.
-- Facade tests with injected clock (boundary scheduling, fold-on-foreground, write-through on change).
-- Standing static scans (import-whitelist, banned vocabulary) stay green.
+- project.md §32 row "iPhone app": unit — facade plan tests with injected clocks (boundary scheduling, fold-on-foreground, fixed-order effects, no-write-when-unchanged); UI — MomoUITests per the delivery-plan rows (composition, gesture distinction, refusal-warm + nibble paths, quest moments, erase roundtrip, accessibility audit).
+- Package suites stay green (`swift test`); MomoKit ≥ 80 % coverage floor holds as the facade core lands there; MomoCore/MomoCharacter untouched except where the view API genuinely lacks a consumer seam (any such touch must be disclosed and minimal).
+- D-R5/D-R6 scans and the standing discipline suites (import whitelist, banned vocabulary, token purity) stay green with no new exemptions; the banned-vocabulary scan covers any NEW catalog strings this epic adds (the TASK-019 vocabulary keys resolve here).
 
 ## Definition of Done
-All nine tasks DONE per CLAUDE.md §18; UI suites + audit green with evidence; reviews APPROVED; atomic TASK-ID commits on `feature/EPIC-007-iphone-home`, pushed; epic merged to `main`; orchestrator status update.
+All nine tasks DONE per CLAUDE.md §18; `swift test` + full `MomoUITests` green; reviews APPROVED per §10; atomic TASK-ID commits on `feature/EPIC-007-iphone-home`, pushed; epic merged to `main` per §14; the vertical slice demonstrable end-to-end on the pinned simulator; orchestrator status update.
 
 ## Status
-TODO
+**IN_PROGRESS (0/9)** — epic + TASK-031 contract authored 2026-09-10 on `feature/EPIC-007-iphone-home` (from merged `main` @ `13a75bf`). Dispatch order: TASK-031 (facade — everything hangs off it) → TASK-032 (onboarding) → TASK-033 (Home) → TASK-034/035/036 → TASK-037/038 → TASK-039 (consolidation + audit) → §14 merge.
