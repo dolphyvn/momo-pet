@@ -16,12 +16,14 @@ import os
 /// (`AppModelPlanCore` / `NextBoundaryRules` / `AppModelLaunch` in MomoKit);
 /// what remains here is deliberately mechanical.
 ///
-/// **D-R5 by construction.** This file is the only app-target file that
-/// imports the engine (`MomoCore`) and the only one that reaches engine or
-/// plan APIs; views consume the app model through SwiftUI's environment and
-/// never invoke the engine. The engine's `reduce` itself is called only
-/// inside the plan core — the facade (this executor + that core) is the
-/// engine's sole entry point.
+/// **D-R5 by construction.** This file is the engine-facing executor: besides
+/// this file, the only app-target file that imports `MomoCore` is the entry
+/// point's disclosed R7 UI-test clock enabler (`MomoApp.fixedTimeSources`,
+/// TASK-033 — it constructs a clock to INJECT into this model and reaches no
+/// other engine API); views consume the app model through SwiftUI's
+/// environment and never invoke the engine. The engine's `reduce` itself is
+/// called only inside the plan core — the facade (this executor + that core)
+/// is the engine's sole entry point.
 ///
 /// **The launch read is the ONE sanctioned synchronous main-thread I/O**
 /// (05 §5.2: "the main thread never blocks on I/O beyond launch's initial
@@ -136,6 +138,14 @@ final class MomoAppModel {
     /// greeting animation"; director/moments wiring is TASK-033's.
     var characterDisplayState: CharacterDisplayState {
         makeCharacterDisplayState(state)
+    }
+
+    /// The Home composition's read-model (TASK-033 R2; UX §5.1): mirrors
+    /// `displayState` — the same (state, now, calendar) inputs through
+    /// MomoKit's `makeHomeReadModel`, so the Home view binds through the app
+    /// model and never the engine (D-R5).
+    var homeReadModel: HomeReadModel {
+        makeHomeReadModel(state, at: clock.now(), calendar: calendar)
     }
 
     /// The UI-facing delivery seam (§4.1's fixed order, steps 2–3): the

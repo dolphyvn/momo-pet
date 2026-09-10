@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import MomoCore
 
 /// Momo (iPhone) app entry point (TASK-009 placeholder shell; TASK-031 wires
 /// the app model behind it; TASK-032 adds the onboarding gate).
@@ -24,7 +25,14 @@ import Foundation
 @main
 struct MomoApp: App {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var appModel = MomoAppModel(storeDirectory: MomoApp.testStoreDirectory())
+    @State private var appModel = {
+        let time = MomoApp.fixedTimeSources()
+        return MomoAppModel(
+            storeDirectory: MomoApp.testStoreDirectory(),
+            clock: time.clock,
+            calendar: time.calendar
+        )
+    }()
 
     var body: some Scene {
         WindowGroup {
@@ -39,7 +47,67 @@ struct MomoApp: App {
             .onChange(of: scenePhase) { _, phase in
                 appModel.scenePhaseChanged(to: phase)
             }
+            .task {
+                // §4.2's launch open (TASK-033 discovery, disclosed): by the
+                // time this shell's onChange(of: scenePhase) is installed,
+                // the scene is already .active — the changed-value contract
+                // never fires, so a cold launch never evaluated: no first
+                // day record, no greeting flow, an empty Home quest card
+                // until the next phase change. Reading the CURRENT phase at
+                // first appearance closes the gap; a genuine later change
+                // still rides onChange, and a double-fire folds nothing
+                // (folds are forward-only — the second is zero-elapsed).
+                appModel.scenePhaseChanged(to: scenePhase)
+            }
         }
+    }
+
+    // MARK: The UI-test clock enabler (TASK-033 R7, disclosed)
+
+    /// The R7 deterministic UI-test enabler: a `-momo-fixed-clock
+    /// <ISO-8601-UTC>` launch argument freezes the app's time FOR THAT
+    /// LAUNCH, so MomoUITests pin the local-hour-governed Home surfaces —
+    /// the quest windows, the action-row windows, the time-slot line — at
+    /// chosen hours (e.g. 09:00 vs 20:30) regardless of when or where the
+    /// suite runs. Production launches never pass the argument and run on
+    /// the system clock and calendar as before. DEBUG-only: release builds
+    /// ignore the argument entirely.
+    ///
+    /// The enabler reuses MomoCore's `ManualEngineClock` (05 §4.10's
+    /// manually-settable test clock — inert outside tests) seeded with the
+    /// parsed instant; an UNPARSEABLE or MISSING value is an invariant
+    /// regression — DEBUG-loud (`assertionFailure`, the MomoCopy discipline;
+    /// REVIEW-TASK-033 NITPICK-1 closed the missing-value hole) — and falls
+    /// back to the system clock so the session stays functional.
+    ///
+    /// When the flag is present, the injected calendar is ALSO pinned to
+    /// UTC: the Home windows are LOCAL-hour governed (D11's night window,
+    /// the quest windows, the copy slots), so pinning the instant alone
+    /// would leave them hostage to the host simulator's timezone. UTC
+    /// instant + UTC calendar makes 09:00Z read as 09:00 local on any host.
+    private static func fixedTimeSources() -> (clock: any EngineClock, calendar: Calendar) {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-momo-fixed-clock") else {
+            return (SystemEngineClock(), .current)
+        }
+        guard index + 1 < arguments.count else {
+            // REVIEW-TASK-033 NITPICK-1: a flag WITHOUT a value is the same
+            // invariant regression as an unparseable one — DEBUG-loud, not a
+            // silent system-clock ride (which would flake the hour-governed
+            // windows the suite pins).
+            assertionFailure("MomoApp: -momo-fixed-clock present without a value — falling back to the system clock")
+            return (SystemEngineClock(), .current)
+        }
+        let raw = arguments[index + 1]
+        if let instant = ISO8601DateFormatter().date(from: raw) {
+            var utc = Calendar(identifier: .gregorian)
+            utc.timeZone = TimeZone(identifier: "UTC")!
+            return (ManualEngineClock(at: instant), utc)
+        }
+        assertionFailure("MomoApp: -momo-fixed-clock value '\(raw)' is not ISO-8601 UTC — falling back to the system clock")
+        #endif
+        return (SystemEngineClock(), .current)
     }
 
     // MARK: The UI-test store enabler (TASK-032 R13, disclosed)

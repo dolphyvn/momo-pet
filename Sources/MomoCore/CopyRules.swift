@@ -22,14 +22,27 @@ import Foundation
 ///   morning/day and day/evening cut-offs (12:00 / 18:00) — D11 normative
 ///   night plus "the engine subdivides the complement" is the whole
 ///   normative text; the hour numbers are TASK-019's tunable.
-/// - **Placeholder-era pool counts** (04 §10.4's line classes; TASK-011's
-///   catalog seed): every pool is 1 — the single catalog entry per class is
-///   the index-`00` placeholder. Real pools land with EPIC-006/007, and the
-///   bump obligation is §4.10's: **a catalog change ⇒ bump the copy epoch**
-///   (`copyEpoch`), so every day-stable pick resalts and the mapping stays
-///   auditable.
+/// - **Pool counts** (04 §10.4's line classes; TASK-011's catalog seed, the
+///   TASK-033 catalog landing): the four TIME slots carry their real pools —
+///   ten 0-based lines each (04 §10.3's ten morning/day/evening/night lines)
+///   since TASK-033 landed the catalog. The react families and the two
+///   CONTEXT slots (`greeting` pools its return lines at the fixed indices
+///   01–03; `care-moment` waits for TASK-035) stay at the placeholder
+///   count of 1 for now. The bump obligation is §4.10's: **a catalog change
+///   ⇒ bump the copy epoch** (`copyEpoch`), so every day-stable pick
+///   resalts and the mapping stays auditable.
+/// - **Indexing truth (TASK-033):** the picker (`LineSelection.pick` /
+///   `slotLineKey`) is ZERO-BASED and formats its index `%02d` — the
+///   placeholder-era "index 00 is reserved for placeholders, real pools
+///   start at 01" convention is SUPERSEDED by the real catalog: a real
+///   pool's entries are `00`–`<count-1>`, exactly the indices the picker
+///   can mint. (TASK-011's TASK-era note lives in `LineSelection.formatted`'s
+///   doc; this paragraph is the operative reading.) The greeting pool's
+///   fixed lookup starts at `01` for its own catalog-order reasons
+///   (`HomeCopyKeys.greetingLineKey`).
 /// - **Epoch discipline** (05 §4.10, mirroring `QuestGeneration.currentEpoch`):
-///   `1` is the current copy-selection epoch; `0` is the pre-selection
+///   `2` is the current copy-selection epoch (bumped from 1 by TASK-033's
+///   catalog landing, §4.10's obligation); `0` is the pre-selection
 ///   placeholder marker. The epoch flows into every `DaySeed` the selection
 ///   derives (`.copy` salt) — changing it reshuffles every pick.
 public enum CopyRules {
@@ -37,8 +50,9 @@ public enum CopyRules {
     /// The current copy-selection epoch (05 §4.10's salt-epoch semantics;
     /// engine-owned). `0` is the pre-selection placeholder marker. Changing
     /// it resalts every day's copy seed (via the `DaySeed.make` derivation)
-    /// and reshuffles every line pick.
-    public static let copyEpoch: Int = 1
+    /// and reshuffles every line pick. `2` — TASK-033's catalog landing
+    /// (40 real slot lines replaced the placeholder era, §4.10's bump).
+    public static let copyEpoch: Int = 2
 
     // MARK: Time slots (04 §10.4; D11)
 
@@ -104,7 +118,7 @@ public enum CopyRules {
         }
     }
 
-    // MARK: Pool counts (placeholder era — see the header's bump obligation)
+    // MARK: Pool counts (see the header's bump obligation)
 
     /// The react-line pool size for `family`: 1 in the placeholder era (the
     /// single index-`00` catalog entry; real pools land EPIC-006/007 — and a
@@ -114,11 +128,17 @@ public enum CopyRules {
         1
     }
 
-    /// The slot-line pool size for `slot`: 1 in the placeholder era (same
-    /// discipline as `reactLineCount(for:)`; context slots expose the same
-    /// count so the keyspace stays uniform, though no time derivation ever
-    /// selects them).
+    /// The slot-line pool size for `slot`: 10 for the four TIME slots (04
+    /// §10.3's ten lines each, landed by TASK-033's catalog — indices
+    /// `00`–`09` under the 0-based picker); 1 for the CONTEXT slots (the
+    /// keyspace stays uniform; `greeting` is drawn at fixed indices 01–03,
+    /// never through this count, and `care-moment` waits for TASK-035).
     public static func slotLineCount(for slot: LineSlot) -> Int {
-        1
+        switch slot {
+        case .morning, .day, .evening, .night:
+            return 10
+        case .greeting, .careMoment:
+            return 1
+        }
     }
 }

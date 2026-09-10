@@ -7,7 +7,7 @@ import SwiftUI
 struct RootTabView: View {
     var body: some View {
         TabView {
-            PlaceholderHomeView()
+            HomeView()
                 .tabItem { Label("Home", systemImage: "house") }
             PlaceholderRoomView()
                 .tabItem { Label("Room", systemImage: "door.left.hand.open") }

@@ -119,7 +119,7 @@ Use `-momo-store-directory <unique>` for every launch. Derive expected quest con
 
 1. Composition (default type): fresh store → onboarding → Home; status row, canvas, contextual line, quest card header, Feed+Play pills all exist; the canvas frame is ≥ 45 % of the window height; the quest card is fully visible WITHOUT scrolling (AC-1a).
 2. No-numeric state audit (AC-3): the status-row band labels are members of the sanctioned word sets (mood ∈ the four mood words; energy ∈ {Energetic, Relaxed, Drowsy, Exhausted}; stage ∈ {New Friends, Getting Close, Best Friends, Soul Companions}) — set membership IS the no-numbers proof; quest rows carry no numeric text.
-3. Quest windows under the fixed clock: hour 09:00 → Q6 row absent, Q1 row present, exactly 2 visible rows; hour 20:30 → 3 visible rows incl. Q6; NO error/decoration where a hidden row would be (silent absence).
+3. Quest windows under the fixed clock: hour 09:00 → Q6 row absent, Q1 row present, exactly 2 visible rows; hour 20:30 → 3 visible rows incl. Q6; NO error/decoration where a hidden row would be (silent absence). **[CONTRACT DEFECT, annotated at closeout — verified independently by the implementer, the orchestrator, and REVIEW-TASK-033 §8: "3 rows at 20:30" is unreachable. Day 1's set is exactly [Q1, X, Q6]; Q1's window closes at 12:00 and never overlaps 20:30, so 20:30 shows 2 rows (X + Q6). The windows DO overlap on [0,7), so a day-2+ early morning can show 3 — the implemented tests pin the true 2+2 law and the engine's 06:30 all-open truth. See the 03 §5.5 engine-truth errata note.]**
 4. Pills under the fixed clock: 09:00 → Feed+Play only; 20:30 → Feed+Play+Tuck in; Nap never present on the fresh awake pet (verify the fresh state's energy band first — assert accordingly and disclose the derivation).
 5. Accessibility size: launch with `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXL` — every control remains reachable (scroll-to-hittable), full function (AC-1b).
 
@@ -182,29 +182,75 @@ Independent fresh reviewer per CLAUDE.md §10/§33 — do NOT prime with this co
 
 ## Status
 
-READY (contract authored 2026-09-10 by the orchestrator on the converged grounding; baseline 857/86 @ `53e433f`).
+DONE (this commit) — review APPROVED_WITH_MINOR_NOTES; the four code findings dispositioned (NITPICK-1 fixed, NITPICK-2/3 + NOTE-2 comments); §19 gate re-run green at the final tree (868/88 + 10/10); committed and pushed by the orchestrator per §12/§13.
 
 ## Implementation Notes
 
-(Executing agent fills: decisions, verifications of the verify-before-trust items below, deviations.)
+(Executing agent `task033-impl`.)
 
-Verify-before-trust items (read the source; do not trust this contract blindly):
-1. Fresh-install quest set derivation ({Q1, Q6, +1}) in `QuestGeneration.swift` + its tests.
-2. `Wakefulness` case names (for the nap rule + exhaustive switches).
-3. `GreetingKind` case names/location.
-4. `RigLOD`'s stage-side bands (the `.full` tier's minimum size).
-5. `CopySelectionPinnedTests`' current pin shape before editing.
-6. `Thresholds.Quest.q1WindowClosesAtHour` / `q6WindowStartHour` / `q6WindowEndHour` values.
-7. PRD §3.2/§3.3/§5.2 and 04 §10.3 exact strings (transcribe from the docs, never from this contract).
+Verify-before-trust outcomes:
+1. Fresh-install quest set: VERIFIED in `QuestGeneration.candidatePool` — day 1 has no priors ⇒ `q6Credit == false` ⇒ the pool is the 5 Q6-pairs ⇒ the drawn pair is always {X, Q6}, X ∈ {Q2…Q5, Q7}, and the set is exactly `[Q1, X, Q6]`. Consequence pinned in the UI tests: at 20:30 only **2** rows can ever be visible (Q1 closed + only 3 members) — the contract's illustrative "3 rows at 20:30" is unreachable by construction; the tests pin the actual law (2 at 09:00 with q6 absent; 2 at 20:30 with q1 absent, order-agnostic because X's draw varies with the random pet id).
+2. `Wakefulness` cases: `awake/settling/asleep/waking` — the nap gate is `(energyBand, wakefulness)` with nap only for `(.drowsy|.exhausted, .awake)` (contract defect resolved; Wakefulness has no drowsy case).
+3. `GreetingKind`: `welcomeBack/missedYou/freshMorning/nightGlance` in MomoCore; `HomeCopyKeys.greetingLineKey` returns `String?` (nightGlance → nil → the ambient slot), so `contextualLineKey`'s greeting tier is a flatMap.
+4. `RigLOD.fullStagePoints` = 220–280 — Home's composed stage is 260, the scrolling branch's fixed canvas is 260.
+5. `CopySelectionPinnedTests` pin shape: raw literals over a fixture pet/day; re-pinned to epoch 2 (`copyEpochIsTwo`, `poolCountsPinned`, `rawKeysPinned` — epoch-2 draws are `.02` in all four 10-line slots for the pinned pet/day, `.00` for all pool-of-1 classes; verified via a temporary probe test, created → run → deleted).
+6. Window constants: q1 closes 12; q6 starts 20, ends 7 — the read-model and the R7 enabler rest on `Thresholds.Quest`/`CopyRules`, never restated hours.
+7. Catalog strings transcribed from the docs (04 §10.3's 40 slot lines in doc order → indices 00–09; PRD §5.2 wishes verbatim with the "Name — wish" em-dash framing; the 04 §5.x vocabulary obligations; wistful→"quiet" per the recorded remap). JSON-validated: exactly 72 keys; the two placeholders byte-untouched.
+
+Decisions & disclosures (reviewer attention):
+- **AC-1a floor keyed off the SCREEN, not the content region** (`HomeLayout.canvasMinimumHeight = 305`): 45% of the SE's 667-pt screen is ~300 pt, but 45% of its safe-area content height is only ~269 pt — a fraction-only floor could sit BELOW the criterion. 305 pt = the floor alone satisfies AC-1a on the smallest device; `canvasMinimumFraction = 0.46` scales it up.
+- **The canvas a11y element is the REGION, not the rig** (`HomeView.canvas`): `MomoRigView` is rigidly `stageSide × stageSide` (260), and an `accessibilityElement(children: .ignore)` element's frame is its content's union — an element built over the rig reported 260 pt while the flexed region was ~405 pt. The element now backs onto a `Color.clear` region rect with the rig overlaid in, so VoiceOver AND the UI test measure the region FR-2 AC-1 budgets (verified: 343×405.5 at 09:00 on the SE ≈ 60.8% of screen). The rigid rig cannot exceed 280 pt (42% of 667), which confirms AC-1a reads on the REGION.
+- **`HomeActionPillKind` typealias** (`Sources/MomoKit/HomeReadModel.swift`): views stay MomoKit-only (the documented D-R5 boundary — `MomoAppModel` was the sole app-target `MomoCore` importer), while `HomeQuestCardView`'s glyph switch keys off `row.questID` by inference (no `QuestID` naming). The engine vocabulary still flows: pills call `appModel.interact` per R6.
+- **`MomoApp` now imports MomoCore** for the R7 enabler (the contract places the enabler there and directs reusing `ManualEngineClock`) — the D-R5 doc comment in `MomoAppModel.swift` was amended to name the TWO sanctioned importers (executor + entry-point enabler). The enabler also UTC-pins the injected calendar when the flag is present: the Home windows are LOCAL-hour governed, so the instant alone would leave them hostage to the host timezone (contract defect resolved).
+- **SCOPE EXPANSION — the launch-open kick in `MomoApp.body` (`.task { appModel.scenePhaseChanged(to: scenePhase) }`), disclosed for orchestrator review.** TASK-033's UI tests exposed a pre-existing TASK-031 trigger-wiring gap: by the time the shell's `onChange(of: scenePhase)` is installed, the scene is already `.active`, so a cold launch NEVER evaluates — no first day record, no greeting flow; a fresh install's Home quest card rendered EMPTY ("Today's little wishes" with no rows) until the next phase change. The kick reads the current phase at first appearance; a genuine later change still rides `onChange`; double-fires fold nothing (folds are forward-only; a second is zero-elapsed). MomoApp/MomoAppModel are both sanctioned edit surfaces (R7/R2); the full onboarding suite re-ran green after the change (4/4).
+- **UI tests use the R13 restart pattern with two pinned instants** (onboard @ `2026-09-10T08:59:00Z`, assert @ the target hour): a fresh carrier pre-stamps `lastEvaluatedAt`, and a zero-elapsed fold short-circuits BEFORE the rollover (`TimeFold.apply`'s `from < to` guard) — under a never-advancing clock, a single frozen launch can never mint day 1's record. The one-minute relaunch gap gives the launch-open evaluate its fold; the record is born seeded by the real pet.
+- Disclosed deferrals (per contract R1): the UX-12 interaction-reaction tier is TASK-034/035's spoken channel; the care-moment visual tier is TASK-035's producer; `contextualLineKey` carries greeting > ambient only.
+- Catalog header comment: `momo.line.moment.00`'s value intentionally contains "placeholder" (it IS the placeholder); the `CatalogCopyLawTests` real-copy scan exempts `momo.line.moment.*` for exactly that reason.
 
 ## Reviewer Findings
 
-(pending review)
+**REVIEW-TASK-033 — APPROVED_WITH_MINOR_NOTES** (independent fresh reviewer; docs-first re-derivation preserved at `/tmp/review-task-033/derived-requirements.md`). Catalog: all 69 doc-sourced strings byte-identical (Python `==` comparison, not eyeballing); frozen-module discipline PASS (MomoCore diff = exactly the R4 carveout; MomoCharacter empty); 0-based picker reading PASS; scanner split SOUND; AC-3 + a11y formula PASS. All four disclosures adjudicated: launch-open kick JUSTIFIED (§4.2 row-1 normative; double-fire idempotent); R7 enabler SOUND; two-instant restart SOUND and the contract's R8.3 defect independently confirmed; D-R5 two-importer amendment COMPLIANT. Anti-tautology: the epoch-2 draw independently re-derived from the framing alone (index 2; epoch 1 lands index 9 — the pins genuinely bind epoch 2). Mutations: 4 bites as predicted + 1 documented survivor (MINOR-1's evidence). Verification: swift test 868/88 reproduced; the full app suite green TWICE (10/10, exit 0 — primary + confirmation re-run). Findings: MINOR-1 (no verbatim value pins beyond vocab — routed to TASK-039), NITPICK-1/2/3 + NOTE-2 (all fixed/documented by the orchestrator pre-commit), NOTE-1 (no action), OBSERVATION-A (greeting domination → owner product item), OBSERVATION-B (03 §5.5 Q6 doc tension → errata, recorded). Full record + orchestrator dispositions: `.claude/tasks/reviews/REVIEW-TASK-033.md`.
 
 ## Completion Evidence
 
-(pending)
+- Package: `swift test` → **✔ Test run with 868 tests in 88 suites passed** (baseline 857 + 11 new: 7 `HomeReadModelTests`, 2 `CatalogCopyLawTests`, 1 `VocabularyKeyTests.catalogCarriesTheVocabularyVerbatim`, 1 net from the re-pinned `CopySelectionPinnedTests`).
+- App suite: `xcodebuild test -project Momo.xcodeproj -scheme Momo -destination 'platform=iOS Simulator,id=1F25E487-A78E-464C-95AF-0BD1A9B3E1BE'` → **Executed 10 tests, with 0 failures** — MomoHomeUITests 5/5 (composition+AC-1a+no-scroll; words-never-digits audit; quest windows 2+2 silent; pill windows + interact routing; XXL scroll with full function), MomoOnboardingUITests 4/4, MomoUITests 1/1.
+- Review verification (independent agent): swift test 868/88 reproduced; the app suite green TWICE (10/10 exit 0); five sanctioned mutation bites with sha256-proven restoration; catalog byte-compared against the docs.
+- Closeout §19 gate (orchestrator, final tree WITH the dispositions): `swift test` → **868/88 passed**; app suite → **Executed 10 tests, with 0 failures — `** TEST SUCCEEDED **`** (2026-09-10 ~22:36 local).
+- Byte-freeze: `git diff HEAD -- Sources/MomoCore/` = **exactly** `CopyRules.swift` (the R4 carveout: epoch 2, slot counts, doc truthing); `git diff HEAD -- Sources/MomoCharacter/` = **empty**. No Room/Settings/onboarding source touched.
+- Tree state at handoff: DIRTY by design (dispatch rule — the orchestrator commits after review); branch `feature/EPIC-007-iphone-home`, HEAD `8bf6ff4`.
 
 ## Handoff
 
-(pending)
+### Completed
+R1–R8 all implemented and verified (see Implementation Notes for the decisions/deviations ledger and Completion Evidence for the real command outputs).
+
+### Files Changed
+- NEW: `Sources/MomoKit/HomeCopyKeys.swift`, `Sources/MomoKit/HomeReadModel.swift`, `Apps/Momo/HomeView.swift`, `Apps/Momo/HomeStatusRowView.swift`, `Apps/Momo/HomeContextualLineView.swift`, `Apps/Momo/HomeActionRowView.swift`, `Apps/Momo/HomeQuestCardView.swift`, `Apps/Momo/MomoCopyText.swift`, `Tests/MomoKitTests/HomeReadModelTests.swift`, `Tests/MomoCharacterTests/CatalogCopyLawTests.swift`, `MomoUITests/MomoHomeUITests.swift`.
+- EDIT: `Apps/Shared/MomoCopy.xcstrings` (72 keys), `Sources/MomoCore/CopyRules.swift` (R4 carveout only), `Apps/Momo/MomoAppModel.swift` (`homeReadModel` + D-R5 doc amendment), `Apps/Momo/MomoApp.swift` (R7 enabler + launch-open kick — SCOPE, disclosed), `Apps/Momo/RootTabView.swift` (HomeView swap), `Tests/MomoCharacterTests/MomoCatalogScaffoldingTests.swift`, `Tests/MomoCoreTests/CopySelectionPinnedTests.swift`, `Tests/MomoCoreTests/VocabularyKeyTests.swift`, `Momo.xcodeproj/project.pbxproj` (six app files + MomoHomeUITests at all four sites each; PlaceholderHomeView references removed).
+- DELETED: `Apps/Momo/PlaceholderHomeView.swift`.
+
+### Tests Run
+`swift test`; `xcodebuild test` (full scheme) on pinned sim `1F25E487-A78E-464C-95AF-0BD1A9B3E1BE`.
+
+### Test Results
+868/88 package green; 10/10 app-suite green (0 failures). No skipped tests.
+
+### Known Issues
+- The contract's "3 rows at 20:30" illustration is unreachable by construction (§4.8's exactly-3 day-1 set is `[Q1, X, Q6]`); the tests pin the true 2+2 law — orchestrator may want the contract line annotated at merge time.
+- `CopyRules.formatted()`'s superseded "real pools start at 01" sentence was replaced by the indexing-truth paragraph inside the SAME sanctioned file (R4's doc-truthing clause).
+
+### Decisions Made
+See Implementation Notes (AC-1a screen-keyed floor; region-backed canvas element; `HomeActionPillKind` boundary typealias; MomoApp MomoCore import + D-R5 doc amendment; the disclosed launch-open kick; the two-instant restart pattern for quest UI tests).
+
+### Reviewer Status
+APPROVED_WITH_MINOR_NOTES — `.claude/tasks/reviews/REVIEW-TASK-033.md`; findings dispositioned (see Reviewer Findings above).
+
+### Commit
+`(this commit)` — `feat(home): TASK-033 compose Home — status row, live rig canvas, contextual line, quest card, action pills` (real hash recorded in status.md's Recent Commits).
+
+### Push
+Executed immediately after the commit per §13 (push range + status recorded in status.md's Recent Pushes).
+
+### Recommended Next Step
+Orchestrator dispatches TASK-034 (touch & petting) — contract authored from the pre-read: 04 §2.3–2.4/§6.1–6.2, 03 §5.1/UX-8, the frozen `PatGesture`/`TouchZone`/`InteractionSemantics.touchReaction` surface, the `MomoDirectorState`/`MomoCharacterEvent` seam, FIX1-NOTE-1's cancel seam, and the react.touch pool landing with the epoch 2→3 bump (same-residue trap documented).

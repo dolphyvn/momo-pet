@@ -664,6 +664,8 @@ One `CharacterClock` (or equivalent) gates L0–L4; presentation stops/starts it
 
 ## 10.3 Sample lines — 10 per time-of-day slot (all guilt-free; seed the String Catalog)
 
+> **Slot-boundary reconciliation (OBS-C discharged 2026-09-10, TASK-033's catalog landing).** The header hour-ranges below are ILLUSTRATIVE GROUPINGS of the sample lines, not normative boundaries — this section predates the engine. The NORMATIVE time-slot cut-offs are the engine's `CopyRules.timeSlot(forLocalHour:)` (05 §4.9, TASK-019): morning [07:00, 12:00), day [12:00, 18:00), evening [18:00, 22:00), night [22:00, 07:00) via `FoldRules`' D11 night — i.e. the Day/Evening split is 18:00, not the 17:00 shown in the headers below. Each slot's ten lines landed under the engine's slot assignment in the TASK-033 catalog (`MomoCopy.xcstrings`, copy epoch 2); no line moved.
+
 **Morning (07:00–11:59)**
 1. Good morning. Momo just woke up.
 2. Momo is stretching off the sleep.
