@@ -46,6 +46,7 @@ public struct MomoRigView: View {
     private let clock: CharacterClock
     private let model: RigMotionModel
     private let stageSide: CGFloat
+    private let reactionMotion: @Sendable (Double) -> MomoReactionMotion
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
@@ -58,18 +59,24 @@ public struct MomoRigView: View {
     ///   - clock: the ONE character clock (injected; owned by presentation).
     ///   - model: the motion model (idle seed + channels steerable).
     ///   - stageSide: the §2.1 stage size in points (tier bands in `RigLOD`).
+    ///   - reactionMotion: the TASK-028 overlay, sampled at the frame's
+    ///     clock time (a session passes `{ state.overlay(at: $0) }` over
+    ///     its `MomoDirectorState`; the default is the no-op overlay, whose
+    ///     pose is exactly the pre-TASK-028 pose).
     public init(
         displayState: CharacterDisplayState,
         tier: RigLODTier,
         clock: CharacterClock,
         model: RigMotionModel = RigMotionModel(),
-        stageSide: CGFloat = 260
+        stageSide: CGFloat = 260,
+        reactionMotion: @escaping @Sendable (Double) -> MomoReactionMotion = { _ in .identity }
     ) {
         self.displayState = displayState
         self.tier = tier
         self.clock = clock
         self.model = model
         self.stageSide = stageSide
+        self.reactionMotion = reactionMotion
     }
 
     public var body: some View {
@@ -80,10 +87,12 @@ public struct MomoRigView: View {
                 rigCanvas(pose: .rest)
             } else {
                 TimelineView(.animation(paused: !clockRunning)) { context in
+                    let time = clock.elapsed(at: context.date)
                     rigCanvas(
                         pose: model.pose(
-                            at: clock.elapsed(at: context.date),
-                            displayState: displayState))
+                            at: time,
+                            displayState: displayState,
+                            reactionMotion: reactionMotion(time)))
                 }
             }
         }

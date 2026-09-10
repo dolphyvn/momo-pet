@@ -224,7 +224,9 @@ struct MomoIdleRenderTests {
             at: time, displayState: content,
             schedule: [variant(.cheekPressRest, mirrored: false, inSeconds: 0.3, hold: 1.0)])
         let breath = MomoCurves.breathScaleY(at: time, cycle: 4.9, amplitude: 0.02)
-        #expect(pose.body.scaleY == CGFloat(MomoCurves.clampedPostureScaleY(breath * (1 - 0.015))))
+        // ADR-011: motion composes on the breath unclamped — no posture
+        // wrap on the expected value.
+        #expect(pose.body.scaleY == CGFloat(breath * (1 - 0.015)))
         #expect(pose.body.rotationDegrees == 1.5)
     }
 
@@ -453,10 +455,10 @@ struct MomoIdleRenderTests {
         #expect(pose.eyeLeft.pupilOffset == .zero)
         #expect(pose.earLeft.rotationDegrees == 0)
         #expect(pose.tail.rotationDegrees == 0)
+        // ADR-011: the breath composes on the band posture unclamped.
         #expect(
             pose.body.scaleY
-                == CGFloat(MomoCurves.clampedPostureScaleY(
-                    MomoCurves.breathScaleY(at: 5, cycle: 4.9, amplitude: 0.02))))
+                == CGFloat(MomoCurves.breathScaleY(at: 5, cycle: 4.9, amplitude: 0.02)))
         #expect(pose.body.scaleY != 1) // breathing
     }
 

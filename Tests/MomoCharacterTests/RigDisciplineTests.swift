@@ -20,10 +20,12 @@ enum RigDiscipline {
 
     // MARK: - The scanned set (explicit; extend deliberately)
 
-    /// The hand-written rig implementation files (TASK-026's rig core plus
+    /// The hand-written rig implementation files (TASK-026's rig core,
     /// TASK-027's idle stack: sampler, events, variants, expressions,
-    /// sequencer). The pin on the count keeps the scanned set from silently
-    /// shrinking; splitting or adding a file updates this list AND its pins
+    /// sequencer, plus TASK-028's reaction/state stack: motion vocabulary,
+    /// clip table, choreography, handshakes, moments, director, overlay).
+    /// The pin on the count keeps the scanned set from silently shrinking;
+    /// splitting or adding a file updates this list AND its pins
     /// deliberately.
     static let rigImplementationFiles: [String] = [
         "Sources/MomoCharacter/CharacterClock.swift",
@@ -39,6 +41,14 @@ enum RigDiscipline {
         "Sources/MomoCharacter/MomoIdleVariants.swift",
         "Sources/MomoCharacter/MomoExpressions.swift",
         "Sources/MomoCharacter/MomoIdleSequencer.swift",
+        "Sources/MomoCharacter/MomoReactionMotion.swift",
+        "Sources/MomoCharacter/MomoReactionClips.swift",
+        "Sources/MomoCharacter/MomoReactionClipMotion.swift",
+        "Sources/MomoCharacter/MomoHandshakeChoreography.swift",
+        "Sources/MomoCharacter/MomoMoments.swift",
+        "Sources/MomoCharacter/MomoReactionDirector.swift",
+        "Sources/MomoCharacter/MomoReactionState.swift",
+        "Sources/MomoCharacter/MomoReactionOverlay.swift",
     ]
 
     // MARK: - R1: no Path construction or mutation
@@ -175,7 +185,7 @@ struct RigDisciplineTests {
 
     @Test("NO hand-written rig file constructs or mutates geometry (R1)")
     func rigFilesAreGeometryFree() throws {
-        #expect(RigDiscipline.rigImplementationFiles.count == 13) // scanned set pinned
+        #expect(RigDiscipline.rigImplementationFiles.count == 21) // scanned set pinned
         for name in RigDiscipline.rigImplementationFiles {
             let source = try RigDiscipline.readRigFile(name)
             #expect(RigDiscipline.pathConstructionViolations(in: source).isEmpty,

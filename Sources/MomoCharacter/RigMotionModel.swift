@@ -18,8 +18,10 @@ import MomoCore
 /// satisfies the channel-value laws. The §3.1 posture band is deliberately
 /// NOT one of these model-side clamps: the expression layer pre-clamps the
 /// static posture, and motion composes on top unclamped (ADR-011).
-/// INV-5: the model never modulates `cheekOpacity`; the mouth stays at the
-/// authored neutral (three pre-built poses only — no synthesized shapes).
+/// INV-5 scoping (TASK-028): the IDLE path never modulates `cheekOpacity`
+/// and keeps the mouth at the authored neutral (three pre-built poses only
+/// — no synthesized shapes); reaction/state choreography carries its own
+/// accents through the overlay input (§4.3).
 public struct RigMotionModel: Sendable {
 
     /// Which channels currently contribute to the pose. The default `.all`
@@ -50,6 +52,21 @@ public struct RigMotionModel: Sendable {
                 idleSeed: idleSeed, displayState: displayState, windowEnd: time))
     }
 
+    /// The pose with the TASK-028 reaction overlay (the view's path — the
+    /// schedule regenerates from the seed exactly as in the two-argument
+    /// form).
+    public func pose(
+        at time: Double,
+        displayState: CharacterDisplayState,
+        reactionMotion: MomoReactionMotion
+    ) -> RigPose {
+        pose(
+            at: time, displayState: displayState,
+            schedule: MomoIdleSequencer.schedule(
+                idleSeed: idleSeed, displayState: displayState, windowEnd: time),
+            reactionMotion: reactionMotion)
+    }
+
     /// The pose with an explicit schedule — the injection point for a
     /// cached event log (the view regenerating per frame is correct but
     /// wasteful; callers may pass `MomoIdleSequencer.schedule` output for
@@ -58,6 +75,23 @@ public struct RigMotionModel: Sendable {
         at time: Double,
         displayState: CharacterDisplayState,
         schedule: [MomoIdleEvent]
+    ) -> RigPose {
+        pose(
+            at: time, displayState: displayState, schedule: schedule,
+            reactionMotion: .identity)
+    }
+
+    /// The full pose: the idle result PLUS the reaction/state overlay
+    /// (TASK-028). The overlay composes on top of the breath/idle result —
+    /// multipliers multiply, deltas add — and the model-side channel-value
+    /// laws below bound every write, so any emitted pose still satisfies
+    /// them. `.identity` is the exact pre-TASK-028 pose (the TASK-027 pins
+    /// stay green untouched).
+    public func pose(
+        at time: Double,
+        displayState: CharacterDisplayState,
+        schedule: [MomoIdleEvent],
+        reactionMotion: MomoReactionMotion
     ) -> RigPose {
         var pose = RigPose.rest
         let expression = MomoExpressions.expression(for: displayState)
@@ -135,6 +169,26 @@ public struct RigMotionModel: Sendable {
             }
         }
 
+        // MARK: Reaction/state overlay (TASK-028) — composes on the idle
+        // result. Deltas ADD to the same accumulators; every write below
+        // still passes the model-side channel-value laws, and nothing
+        // re-clamps through the posture band (ADR-011 — reactions compose
+        // multiplicatively/additively on top, exactly like idle motion).
+
+        if reactionMotion != .identity {
+            bodyScaleY *= reactionMotion.bodyScaleYMultiplier
+            bodyRotation += reactionMotion.bodyRotationDegrees
+            bodyTranslationX += reactionMotion.bodyTranslationX
+            headRotation += reactionMotion.headRotationDegrees
+            headTranslationY += reactionMotion.headTranslationY
+            earLeftDegrees += reactionMotion.earLeftDegrees
+            earRightDegrees += reactionMotion.earRightDegrees
+            tailDegrees += reactionMotion.tailDegrees
+            aperture *= reactionMotion.apertureMultiplier
+            pupilOffsetX += reactionMotion.pupilOffset.x
+            pupilOffsetY += reactionMotion.pupilOffset.y
+        }
+
         // MARK: Gate + write (model-side channel-value laws; body scaleY
         // composes unclamped — ADR-011)
 
@@ -192,11 +246,34 @@ public struct RigMotionModel: Sendable {
             pose.eyeRight.lowerLid = expression.lowerLid
         }
 
-        // INV-5: cheekOpacity is never modulated; the mouth stays at the
-        // authored neutral (idle is posture-led, §3.2 — no idle event has a
-        // mouth pose, and none may be synthesized).
-        pose.mouth = .neutral
-        pose.cheekOpacity = 1
+        // INV-5 scoping (TASK-028 R9/R10): the IDLE path never modulates
+        // cheekOpacity or the mouth — the authored neutral stands. Reaction
+        // and state choreography MAY (§4.3 names cheek accents and the
+        // mouth poses for reactions); their accents arrive through the
+        // overlay and gate on the same channels.
+        if reactionMotion == .identity {
+            pose.mouth = .neutral
+            pose.cheekOpacity = 1
+        } else {
+            if enabledChannels.contains(.mouthPose) {
+                pose.mouth = reactionMotion.mouthWeights ?? .neutral
+            }
+            if enabledChannels.contains(.cheekOpacity) {
+                pose.cheekOpacity = reactionMotion.cheekOpacity ?? 1
+            }
+            if enabledChannels.contains(.propFood) {
+                pose.food = reactionMotion.food
+            }
+            if enabledChannels.contains(.propBlanket) {
+                pose.blanket = reactionMotion.blanket
+            }
+            if enabledChannels.contains(.propSparkleA) {
+                pose.sparkleA = reactionMotion.sparkleA
+            }
+            if enabledChannels.contains(.propSparkleB) {
+                pose.sparkleB = reactionMotion.sparkleB
+            }
+        }
 
         return pose
     }
