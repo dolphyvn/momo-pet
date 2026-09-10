@@ -4,7 +4,9 @@ import MomoCore
 /// The character's ONE pausable animation timeline (TASK-026 Requirement 1;
 /// 04 §9.5 pause authority, §7.4 rule 1). Every channel the rig renders is a
 /// function of this clock's elapsed time — so pausing it is pausing
-/// everything, in one call, and a stopped clock renders the rest pose.
+/// everything, in one call, and a stopped clock (elapsed 0) freezes the
+/// character at its unaged pose — every motion channel at rest, the band
+/// expression base otherwise (TASK-027).
 ///
 /// Contract (all pinned headlessly in `CharacterClockTests`):
 /// - **Injected time source.** The clock NEVER reads ambient time — every
@@ -32,8 +34,8 @@ public final class CharacterClock: @unchecked Sendable {
         var resumeAnchor = Instant(timeIntervalSince1970: 0)
     }
 
-    /// Creates a stopped clock (elapsed 0 → the rest pose) over an injected
-    /// time source.
+    /// Creates a stopped clock (elapsed 0 → the unaged pose) over an
+    /// injected time source.
     public init(timeSource: any EngineClock) {
         self.timeSource = timeSource
     }

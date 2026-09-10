@@ -281,22 +281,12 @@ public enum RigLayerTree {
     /// i.e. per stage (p − anchor)·S·R·T·(+anchor) in row-vector form — and
     /// child stages apply before ancestors (the §2.2 hierarchy: the head
     /// rides the body). THIS matrix is the normative §2.2 composition —
-    /// what the unit tests and the evidence harness render (the harness in
-    /// its y-flipped CGContext, positive rotations staying
-    /// clockwise-on-screen).
-    ///
-    /// The SwiftUI view does NOT currently compose this matrix:
-    /// `MomoRigView` applies the same per-stage VALUES through modifier
-    /// chains whose order differs (per stage offset → rotation → scale;
-    /// across stages ancestor-first). The two agree EXACTLY while the only
-    /// non-identity channel is the body's anchored pure scale — the
-    /// TASK-026 breath (probe- and pin-verified) — and diverge the moment
-    /// a stage carries rotation or translation under a non-identity
-    /// ancestor. TASK-027 must reconcile the orders (one composed
-    /// transform per slot, the harness mirroring the view's order, or a
-    /// one-non-identity-freedom-per-stage constraint) before driving
-    /// head/ear/tail channels (REVIEW-TASK-026 MINOR-1). At `.rest` this
-    /// is exactly identity.
+    /// `MomoRigView` composes exactly this matrix per slot inside its
+    /// Canvas (one `drawLayer` per slot; TASK-027's R1 reconciliation —
+    /// point-probe- and pixel-probe-verified in `R1CompositionTests`), and
+    /// the evidence harness renders it in its y-flipped CGContext, positive
+    /// rotations staying clockwise-on-screen. At `.rest` this is exactly
+    /// identity.
     public static func affineTransform(
         of slot: RigLayerSlot, at pose: RigPose
     ) -> CGAffineTransform {

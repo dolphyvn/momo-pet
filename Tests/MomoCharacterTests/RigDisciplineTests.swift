@@ -20,9 +20,11 @@ enum RigDiscipline {
 
     // MARK: - The scanned set (explicit; extend deliberately)
 
-    /// The hand-written rig implementation files this task adds. The pin on
-    /// the count keeps the scanned set from silently shrinking; splitting or
-    /// adding a file updates this list AND its pins deliberately.
+    /// The hand-written rig implementation files (TASK-026's rig core plus
+    /// TASK-027's idle stack: sampler, events, variants, expressions,
+    /// sequencer). The pin on the count keeps the scanned set from silently
+    /// shrinking; splitting or adding a file updates this list AND its pins
+    /// deliberately.
     static let rigImplementationFiles: [String] = [
         "Sources/MomoCharacter/CharacterClock.swift",
         "Sources/MomoCharacter/MomoCurves.swift",
@@ -32,6 +34,11 @@ enum RigDiscipline {
         "Sources/MomoCharacter/RigLODTier.swift",
         "Sources/MomoCharacter/RigLayerTree.swift",
         "Sources/MomoCharacter/MomoRigView.swift",
+        "Sources/MomoCharacter/MomoIdleRandom.swift",
+        "Sources/MomoCharacter/MomoIdleEvents.swift",
+        "Sources/MomoCharacter/MomoIdleVariants.swift",
+        "Sources/MomoCharacter/MomoExpressions.swift",
+        "Sources/MomoCharacter/MomoIdleSequencer.swift",
     ]
 
     // MARK: - R1: no Path construction or mutation
@@ -85,6 +92,23 @@ enum RigDiscipline {
 
     static func ambientTimeViolations(in source: String) -> [String] {
         ambientTimePatterns.filter { source.contains($0) }
+    }
+
+    // MARK: - §9.4: no system randomness in the idle stack
+
+    /// Substrings that would mean the character drew from the system's
+    /// entropy (04 §9.4: every value flows from the injected idle seed).
+    static let systemRandomnessPatterns: [String] = [
+        "SystemRandomNumberGenerator",
+        ".random(",
+        "arc4random",
+        "srand(",
+        "drand48",
+        "UUID(",
+    ]
+
+    static func systemRandomnessViolations(in source: String) -> [String] {
+        systemRandomnessPatterns.filter { source.contains($0) }
     }
 
     // MARK: - scenePhase → the ONE call (structural wire check)
@@ -151,12 +175,49 @@ struct RigDisciplineTests {
 
     @Test("NO hand-written rig file constructs or mutates geometry (R1)")
     func rigFilesAreGeometryFree() throws {
-        #expect(RigDiscipline.rigImplementationFiles.count == 8) // scanned set pinned
+        #expect(RigDiscipline.rigImplementationFiles.count == 13) // scanned set pinned
         for name in RigDiscipline.rigImplementationFiles {
             let source = try RigDiscipline.readRigFile(name)
             #expect(RigDiscipline.pathConstructionViolations(in: source).isEmpty,
                     "\(name) constructs or mutates geometry (R1)")
         }
+    }
+
+    // MARK: - §9.4: seeded randomness only
+
+    @Test("The system-randomness scanner fires on every entropy shape")
+    func randomnessScannerFiresOnViolations() {
+        #expect(
+            RigDiscipline.systemRandomnessViolations(
+                in: "let d = Double.random(in: 0..<1)")
+                == [".random("])
+        #expect(
+            !RigDiscipline.systemRandomnessViolations(
+                in: "var g = SystemRandomNumberGenerator()").isEmpty)
+        #expect(
+            RigDiscipline.systemRandomnessViolations(
+                in: "let id = UUID(); let r = arc4random()")
+                == ["arc4random", "UUID("])
+        #expect(
+            RigDiscipline.systemRandomnessViolations(
+                in: "let draw = sampler.nextUniform()").isEmpty)
+    }
+
+    @Test("NO idle-stack file touches system randomness (§9.4)")
+    func idleStackIsSeededOnly() throws {
+        for name in RigDiscipline.rigImplementationFiles {
+            let source = try RigDiscipline.readRigFile(name)
+            #expect(
+                RigDiscipline.systemRandomnessViolations(in: source).isEmpty,
+                "\(name) draws from system entropy (§9.4: seeded idleSeed only)")
+        }
+
+        // Non-vacuity, direction B: the scanner demonstrably sees the SEEDED
+        // construction the idle stack actually uses (the fixture above
+        // covers the firing direction).
+        let sampler = try RigDiscipline.readRigFile(
+            "Sources/MomoCharacter/MomoIdleRandom.swift")
+        #expect(sampler.contains("SeededGenerator"))
     }
 
     // MARK: - R4: hex confinement (defense-in-depth over the new files)

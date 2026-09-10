@@ -116,11 +116,47 @@ Mandatory independent adversarial review (CLAUDE.md §10/§33) by a FRESH agent 
 
 ## Status
 
-READY — contract authored by the orchestration agent; fresh implementation agent dispatched.
+IN_REVIEW — implementation + fix round 1 complete (REVIEW-TASK-027 disposition items 1–6; ADR-010/011/012 written), suite green (721/72), NOT committed (delta review next, then orchestrator commits per §10/§12).
 
 ## Implementation Notes
 
-(filled by the implementation agent)
+**Landed.** Five new sources + `MomoCurves`/`RigMotionModel`/`RigLayerTree`/`MomoRigView`/`RigPose` edits + six new test suites + discipline-scanner extension. R1–R4 all landed (details below).
+
+**Authored subranges (all inside §5.2/§7.1 doc bands; §5.3's occupancy budget drove the choices).** Gaze: interval U(10, 21), shift U(0.22, 0.28), return U(0.60, 0.70). Variants: interval U(16, 30); crossfade fades U(0.30, 0.33); spring-family fades fixed at the 0.35 response envelope. Double-blink gap 0.09. Yawn envelope 0.45/0.5/0.45 within the 1.4 s row. Each is doc-cited at its scheduler and pinned by distribution tests. Draw order is documented per scheduler: one `MomoIdleRandom` per substream, seeds = master draws 1–4 (blink/gaze/variant/yawn), fixed per-scheduler draw sequences, log sorted by `(start, kind)`.
+
+**R1 → option 1, ADR-009.** `MomoRigView` now renders one `drawLayer` per slot concatenating `RigLayerTree.affineTransform` — the modifier chain is gone; the normative matrix is the only composition algorithm. Proof in `R1CompositionTests`: point probes vs an independent §2.2 evaluation at a fully-loaded pose (order-sensitivity control included), pixel probes view-verbatim vs y-flipped CGContext (≤ 8 boundary-AA pixels; non-vacuous > 1000 px vs rest), `.rest` → exactly identity at every tier.
+
+**R2/R3/R4.** `MomoCurves` additions only: `softCrossingTolerance` 0.01 (R2 significance filter, ζ-band settling admitted, real bounce still rejected); `settleEaseExponent` 2.0 (R3); `earRotationLimitDegrees` ±25 / `tailRotationLimitDegrees` ±10 (R4), enforced MODEL-side like `clampedPupilOffset`.
+
+**Model bug found and fixed by the render tests:** the four crossfade variants multiplied magnitudes by raw elapsed seconds instead of the envelope shape (8 × 0.6 at t = 0.6). `render` now evaluates `envelopeProgress` for the crossfade family; spring family unchanged.
+
+**Floating-point honesty in the laws (each documented at its assertion):** per-seed pairing for tempo/duration laws (flat concatenation misaligns when states change per-seed event counts — the original failure mode of the drowsy tempo test); start-to-start gaps carry cursor rounding ~ULP(3600) ⇒ ×1.4 tempo pinned within 1e-9; the duration multiplier applies to the drawn close/open components (the authored 0.09 inter-blink gap is deliberately NOT stretched) ⇒ singles-only ×1.2 law within 1e-12 (observed worst 5.6e-17); conversion pins lock the geometry-evaluated op order digit-for-digit, round-trip < 1e-12 (worst 1 ULP).
+
+**Measured distribution pins** (mirrored from an independent Python SplitMix64 implementation validated against `SeededGeneratorTests` before embedding; `/tmp/momo_verify_pins.py`): blink gap mean 6.0387 / σ 1.9262, both clamps hit exactly, doubles 11.75 %; duration mean 0.33453 over all blinks (0.28991 singles-only); gaze at-user 0.2528, Joyful ratio 1.2594 (theory 1.2727); content/energetic variant-count ratio 0.505 (theory 0.5067); calmCoexist 0.1875; headNod 0.13208 (theory 0.8/6.0 — calmCoexist gated out at gettingClose); occupancy (200 seeds × 30 s) mean 0.1102, p95 0.1419, max 0.1700 — 4/200 windows exceed 0.15 (bounded by the ≤ 0.20 max pin; the authored-subrange tradeoff, not a violation — mean and p95 pins carry verified margin).
+
+**Justified existing-test moves (each with an inline TASK-027 comment + equally strict digit-for-digit replacements):** `CharacterClockTests.pausedClockStopsEveryChannel` (pause freezes at the model's t = 0 band pose, no longer literally `.rest`); `RigMotionModelTests.modelAtZeroIsRest` → expression-base pin; breath-isolation and inert-displayState pins inverted to their live TASK-027 equivalents. `R1RenderSpikeTests.swift` (uncommitted scratch harness) was deleted; its pixel-evidence idea was rebuilt properly in `R1CompositionTests`.
+
+**Art budgets re-measured (generated buckets — unchanged, this task adds no geometry):** rig 51,906 / 307,200 B (17 %); room+props 20,647 / 256,000 B (8 %); MomoCharacter sources total 204,789 / 1,572,864 B (13 %). TASK-027 hand-written Swift (outside buckets by constraint): MomoIdleRandom 96 lines, MomoIdleEvents ~180, MomoIdleVariants ~150, MomoExpressions ~420, MomoIdleSequencer ~330, + RigMotionModel growth; six test suites.
+
+### Fix Round 1 (2026-09-10 — REVIEW-TASK-027 disposition items 1–6, executed by a fresh fix agent)
+
+**Item 1 (MAJOR-1) — the composed body scaleY writes UNCLAMPED (ADR-011).** `RigMotionModel`'s `.bodyScale` write no longer wraps in `clampedPostureScaleY`; the write-site comment states the law (posture pre-clamped in the expression layer; §7.1 breath and §5.2 idle events compose multiplicatively, each bounded by its own authored magnitudes). `MomoCurves.postureScaleYRange`'s doc now says the band governs the STATIC posture channel and motion is deliberately not re-clamped into it (§3.1/§7.1/§5.2 + ADR-011); `clampedPostureScaleY`'s doc gains the same pointer. Blast radius verified BEFORE the edit: only the TASK-027-authored `asleepRenders` bound the composed clamp; `MomoExpressionTests`/`MomoCurvesTask027Tests` pin the EXPRESSION-layer clamp (unchanged, still green); `RigMotionModelTests`' inequalities hold unclamped (Low-asleep renders ≈ 0.959 < 1.0). `asleepRenders` rewritten for the unclamped law digit-for-digit: peak/trough `== CGFloat(1.03 × breathScaleY(at: 1.8/5.4, cycle: 7.2, amplitude: 0.022 × (1 − sleepAmplitudeReduction)))`, plus a non-vacuity pin that the peak EXCEEDS the band top (possible only under this law). NEW breath-purity sweep (`breathSinePuritySweep` + `analyticBodyScaleY` helper): 4 moods × 4 energies × 4 wakefulness = 64 rows × 720 samples/cycle, empty schedule; every rendered sample must bitwise-equal `postureScaleY × breathScaleY(at:cycle:amplitude:)` with the asleep reduction ×(1 − 0.30) applied exactly; zero flat samples per row; per-row rendered min/max digit-for-digit equal to analytic; battery-level non-vacuity counters (band-top and band-bottom exits > 0).
+
+**Item 2 (MAJOR-2) — resume discipline pinned (ADR-010, new `MomoIdleResumeTests`, 2 tests).** (a) SteppedClock: pause → wall-advance 120 s ⇒ `elapsed() == 0`; resume ⇒ 0; +3 s ⇒ 3 (real-time replay, no dwell debt). (b) Seed 42 through the full pipeline: the post-resume regenerated log `==` the from-zero log, distinct starts (no multi-event burst), nothing active at the resume instant, and the pose at 20 sampled resumed instants `==` a never-paused run's pose at the same character-timeline t. TASK-026's clock pins untouched and authoritative for the clock.
+
+**Item 3 (MINOR-1) — occupancy restructured into two tiers (ADR-012) — DEVIATION on the cross-state ceiling.** `noDistractionOccupancy` → `contentOccupancyBudget` (200 seeds; mean ≤ 0.15 AND p95 ≤ 0.15, doc-exact per 04 §5.3's Content/baseline scoping; max ≤ 0.20 as an authored stability ceiling; measured 0.1102 / 0.1419 / 0.1700) + `crossStateOccupancyBudget` (7 non-baseline states × 100 seeds; pins mean ≤ 0.20 and per-run max ≤ 0.25, non-vacuous ≥ 0.05). DEVIATION: the disposition's provisional cross-state ceiling (≤ 0.20) was FALSIFIED by the measurement — per-state maxima Joyful 0.2322 (runner-up window 0.2231) / Drowsy and Exhausted both 0.1365 / Content+soulCompanions 0.1700 (worst-state mean Joyful 0.1663); the disposition's cited 0.1700 was the Content battery's max, not a cross-state figure. Pinning 0.20 would have failed the shipped sequencer, so the authored tier is mean ≤ 0.20 / max ≤ 0.25 with the full per-state distribution documented in the test and ADR-012. Known Issues reframed honestly (doc scoping + authored tier; no "not a violation" framing).
+
+**Item 4 (MINOR-2) — RT-7 letter vs substance, recorded (no code change):** the disposition's RT-7 test (probes at seeded-log times) is dominated by the shipped hand-built fully-loaded-pose probes — `R1CompositionTests` evaluates a pose exercising every channel at once, while any single sampled-log instant exercises a subset. One-line note recorded here per the disposition.
+
+**Item 5 (NOTE-3) — mid-fade pin (DEVIATION: dual pins, letter AND purpose).** `weightShiftMidFadeTracksTheEnvelope` pins a crossfade variant against `envelopeProgress`'s smoothstep at the midpoint (t = 0.15 of a 0.3 fade) AND at the quarter point (t = 0.075). The quarter point is added because smoothstep(0.5) = 0.5 = linear(0.5): a midpoint-only pin cannot distinguish smoothstep from a linear-fade regression, while smoothstep(0.25) = 0.15625 can. Type split per `RigPose`: translation compared through the house CGFloat wrap, rotationDegrees (Double) compared plain.
+
+**Item 6 (NOTE-4) — `MomoRigView` header fixed:** "freezes the current pose" → freezes at the t = 0 unaged band pose (the band expression base with every motion channel at rest). The glyph/AOD sentence re-read: "the glyph tier's stillness IS the AOD posture" is an independent claim (glyph renders `.rest`; AOD posture is stillness) and survives the base-claim correction unchanged.
+
+**Item 7 (NOTE-5):** no action (adjudications live in the review file).
+
+**Note for the delta reviewer (pre-existing, untouched — outside sanctioned fix-round edits):** `cheekPressRestRenders` and `alivenessFloor` still wrap in `clampedPostureScaleY`; at Content that wrap is a bitwise no-op (band base 1.0 ⇒ clamp identity), so they are correct-but-stale under ADR-011. Cleaning them is the orchestrator's call.
+
+**Fix-round test ledger:** 716/71 → **721 tests / 72 suites, passed, exit 0** (+2 MomoIdleRenderTests: sweep + mid-fade; +1 net MomoIdleSequencerTests: two occupancy tests replace one; +2 MomoIdleResumeTests: new suite). Zero new compiler warnings (build stderr unchanged: only the pre-existing toolchain `/opt/extra/lib` ld note).
 
 ## Reviewer Findings
 
@@ -128,4 +164,80 @@ READY — contract authored by the orchestration agent; fresh implementation age
 
 ## Completion Evidence
 
-(filled at close: commit hash, test counts, review verdict, budgets)
+- **Full suite (2026-09-10, final tree):** `swift test` → **716 tests / 71 suites, passed** (1.4 s), exit 0. Clean-build warning set unchanged: only the pre-existing toolchain `ld: search path '/opt/extra/lib' not found` — zero NEW warnings. (An earlier 714 count predated the RigDisciplineTests +2; both runs green.)
+- **New coverage:** 87 tests in 6 new suites — MomoExpressionTests 16, MomoIdleSequencerTests 21, MomoIdleRenderTests 20, MomoCurvesTask027Tests 14, MomoIdleRandomTests 10, R1CompositionTests 6; RigDisciplineTests extended 11 → 13 (§9.4 system-randomness scanners, fixture + whole-stack).
+- **Art budgets re-measured:** rig bucket 51,906 / 307,200 B (17 %); room+props 20,647 / 256,000 B (8 %); MomoCharacter sources 204,789 / 1,572,864 B (13 %). No new geometry — generated buckets byte-identical.
+- **Fix round 1 (2026-09-10, final tree):** `swift test` → **721 tests / 72 suites, passed** (1.4 s), exit 0; zero NEW warnings (stderr: only the pre-existing toolchain `/opt/extra/lib` ld note). Delta vs the implementation round: +2 MomoIdleRenderTests, +1 net MomoIdleSequencerTests, +2 MomoIdleResumeTests (new suite).
+- **Commit:** none by implementer/fix agent (Git Requirements). Working tree holds exactly the TASK-027 changeset: 9 modified sources/tests + 5 new sources + 6 new test files + ADR-009/010/011/012 + this file.
+
+## Handoff
+
+### Completed
+
+- TASK-027 scope in full: seeded idle sampler, event scheduler (blink/gaze/yawn + four blocking routings R1–R4), variant catalog + schedulers, expression model (mood rows, energy overlays + conflict law, bond dials, aperture conversion), motion-model render, `MomoRigView` single-matrix composition, rig discipline extension, ADR-009.
+- All four blocking routings landed: R1 (ADR-009 + R1CompositionTests), R2 (`softCrossingTolerance`), R3 (`settleEaseExponent`), R4 (`ear/tailRotationLimitDegrees`, model-side clamps).
+- Fix round 1 (REVIEW-TASK-027 items 1–6): composed body scaleY unclamped per the ADR-011 law (expression layer pre-clamps the posture; motion composes unclamped), breath sine-purity sweep + unclamped asleep pin, `MomoIdleResumeTests` for the ADR-010 zero-on-pause discipline, two-tier occupancy battery + ADR-012, mid-fade smoothstep pin, `MomoRigView` header fix, RT-7 note recorded.
+- Non-goals respected: no reactions/§6 gestures (TASK-028), no Reduce Motion (TASK-029), INV-5 held (idle never touches mouth/cheeks beyond the pre-built poses), no new geometry, no hex in rig code, existing `MomoCurves` constants untouched (additions only).
+
+### Files Changed
+
+- **New sources:** `Sources/MomoCharacter/MomoIdleRandom.swift`, `MomoIdleEvents.swift`, `MomoIdleVariants.swift`, `MomoExpressions.swift`, `MomoIdleSequencer.swift`
+- **Modified sources:** `RigMotionModel.swift` (envelope-shape fix + clamps + variant/overlay wiring), `RigPose.swift` (display-state expression base), `RigLayerTree.swift`, `MomoRigView.swift` (single composed matrix per slot), `MomoCurves.swift` (additions only), `CharacterClock.swift`
+- **New tests:** `MomoIdleRandomTests.swift`, `MomoIdleSequencerTests.swift`, `MomoIdleRenderTests.swift`, `MomoExpressionTests.swift`, `MomoCurvesTask027Tests.swift`, `R1CompositionTests.swift`; fix round added `MomoIdleResumeTests.swift`
+- **Modified tests:** `RigDisciplineTests.swift` (13-file set + §9.4 scanner), `RigMotionModelTests.swift`, `CharacterClockTests.swift` (justified moves, documented inline); fix round modified `MomoIdleRenderTests.swift` (asleep pin rewrite per Item 1, sweep + mid-fade additions) and `MomoIdleSequencerTests.swift` (occupancy battery restructure per Item 3) — the only sanctioned existing-test edits of the fix round
+- **Fix-round source edits:** `RigMotionModel.swift` (unclamp + law comment), `MomoCurves.swift` (doc clarification only), `MomoRigView.swift` (header comment fix)
+- **Docs:** `.claude/tasks/decisions/ADR-009-rig-composition-order.md`, `ADR-010-idle-resume-discipline.md`, `ADR-011-body-scaley-composition-law.md`, `ADR-012-occupancy-budget-tiers.md`; this task file.
+
+### Tests Run
+
+`swift test` (full package, repeatedly during development; final full runs on the finished trees: implementation round 2026-09-10 → 716/71, fix round 2026-09-10 → 721/72). Fix round also ran the filtered battery (`MomoIdleRenderTests|MomoIdleSequencerTests|MomoIdleResumeTests` → 46/46) during development.
+
+### Test Results
+
+Implementation round: **716 / 716 passed across 71 suites.** Fix round 1: **721 / 721 passed across 72 suites**, exit 0. Zero new compiler warnings in both rounds. Every failure encountered during development was resolved by fixing either a real model bug (crossfade variants using raw elapsed) or a test-authoring error (stale/miscomputed pins — each replacement verified against an independent Python SplitMix64 mirror that was itself validated against `SeededGeneratorTests` before use). No existing test weakened without an equally strict digit-for-digit replacement, each documented inline; the fix round's only existing-test edits were the two disposition-sanctioned ones (Item 1's asleep pin rewrite, Item 3's occupancy restructure), and no other existing test broke from the unclamp.
+
+### Known Issues
+
+- Occupancy (reframed per disposition Item 3; ADR-012): 04 §5.3's ~85–90 % motionless floor is doc-scoped to Content/baseline and is pinned doc-exact there — over 200 seeds the measured mean is 0.110 and p95 0.142 against the ≤ 0.15 budget, with a 0.170 measured max under a 0.20 authored stability ceiling. Cross-state occupancy has NO doc number; it is bounded by an AUTHORED tier (mean ≤ 0.20, per-run max ≤ 0.25) measured across 7 non-baseline states — worst-state mean Joyful 0.166, worst single runs Joyful 0.232 and Drowsy 0.223. The disposition's provisional ≤ 0.20 cross-state max was falsified by this measurement and the authored tier documents why (ADR-012).
+- Mouth "tiny content curve" (04 §3 note on the Content row) has no geometry in the generated rig — flagged as a geometry-owner follow-up, out of TASK-027's no-new-geometry constraint.
+- Pre-existing toolchain ld warning (`/opt/extra/lib`) — not ours, unchanged.
+
+### Decisions Made
+
+- R1 → ADR-009: one composed matrix per slot; modifier chain deleted; proof by point + pixel probes with order-sensitivity and non-vacuity controls.
+- Aperture → lidScaleY conversion computed THROUGH the rig geometry (lid bottom between eye-top/eye-bottom landmarks, mapped onto the lid's own scale axis about lidAnchorY); pinned digit-for-digit, inverse round-trip ≤ 1 ULP.
+- Draw-order contract: master draws 1–4 → substream seeds (blink/gaze/variant/yawn); per-scheduler draw sequences fixed and documented; log sorted by `(start, kind)`.
+- Double-blink multiplier stretches the drawn close/open components, not the authored 0.09 inter-blink gap (documented at the sequencer).
+- Fix round: ADR-011 — the §3.1 posture band governs the STATIC posture channel; breath/idle motion composes multiplicatively and unclamped (per-band bitwise sine-purity sweep pins the law). ADR-010 — zero-on-pause IS the resume discipline (04 §5.3's backlog sense); the contract's "continuation from T + gap" clause recorded as an over-translation; replay-from-0 pinned through the pipeline. ADR-012 — two occupancy tiers: Content/baseline doc-exact ≤ 0.15 (mean and p95), cross-state authored mean ≤ 0.20 / max ≤ 0.25 (the provisional ≤ 0.20 max was falsified by measurement; per-state distribution documented).
+
+### Reviewer Status
+
+Independent review RAN (REVIEW-TASK-027, verdict CHANGES_REQUIRED — 2 MAJOR / 2 MINOR / 3 NOTE). Fix round 1 executed the orchestrator disposition (items 1–6 + three ADRs) by a fresh fix agent. Delta review per §11 pending (changes are material); task stays IN_REVIEW until it passes.
+
+### Commit
+
+None (implementer/fix agent does not commit — Git Requirements). Suggested message per contract: `feat(character): TASK-027 deterministic idle sequencer + expression system`.
+
+### Push
+
+None (no commit).
+
+### Recommended Next Step
+
+Orchestrator dispatches a fresh delta reviewer (§11) over the fix-round diff — hardest look suggested at: the RigMotionModel unclamp write site + its blast radius (only the sanctioned asleep pin rewrote; expression-layer clamp pins untouched), the breath sweep's bitwise analytic law and its asleep amplitude term, the occupancy tier change (ADR-012's falsified-provisional-ceiling record), and `MomoIdleResumeTests`' equivalence pins. Then commit and push per §12/§13.
+
+## Orchestrator Disposition — Fix Round 1 (2026-09-10)
+
+REVIEW-TASK-027 verdict: **CHANGES_REQUIRED** (2 MAJOR, 2 MINOR, 3 NOTE). Every finding personally re-verified by the orchestrator before disposition: MAJOR-1 reproduced by an independent numeric probe (flat fractions 49.995 % Joyful / 29.005 % Wistful / 49.995 % Low — matching the reviewer's 50/29/50); MAJOR-2 confirmed against `CharacterClock.swift:17-21` and 04 §5.3's own wording; MINOR-1/NOTE anchors spot-checked in source and doc.
+
+1. **MAJOR-1 → FIX, option (a): the §3.1 posture band governs the STATIC posture channel only.** Remove the product clamp at `RigMotionModel.swift:138` — the composed `bodyScaleY` writes unclamped. Static posture is already pre-clamped in the expression layer (`MomoExpressions` applies `clampedPostureScaleY`), so §3.1's +3 %/−5 % still binds the posture; the breath composes multiplicatively and stays a §7.2 pure sine on EVERY band. Chosen over re-authoring Joyful (would weaken a §3.2 authored row) and over the composed-clamp exception (renders breath half-flat on 3 of 4 bands + sleep). `MomoCurves.swift:53-57`'s comment is clarified (its stated intent — "mood and exhaustion overlays can never compose past it" — never targeted the breath). Record the channel-composition law as **ADR-011**. Required: `MomoIdleRenderTests` asleep peak pin + its comment rewritten for the unclamped law; NEW per-band breath sine-purity sweep tests (zero flat samples per cycle; per-band extremes digit-for-digit, including asleep amplitude law).
+2. **MAJOR-2 → ADR + the missing RT-3 test.** Zero-on-pause IS the doc semantics (04 §5.3: "app-hide zeroes the CharacterClock and the entire schedule resumes cleanly on return (no event backlog bursts — timers re-schedule, never replay)" — "never replay" is the BACKLOG sense, which the shipped clock satisfies). The contract's Req 8/AC-2 continuation clause ("identical continuation to an uninterrupted run from T + gap") was an over-translation of the doc; adjudicated in **ADR-010** (resume discipline under the zero-on-pause clock: real-time replay-from-0, no burst, seed unchanged). Add the explicit test: pause → wall-advance → resume ⇒ `elapsed() == 0`; the regenerated log equals the log from 0; no catch-up burst (no multi-event catch-up); pose at resumed t equals a fresh run's pose at the same t.
+3. **MINOR-1 → ADR + pin restructure.** 04 §5.3's ~85–90 % motionless floor is scoped "at Content/baseline". Restructure the occupancy pins: Content-scoped windows ≤ 0.15 (doc-exact), cross-state windows ≤ 0.20 as an AUTHORED tier with the measured evidence (mean 0.1102 / p95 0.1419 / max 0.1700 over 200 × 30 s). Record the two-tier reading in **ADR-012**. Reframe this file's Known Issues occupancy entry honestly (no "not a violation" framing; cite the doc scoping + the authored tier).
+4. **MINOR-2 → one-line task-file note** (RT-7 letter vs substance: hand-built loaded pose dominates any sampled-time probe; recorded, no code change).
+5. **NOTE-3 → add one mid-fade crossfade pin** (a crossfade variant sampled mid-fade against `envelopeProgress`'s smoothstep, e.g. half of the fade-in).
+6. **NOTE-4 → fix the `MomoRigView` header comment** ("freezes the current pose" → freezes at the t = 0 unaged band pose) and re-read the AOD/glyph-tier sentence built on it.
+7. **NOTE-5 → no action** (adjudications recorded in the review file).
+
+ADR numbering: **ADR-010** resume discipline, **ADR-011** body-scaleY composition law, **ADR-012** occupancy budget. (The informal standalone-watch-packaging ADR reservation renumbers to ADR-013 — status.md housekeeping.) Fixes executed by a fresh agent; delta review after (§11 — changes are material); full suite green before commit (§19); no commit by the fix agent.
+
+**Delta review outcome (2026-09-10):** `REVIEW-TASK-027-FIX1.md` — **APPROVED_WITH_MINOR_NOTES** (0 CRITICAL / 0 MAJOR / 1 MINOR / 2 NOTE). All six disposition items independently verified faithful and binding; 4 mutation bites with kills confirmed (3 sha256-proven, 1 disclosed exact-reverse protocol); the fixer's two deviations were both vindicated by bites (a single midpoint fade pin cannot catch linear-fade; a single ≤ 0.15-max battery fails on shipped code at 0.1700). The MINOR — a mis-attributed 0.2231 citation — was personally re-measured by the orchestrator before correction (probe: content/drowsy and content/exhausted both max 0.1365, stable at 100 and 1000 seeds; 0.2231 is joyful/energetic's runner-up window) and fixed in the test comment, ADR-012, and this file. NOTE-1 (ADR-012 overstated the non-vacuity guard as per-state rather than battery-mean) corrected in the same pass. NOTE-2 (two stale no-op `clampedPostureScaleY` wraps in `MomoIdleRenderTests`) deliberately left — harmless, batched into later housekeeping per both reviewers. Open questions adjudicated: keep the ≤ 0.25 cross-state tier (three independent lines of evidence); do not tighten authored subranges. Orchestrator disposition: commit.
