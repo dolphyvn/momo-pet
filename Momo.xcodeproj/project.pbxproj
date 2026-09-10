@@ -13,6 +13,11 @@
 		8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000004 /* PlaceholderRoomView.swift */; };
 		8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000005 /* PlaceholderSettingsView.swift */; };
 		8A4000000000000000000006 /* MomoAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000006 /* MomoAppModel.swift */; };
+		8A4000000000000000000007 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000007 /* OnboardingFlow.swift */; };
+		8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000008 /* OnboardingCanvasView.swift */; };
+		8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000009 /* OnboardingMeetView.swift */; };
+		8A400000000000000000000A /* OnboardingNameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A500000000000000000000A /* OnboardingNameView.swift */; };
+		8A400000000000000000000B /* OnboardingEnterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A500000000000000000000B /* OnboardingEnterView.swift */; };
 		8A4000000000000000000011 /* MomoWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000011 /* MomoWatchApp.swift */; };
 		8A4000000000000000000012 /* PlaceholderGlanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000012 /* PlaceholderGlanceView.swift */; };
 		8A4000000000000000000021 /* MomoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000001 /* MomoCore */; };
@@ -23,6 +28,7 @@
 		8A4000000000000000000033 /* MomoKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000003 /* MomoKit */; };
 		8A4000000000000000000041 /* MomoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000031 /* MomoUITests.swift */; };
 		8A4000000000000000000042 /* MomoWatchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000032 /* MomoWatchUITests.swift */; };
+		8A4000000000000000000043 /* MomoOnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000033 /* MomoOnboardingUITests.swift */; };
 		8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
 		8A4000000000000000000052 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
 /* End PBXBuildFile section */
@@ -55,12 +61,18 @@
 		8A5000000000000000000004 /* PlaceholderRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderRoomView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000005 /* PlaceholderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderSettingsView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000006 /* MomoAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoAppModel.swift; sourceTree = "<group>"; };
+		8A5000000000000000000007 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
+		8A5000000000000000000008 /* OnboardingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCanvasView.swift; sourceTree = "<group>"; };
+		8A5000000000000000000009 /* OnboardingMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingMeetView.swift; sourceTree = "<group>"; };
+		8A500000000000000000000A /* OnboardingNameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingNameView.swift; sourceTree = "<group>"; };
+		8A500000000000000000000B /* OnboardingEnterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingEnterView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000011 /* MomoWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchApp.swift; sourceTree = "<group>"; };
 		8A5000000000000000000012 /* PlaceholderGlanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderGlanceView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000022 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000031 /* MomoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000032 /* MomoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchUITests.swift; sourceTree = "<group>"; };
+		8A5000000000000000000033 /* MomoOnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoOnboardingUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000041 /* MomoCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = MomoCopy.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -127,6 +139,11 @@
 				8A5000000000000000000004 /* PlaceholderRoomView.swift */,
 				8A5000000000000000000005 /* PlaceholderSettingsView.swift */,
 				8A5000000000000000000006 /* MomoAppModel.swift */,
+				8A5000000000000000000007 /* OnboardingFlow.swift */,
+				8A5000000000000000000008 /* OnboardingCanvasView.swift */,
+				8A5000000000000000000009 /* OnboardingMeetView.swift */,
+				8A500000000000000000000A /* OnboardingNameView.swift */,
+				8A500000000000000000000B /* OnboardingEnterView.swift */,
 				8A5000000000000000000021 /* Info.plist */,
 			);
 			path = Momo;
@@ -155,6 +172,7 @@
 			isa = PBXGroup;
 			children = (
 				8A5000000000000000000031 /* MomoUITests.swift */,
+				8A5000000000000000000033 /* MomoOnboardingUITests.swift */,
 			);
 			path = MomoUITests;
 			sourceTree = "<group>";
@@ -316,6 +334,11 @@
 				8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */,
 				8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */,
 				8A4000000000000000000006 /* MomoAppModel.swift in Sources */,
+				8A4000000000000000000007 /* OnboardingFlow.swift in Sources */,
+				8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */,
+				8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */,
+				8A400000000000000000000A /* OnboardingNameView.swift in Sources */,
+				8A400000000000000000000B /* OnboardingEnterView.swift in Sources */,
 				8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -335,6 +358,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8A4000000000000000000041 /* MomoUITests.swift in Sources */,
+				8A4000000000000000000043 /* MomoOnboardingUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

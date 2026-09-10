@@ -20,6 +20,13 @@ enum AppModelFixture {
     static let intentID1 = UUID(uuidString: "11111111-2222-4333-8444-555555555555")!
     static let intentID2 = UUID(uuidString: "22222222-3333-4444-8555-666666666666")!
 
+    /// Fixed final pet identities for the onboarding-completion suites
+    /// (TASK-032): the executor mints a fresh UUID at the real Enter tap —
+    /// the tests inject fixed bytes instead, which is the purity contract's
+    /// whole point (determinism testable with injected identity).
+    static let onboardedPetID = UUID(uuidString: "D1D0CAFE-4B8A-4C0D-9C1D-3E6F8A2B4C01")!
+    static let onboardedPetIDOther = UUID(uuidString: "D1D0CAFE-4B8A-4C0D-9C1D-3E6F8A2B4C02")!
+
     /// A fixed instant from an ISO-8601 UTC string.
     static func instant(_ iso: String) -> Instant {
         ISO8601DateFormatter().date(from: iso)!
@@ -70,6 +77,33 @@ enum AppModelFixture {
             highestCelebratedStage: .newFriends,
             lastOpenedAt: open,
             lastEvaluatedAt: lastEvaluatedAt,
+            lastGreeting: nil
+        )
+    }
+
+    /// The pre-onboarding carrier (TASK-032's completion input) — mirrors
+    /// the executor's `freshDefaultState` field-for-field: flag false, the
+    /// empty ledger, minimum bond, the product name carried, both stamps at
+    /// the carrier's mint instant. Literal instants only — nothing ambient.
+    static func freshCarrier(at mintedAt: Instant) -> EngineState {
+        EngineState(
+            pet: Pet(id: petID, name: "Momo", createdAt: mintedAt)!,
+            state: PetState(
+                mood: 70,
+                energy: 80,
+                bond: Thresholds.Bond.minimum,
+                wakefulness: .awake,
+                activity: nil,
+                lastFedAt: nil,
+                satietyPhase: .hungry
+            )!,
+            days: [],
+            settings: SettingsState(onboardingComplete: false, hapticsEnabled: true),
+            pendingHandshake: nil,
+            processedIntents: [],
+            highestCelebratedStage: .newFriends,
+            lastOpenedAt: mintedAt,
+            lastEvaluatedAt: mintedAt,
             lastGreeting: nil
         )
     }
