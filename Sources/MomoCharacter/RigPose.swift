@@ -174,7 +174,9 @@ public struct RigPose: Equatable, Sendable {
         self.sparkleB = sparkleB
     }
 
-    /// The authored geometry defaults: every channel zeroed. The pause
-    /// contract made visible — a stopped clock renders exactly this.
+    /// The authored geometry defaults: every channel zeroed. The neutral
+    /// every pose starts from; since TASK-027 the rendered idle pose is the
+    /// motion model's expression base over this (a stopped clock freezes at
+    /// that base, not at `.rest` itself).
     public static let rest = RigPose()
 }

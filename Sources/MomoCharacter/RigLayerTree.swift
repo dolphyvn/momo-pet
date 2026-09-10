@@ -73,8 +73,10 @@ public struct RigLayerSlot: Sendable {
 ///
 /// Hierarchy: the body breathes about the ground line; the head rides the
 /// body about the neck; the ears/eyes/face ride the head; the tail and paws
-/// ride the body. Props are static layers (their channels live in the pose,
-/// applied by their own transforms when TASK-028 drives them).
+/// ride the body. Props carry their OWN single stage about their measured
+/// center (no ancestor — the room scene's placement does not breathe with
+/// the creature), driven by their pose channels (TASK-028; `.rest` is the
+/// identity placement).
 public enum RigLayerTree {
 
     // MARK: - Rig anchors (measured on the TASK-025 constants, grid units)
@@ -90,6 +92,13 @@ public enum RigLayerTree {
     private static let lidRightAnchor = CGPoint(x: 570, y: 304)
     private static let pawLeftAnchor = CGPoint(x: 447, y: 866)
     private static let pawRightAnchor = CGPoint(x: 553, y: 866)
+    // TASK-028's prop anchors — the measured centers of the TASK-025
+    // generated constants (MomoProps), so a prop's own rotation/scale acts
+    // about itself. Anchors are rig parameters, not new geometry.
+    private static let foodAnchor = CGPoint(x: 240, y: 950)
+    private static let blanketAnchor = CGPoint(x: 800, y: 940)
+    private static let sparkleAAnchor = CGPoint(x: 240, y: 250)
+    private static let sparkleBAnchor = CGPoint(x: 712, y: 320)
 
     // MARK: - Stage builders (outermost-first composition)
 
@@ -121,6 +130,15 @@ public enum RigLayerTree {
         RigStage(anchor: left ? pawLeftAnchor : pawRightAnchor) {
             left ? $0.pawLeft : $0.pawRight
         }
+    }
+
+    /// TASK-028: each prop reads its own pose channels about its measured
+    /// center — identity + full opacity at `.rest` (the pre-TASK-028 pins
+    /// stay valid), animated only inside its reaction windows.
+    private static func propStage(
+        _ pose: @escaping @Sendable (RigPose) -> RigPropPose, anchor: CGPoint
+    ) -> RigStage {
+        RigStage(anchor: anchor) { pose($0).transform }
     }
 
     // MARK: - Slot builder
@@ -209,15 +227,28 @@ public enum RigLayerTree {
         return tail + body + head + ears + faceDetails + eyes + paws
     }
 
-    /// The interaction-scoped props row (TASK-028 drives these channels;
-    /// until then they sit at rest behind/in front of the creature as the
-    /// TASK-025 room scene places them).
+    /// The interaction-scoped props row (§2.2): each prop reads its own
+    /// §2.2 channels about its measured center — `.rest` renders exactly
+    /// the TASK-025 room-scene placement, and only the reaction/state
+    /// windows (TASK-028's exclusivity law) animate them.
     private static func propSlots() -> [RigLayerSlot] {
         [
-            slot("food", MomoProps.food, "momo.fur.shade", token: MomoCharacterPalette.furShade),
-            slot("blanket", MomoProps.blanket, "momo.blanket", token: MomoCharacterPalette.blanket),
-            slot("sparkleA", MomoProps.sparkleA, "momo.sparkle", token: MomoCharacterPalette.sparkle),
-            slot("sparkleB", MomoProps.sparkleB, "momo.sparkle", token: MomoCharacterPalette.sparkle),
+            slot("food", MomoProps.food, "momo.fur.shade",
+                 token: MomoCharacterPalette.furShade,
+                 stages: [propStage({ $0.food }, anchor: foodAnchor)],
+                 opacity: { $0.food.opacity }),
+            slot("blanket", MomoProps.blanket, "momo.blanket",
+                 token: MomoCharacterPalette.blanket,
+                 stages: [propStage({ $0.blanket }, anchor: blanketAnchor)],
+                 opacity: { $0.blanket.opacity }),
+            slot("sparkleA", MomoProps.sparkleA, "momo.sparkle",
+                 token: MomoCharacterPalette.sparkle,
+                 stages: [propStage({ $0.sparkleA }, anchor: sparkleAAnchor)],
+                 opacity: { $0.sparkleA.opacity }),
+            slot("sparkleB", MomoProps.sparkleB, "momo.sparkle",
+                 token: MomoCharacterPalette.sparkle,
+                 stages: [propStage({ $0.sparkleB }, anchor: sparkleBAnchor)],
+                 opacity: { $0.sparkleB.opacity }),
         ]
     }
 
@@ -281,22 +312,12 @@ public enum RigLayerTree {
     /// i.e. per stage (p − anchor)·S·R·T·(+anchor) in row-vector form — and
     /// child stages apply before ancestors (the §2.2 hierarchy: the head
     /// rides the body). THIS matrix is the normative §2.2 composition —
-    /// what the unit tests and the evidence harness render (the harness in
-    /// its y-flipped CGContext, positive rotations staying
-    /// clockwise-on-screen).
-    ///
-    /// The SwiftUI view does NOT currently compose this matrix:
-    /// `MomoRigView` applies the same per-stage VALUES through modifier
-    /// chains whose order differs (per stage offset → rotation → scale;
-    /// across stages ancestor-first). The two agree EXACTLY while the only
-    /// non-identity channel is the body's anchored pure scale — the
-    /// TASK-026 breath (probe- and pin-verified) — and diverge the moment
-    /// a stage carries rotation or translation under a non-identity
-    /// ancestor. TASK-027 must reconcile the orders (one composed
-    /// transform per slot, the harness mirroring the view's order, or a
-    /// one-non-identity-freedom-per-stage constraint) before driving
-    /// head/ear/tail channels (REVIEW-TASK-026 MINOR-1). At `.rest` this
-    /// is exactly identity.
+    /// `MomoRigView` composes exactly this matrix per slot inside its
+    /// Canvas (one `drawLayer` per slot; TASK-027's R1 reconciliation —
+    /// point-probe- and pixel-probe-verified in `R1CompositionTests`), and
+    /// the evidence harness renders it in its y-flipped CGContext, positive
+    /// rotations staying clockwise-on-screen. At `.rest` this is exactly
+    /// identity.
     public static func affineTransform(
         of slot: RigLayerSlot, at pose: RigPose
     ) -> CGAffineTransform {

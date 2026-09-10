@@ -25,13 +25,20 @@ enum RigMotionViewMapping {
 /// The composed, token-colored rig (TASK-026 Requirement 3): renders the
 /// §2.2 layer tree for a tier — driven by ONE CharacterClock through the
 /// pure motion model — with the pause contract visible (a stopped clock
-/// renders the rest pose; scenePhase maps onto the clock's single call).
+/// zeroes the timeline, freezing the character at the t = 0 unaged band
+/// pose — the band expression base with every motion channel at rest;
+/// the glyph tier's stillness IS the AOD posture; scenePhase maps onto
+/// the clock's single call).
 ///
-/// Application discipline (R1/R4): per frame this view computes transform
-/// VALUES only and applies them through `scaleEffect`/`rotationEffect`/
-/// `offset` with explicit grid anchors (documented anchor semantics); every
-/// path arrives from the generated namespaces via `RigLayerTree`; every
-/// color resolves from a §8.4 palette slot. Colors never depend on state.
+/// Application discipline (R1/R4, TASK-027): per frame this view computes
+/// transform VALUES only via the pure model, then composes each slot
+/// through the NORMATIVE `RigLayerTree.affineTransform` matrix inside a
+/// SwiftUI `Canvas` — one `drawLayer` per slot isolates the CTM, so the
+/// view and the CoreGraphics evidence harness render the SAME composition
+/// (point-probe- and pixel-probe-verified in `R1CompositionTests`; the
+/// TASK-026 modifier-chain divergence is resolved). Every path arrives from
+/// the generated namespaces via `RigLayerTree`; every color resolves from a
+/// §8.4 palette slot. Colors never depend on state (INV-5).
 public struct MomoRigView: View {
 
     private let displayState: CharacterDisplayState
@@ -39,44 +46,68 @@ public struct MomoRigView: View {
     private let clock: CharacterClock
     private let model: RigMotionModel
     private let stageSide: CGFloat
+    private let reactionMotion: @Sendable (Double, Bool) -> MomoReactionMotion
+    private let reduceMotionOverride: Bool?
+    private let staticPoseTransition: MomoReduceMotionTransition?
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
+    /// TASK-029's RM DEFAULT SOURCE (the `scenePhase` precedent): the
+    /// environment read lives HERE and only here; every pure layer
+    /// receives the resolved injected `Bool` (an explicit override wins).
+    @Environment(\.accessibilityReduceMotion) private var environmentReduceMotion
     @State private var clockRunning = false
 
     /// - Parameters:
-    ///   - displayState: the engine's read-model (rest interpretation in
-    ///     TASK-026; band mapping is TASK-027).
+    ///   - displayState: the engine's read-model (the character renders
+    ///     exactly the state it is given — §9.3).
     ///   - tier: the LOD tier for the render surface.
     ///   - clock: the ONE character clock (injected; owned by presentation).
-    ///   - model: the motion model (channels steerable by later tasks).
+    ///   - model: the motion model (idle seed + channels steerable).
     ///   - stageSide: the §2.1 stage size in points (tier bands in `RigLOD`).
+    ///   - reactionMotion: the TASK-028 overlay, sampled at the frame's
+    ///     clock time with the RESOLVED Reduce Motion flag (a session
+    ///     passes `{ state.overlay(at: $0) }` — or, under RM,
+    ///     `{ state.reduceMotionOverlay(at: $0) }`; the flag lets one
+    ///     closure serve both readings). The default is the no-op overlay,
+    ///     whose pose is exactly the pre-TASK-028 pose.
+    ///   - reduceMotion: the TASK-029 override; nil (the default) resolves
+    ///     from `\.accessibilityReduceMotion`. Injected into the pose seam
+    ///     and handed to the overlay closure — never read anywhere else.
+    ///   - staticPoseTransition: the pending state-change crossfade under
+    ///     RM (folded from the same `.displayState` events the director
+    ///     consumes — see `MomoReduceMotionStateTracker`).
     public init(
         displayState: CharacterDisplayState,
         tier: RigLODTier,
         clock: CharacterClock,
         model: RigMotionModel = RigMotionModel(),
-        stageSide: CGFloat = 260
+        stageSide: CGFloat = 260,
+        reactionMotion: @escaping @Sendable (Double, Bool) -> MomoReactionMotion = { _, _ in .identity },
+        reduceMotion: Bool? = nil,
+        staticPoseTransition: MomoReduceMotionTransition? = nil
     ) {
         self.displayState = displayState
         self.tier = tier
         self.clock = clock
         self.model = model
         self.stageSide = stageSide
+        self.reactionMotion = reactionMotion
+        self.reduceMotionOverride = reduceMotion
+        self.staticPoseTransition = staticPoseTransition
     }
 
     public var body: some View {
         Group {
             if tier == .glyph {
                 // The glyph tier is a static snapshot — stillness IS the
-                // AOD posture, so this branch never binds the clock.
+                // AOD posture, so this branch never binds the clock (and
+                // RM leaves it byte-identical: it was already static).
                 rigCanvas(pose: .rest)
             } else {
                 TimelineView(.animation(paused: !clockRunning)) { context in
-                    rigCanvas(
-                        pose: model.pose(
-                            at: clock.elapsed(at: context.date),
-                            displayState: displayState))
+                    let time = clock.elapsed(at: context.date)
+                    rigCanvas(pose: renderedPose(at: time))
                 }
             }
         }
@@ -97,93 +128,47 @@ public struct MomoRigView: View {
         clockRunning = clock.isRunning
     }
 
+    /// The frame's pose through the pure model: the overlay closure
+    /// samples at the frame's clock time with the RESOLVED RM flag, and
+    /// the same flag drives the pose seam (idle masking + the state
+    /// crossfade).
+    private func renderedPose(at time: Double) -> RigPose {
+        let reduceMotion = reduceMotionOverride ?? environmentReduceMotion
+        return model.pose(
+            at: time,
+            displayState: displayState,
+            reactionMotion: reactionMotion(time, reduceMotion),
+            reduceMotion: reduceMotion,
+            staticPoseTransition: staticPoseTransition)
+    }
+
     // MARK: - Layer rendering
 
+    /// The whole tier drawn in one Canvas: each slot inside its own
+    /// `drawLayer` (the CTM concatenation accumulates across draws, so the
+    /// per-slot layer is what keeps one slot's matrix from leaking into the
+    /// next), transformed by the normative matrix.
     private func rigCanvas(pose: RigPose) -> some View {
-        ZStack {
-            ForEach(Array(RigLayerTree.slots(for: tier).enumerated()), id: \.offset) {
-                layer($0.element, at: pose)
+        Canvas { context, _ in
+            for slot in RigLayerTree.slots(for: tier) {
+                context.drawLayer { layer in
+                    layer.concatenate(RigLayerTree.affineTransform(of: slot, at: pose))
+                    let opacity = slot.opacity(pose)
+                    layer.fill(
+                        slot.path,
+                        with: .color(slot.token.resolve(colorScheme).opacity(opacity)))
+                }
             }
         }
         .frame(width: RigCanvas.gridSide, height: RigCanvas.gridSide)
         .scaleEffect(stageSide / RigCanvas.gridSide)
         .frame(width: stageSide, height: stageSide)
     }
-
-    /// One slot: filled with its token, transformed by its stages. SwiftUI
-    /// modifiers apply to the content in listing order, so each stage
-    /// contributes offset → rotation → scale about the stage's anchor, and
-    /// the listed order ([body, head, ear]) runs ANCESTOR-first. That order
-    /// differs from the normative `RigLayerTree.affineTransform`
-    /// composition (child-local first, scale first): the two agree exactly
-    /// while the only driven channel is the body's anchored pure scale
-    /// (the TASK-026 breath — pin- and probe-verified); TASK-027 must
-    /// reconcile the orders before driving head/ear/tail channels
-    /// (REVIEW-TASK-026 MINOR-1).
-    private func layer(_ slot: RigLayerSlot, at pose: RigPose) -> some View {
-        let stages = RigCanvas.paddedStages(slot.stages, at: pose)
-        return slot.path
-            .fill(slot.token.resolve(colorScheme).opacity(slot.opacity(pose)))
-            .frame(width: RigCanvas.gridSide, height: RigCanvas.gridSide)
-            .offset(x: stages.0.transform.translation.x, y: stages.0.transform.translation.y)
-            .rotationEffect(
-                .degrees(stages.0.transform.rotationDegrees),
-                anchor: RigCanvas.unitPoint(stages.0.anchor))
-            .scaleEffect(
-                x: stages.0.transform.scaleX, y: stages.0.transform.scaleY,
-                anchor: RigCanvas.unitPoint(stages.0.anchor))
-            .offset(x: stages.1.transform.translation.x, y: stages.1.transform.translation.y)
-            .rotationEffect(
-                .degrees(stages.1.transform.rotationDegrees),
-                anchor: RigCanvas.unitPoint(stages.1.anchor))
-            .scaleEffect(
-                x: stages.1.transform.scaleX, y: stages.1.transform.scaleY,
-                anchor: RigCanvas.unitPoint(stages.1.anchor))
-            .offset(x: stages.2.transform.translation.x, y: stages.2.transform.translation.y)
-            .rotationEffect(
-                .degrees(stages.2.transform.rotationDegrees),
-                anchor: RigCanvas.unitPoint(stages.2.anchor))
-            .scaleEffect(
-                x: stages.2.transform.scaleX, y: stages.2.transform.scaleY,
-                anchor: RigCanvas.unitPoint(stages.2.anchor))
-    }
 }
 
-/// Canvas plumbing for the rig view: the §2.1 grid side, grid-anchored
-/// `UnitPoint`s, and the stage padding that keeps every slot's modifier
-/// chain structurally identical (SwiftUI needs a static shape; identity
-/// stages are exact no-ops).
+/// Canvas plumbing for the rig view: the §2.1 grid side in canvas points.
 enum RigCanvas {
 
     /// The §2.1 normalized grid, in canvas points.
     static let gridSide: CGFloat = 1000
-
-    /// One resolved stage application for the modifier chain.
-    struct StageApplication {
-        let anchor: CGPoint
-        let transform: RigGridTransform
-    }
-
-    /// No slot's hierarchy exceeds body → head → part (three stages).
-    /// Padding fills the trailing positions with identity stages — exact
-    /// no-ops about any anchor, so where they sit in the chain is
-    /// behaviorally irrelevant; the padding exists only to keep every
-    /// slot's modifier chain structurally identical.
-    static func paddedStages(
-        _ stages: [RigStage], at pose: RigPose
-    ) -> (StageApplication, StageApplication, StageApplication) {
-        let resolved = (0..<3).map { index -> StageApplication in
-            guard index < stages.count else {
-                return StageApplication(anchor: .zero, transform: .identity)
-            }
-            let stage = stages[index]
-            return StageApplication(anchor: stage.anchor, transform: stage.value(pose))
-        }
-        return (resolved[0], resolved[1], resolved[2])
-    }
-
-    /// A grid anchor as a `UnitPoint` of the 1000-point canvas.
-    static func unitPoint(_ anchor: CGPoint) -> UnitPoint {
-        UnitPoint(x: anchor.x / gridSide, y: anchor.y / gridSide)
-    }
 }

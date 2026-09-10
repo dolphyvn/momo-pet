@@ -95,10 +95,39 @@ struct RigMotionModelTests {
         }
     }
 
-    @Test("The model at t = 0 renders the rest pose (resumed-but-unaged)")
-    func modelAtZeroIsRest() {
+    @Test("The model at t = 0 renders the band expression base: identity motion, the Content aperture")
+    func modelAtZeroIsTheExpressionBase() {
+        // (TASK-027 move of the former `.rest` pin, which held while the
+        // model drove only the breath: the §3.2 expression base now opens
+        // the Content lids past the authored rest. Equally strict — every
+        // channel is still pinned digit-for-digit.)
         let model = RigMotionModel()
-        #expect(model.pose(at: 0, displayState: CharacterClockTests.contentState) == .rest)
+        let pose = model.pose(at: 0, displayState: CharacterClockTests.contentState)
+
+        // Motion channels: the breath sine is 0 at t = 0 and Content's
+        // ears/tail are neutral/still — identity everywhere.
+        #expect(pose.body.scaleY == CGFloat(1.0))
+        #expect(pose.body.rotationDegrees == 0)
+        #expect(pose.body.translation == .zero)
+        #expect(pose.head == .identity)
+        #expect(pose.earLeft == .identity)
+        #expect(pose.earRight == .identity)
+        #expect(pose.tail == .identity)
+
+        // The aperture channel: Content's ~90 % through THE conversion.
+        let lid = MomoExpressions.lidScaleY(forAperture: 0.9)
+        #expect(pose.eyeLeft == RigEyePose(
+            lidScaleY: lid, pupilOffset: .zero, lowerLid: .relaxed))
+        #expect(pose.eyeRight == pose.eyeLeft)
+
+        #expect(pose.mouth == .neutral)
+        #expect(pose.cheekOpacity == 1)
+        #expect(pose.pawLeft == .identity)
+        #expect(pose.pawRight == .identity)
+        for prop in [pose.food, pose.blanket, pose.sparkleA, pose.sparkleB] {
+            #expect(prop.transform == .identity)
+            #expect(prop.opacity == 1)
+        }
     }
 
     // MARK: - The reference breath channel (§7.1 Content row)
@@ -116,13 +145,18 @@ struct RigMotionModelTests {
         #expect(pose.body.rotationDegrees == 0)
         #expect(pose.body.translation == .zero)
 
-        // One reference channel: nothing else moves under breath today.
+        // Breath moves ONLY body scaleY; the §3.2 Content base sits on the
+        // other channels (neutral ears, still tail, the ~90 % aperture).
+        // No idle event can reach t = T/4 ≈ 1.2 s (the earliest possible
+        // event is a blink at ≥ 2.5 s), so the base is exact here.
         #expect(pose.head == .identity)
         #expect(pose.earLeft == .identity)
         #expect(pose.earRight == .identity)
         #expect(pose.tail == .identity)
-        #expect(pose.eyeLeft == RigEyePose.rest)
-        #expect(pose.eyeRight == RigEyePose.rest)
+        let lid = MomoExpressions.lidScaleY(forAperture: 0.9)
+        #expect(pose.eyeLeft == RigEyePose(
+            lidScaleY: lid, pupilOffset: .zero, lowerLid: .relaxed))
+        #expect(pose.eyeRight == pose.eyeLeft)
         #expect(pose.mouth == .neutral)
         #expect(pose.cheekOpacity == 1)
         #expect(pose.pawLeft == .identity)
@@ -149,28 +183,61 @@ struct RigMotionModelTests {
         #expect(MomoCurves.breathAmplitudeScaleY.contains(deviations.max() ?? 0))
     }
 
-    @Test("The pose is independent of display state today — band mapping is TASK-027")
-    func displayStateDoesNotAlterThePoseYet() {
+    @Test("Display state drives the pose: bands and wakefulness change the rendering")
+    func displayStateAltersThePose() {
+        // (TASK-027 inversion of TASK-026's inert-state pin: the display
+        // state is now LIVE. Equally strict — each difference is pinned to
+        // its §3 driver, digit-for-digit.)
         let model = RigMotionModel()
-        let low = CharacterDisplayState(
+        let asleep = CharacterDisplayState(
             moodBand: .low, energyBand: .exhausted, bondStage: .newFriends,
             wakefulness: .asleep, activity: nil, satietyHint: nil, momentRequest: nil)
 
-        #expect(model.pose(at: inhale, displayState: Self.joyfulState)
-                == model.pose(at: inhale, displayState: low))
+        let joyfulPose = model.pose(at: inhale, displayState: Self.joyfulState)
+        let asleepPose = model.pose(at: inhale, displayState: asleep)
+
+        #expect(joyfulPose != asleepPose)
+
+        // §3.2 facial warmth: Joyful's 100 % aperture vs asleep's closed
+        // eyes, through THE conversion.
+        #expect(joyfulPose.eyeLeft.lidScaleY == MomoExpressions.lidScaleY(forAperture: 1.0))
+        #expect(asleepPose.eyeLeft.lidScaleY == MomoExpressions.lidScaleY(forAperture: 0))
+
+        // §3.2 ears: Joyful's perk vs Low's settled droop.
+        #expect(joyfulPose.earLeft.rotationDegrees == 16.5)
+        #expect(asleepPose.earLeft.rotationDegrees == -15.0)
+
+        // §3.2 tail: Joyful wags; the sleeping tail is still.
+        #expect(asleepPose.tail.rotationDegrees == 0)
+        #expect(joyfulPose.tail.rotationDegrees != 0)
+
+        // §3.2 posture: Joyful's +3 % tall vs Low's clamped −5 % slump.
+        #expect(joyfulPose.body.scaleY > 1.0)
+        #expect(asleepPose.body.scaleY < 1.0)
     }
 
     // MARK: - Per-channel gating
 
-    @Test("Disabling bodyScale stops the breath exactly: rest at every instant")
+    @Test("Disabling bodyScale stops ALL body motion exactly: identity body at every instant")
     func disablingBodyScaleStopsBreathExactly() {
+        // (TASK-027 move of the former whole-`.rest` pin: the gate now
+        // silences exactly the body-scale channel — breath AND posture —
+        // while the other channels stay expression-driven. Equally strict
+        // for the breath contract: identity, digit-exact, at every instant.)
         let gated = RigMotionModel(enabledChannels: .all.subtracting(.bodyScale))
         let state = CharacterClockTests.contentState
 
         for fraction in [0.0, 0.125, 0.25, 0.5, 0.75, 1.0] {
-            #expect(gated.pose(at: fraction * breathT, displayState: state) == .rest,
-                    "breath leaked at t = \(fraction)·T with bodyScale disabled")
+            let pose = gated.pose(at: fraction * breathT, displayState: state)
+            #expect(pose.body == .identity,
+                    "motion leaked at t = \(fraction)·T with bodyScale disabled")
         }
+
+        // Before the earliest possible idle event (a blink at ≥ 2.5 s) the
+        // other channels carry the pure band base.
+        let early = gated.pose(at: 2.4, displayState: state)
+        #expect(early.eyeLeft.lidScaleY == MomoExpressions.lidScaleY(forAperture: 0.9))
+        #expect(early.earLeft == .identity)
     }
 
     @Test("Enabling only bodyScale still breathes — the gate is per-channel")
@@ -184,14 +251,28 @@ struct RigMotionModelTests {
         #expect(pose.tail == .identity) // never driven today, never moved
     }
 
-    @Test("Gating an un-driven channel is a no-op today (TASK-027 supplies the bite)")
+    @Test("Gating tailRotation is a no-op for a still tail — and a real bite for the wag")
     func gatingUndrivenChannelIsNoop() {
         let full = RigMotionModel()
         let gated = RigMotionModel(enabledChannels: .all.subtracting(.tailRotation))
         let state = CharacterClockTests.contentState
 
+        // Content's tail is still: the gate changes nothing.
         #expect(gated.pose(at: inhale, displayState: state)
                 == full.pose(at: inhale, displayState: state))
+
+        // Joyful's slow wag IS tailRotation-driven: gating returns the tail
+        // to identity while every other channel keeps its value.
+        let joyfulFull = full.pose(at: inhale, displayState: Self.joyfulState)
+        let joyfulGated = gated.pose(at: inhale, displayState: Self.joyfulState)
+        #expect(joyfulFull.tail != .identity)
+        #expect(joyfulGated.tail == .identity)
+        #expect(joyfulGated.body == joyfulFull.body)
+        #expect(joyfulGated.head == joyfulFull.head)
+        #expect(joyfulGated.earLeft == joyfulFull.earLeft)
+        #expect(joyfulGated.earRight == joyfulFull.earRight)
+        #expect(joyfulGated.eyeLeft == joyfulFull.eyeLeft)
+        #expect(joyfulGated.eyeRight == joyfulFull.eyeRight)
     }
 
     // MARK: - §2.4 pupil clamp

@@ -157,7 +157,7 @@ struct CharacterClockTests {
 
     // MARK: - The one-call gate made visible through the motion model
 
-    @Test("Single gate: a paused clock drives the breath channel to the rest pose")
+    @Test("Single gate: a paused clock freezes the character at the unaged pose")
     func pausedClockStopsEveryChannel() {
         let source = SteppedClock()
         let clock = makeClock(source: source)
@@ -171,7 +171,12 @@ struct CharacterClockTests {
 
         clock.pause() // the ONE call — everything stops
         let frozen = model.pose(at: clock.elapsed(), displayState: state)
-        #expect(frozen == .rest)
+        // (TASK-027 move of the former `.rest` pin, which predated the
+        // expression system: pause now freezes at the model's t = 0 pose —
+        // the band base with every motion channel zeroed. Equally strict,
+        // digit-for-digit.)
+        #expect(frozen == model.pose(at: 0, displayState: state))
+        #expect(frozen.body == .identity) // no motion at the frozen instant
     }
 
     // MARK: - Shared display state
