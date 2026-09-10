@@ -68,7 +68,7 @@ Atomic commit on `feature/EPIC-007-iphone-home` (orchestrator commits after revi
 Message includes the TASK-ID. Push follows the commit. The implementation agent does NOT commit — leave the tree DIRTY.
 
 ## Status
-IN_REVIEW → findings addressed (2026-09-10): REVIEW-TASK-031 APPROVED_WITH_MINOR_NOTES; MINOR-1 + MINOR-2 applied; §19 green post-fix (851/85 ×3, MomoKit 91.42 %). Committing per §12.
+DONE (2026-09-10) — commit `257a58f` pushed to `feature/EPIC-007-iphone-home`; REVIEW-TASK-031 APPROVED_WITH_MINOR_NOTES with both MINORs verified personally then applied; §19 green (851/85 ×3); MomoKit coverage 91.42 %.
 
 ## Implementation Notes
 
@@ -136,4 +136,8 @@ Modified: `Apps/Momo/MomoApp.swift`, `Momo.xcodeproj/project.pbxproj`. New: `App
 **Disposition (orchestrator, both findings verified personally then applied):** MINOR-1 → new pin test `choreographySeedShapePinnedToTheEngine` (expected seed derived from `DaySeed.make` with literal epoch 1 + `.choreography` salt, never the wrapper; epoch constant pinned to 1). MINOR-2 → `scheduleBoundary` moved before the effect awaits (immediately after step-0 apply). NOTE-3 → coverage measured: **MomoKit 91.42 % lines (341/373)**, floor holds. §19 re-run: 851/85 green ×3, zero source warnings. Full disposition appended to the review file.
 
 ## Completion Evidence
-(orchestrator fills at close: commit hash, push status, §19 run, coverage)
+- **Commit:** `257a58f` — `feat(app): TASK-031 app model facade — evaluate/apply loop, persistence wiring, boundary scheduling` (atomic: 12 files, +1938/−9 — 3 MomoKit plan-core files, executor + app wiring, pbxproj, 4 test files, task file, review file).
+- **Push:** `a410813..257a58f` → `origin/feature/EPIC-007-iphone-home` — success (2026-09-10).
+- **§19 evidence:** `swift test` green ×3 post-fix — **851 tests / 85 suites** (1.855 s coverage run / 1.630 s / 1.674 s coverage run); zero source warnings (sole log line = the pre-existing machine-env `ld: search path '/opt/extra/lib'` linker notice, disclosed). `xcodebuild` BUILD SUCCEEDED on the pinned SE (3rd gen); both launch-origin log lines reproduced live (`fresh store…` + `loaded store…` — orchestrator's own relaunch pid 53881 proved the save→load round trip).
+- **Coverage:** MomoKit **91.42 % lines (341/373)** — ≥ 80 % floor holds (llvm-cov over `default.profdata`; measured post-fix).
+- **Review:** REVIEW-TASK-031 **APPROVED_WITH_MINOR_NOTES** — spec re-derived before comparing; MINOR-1 (seed-shape pin) and MINOR-2 (schedule-before-await) verified personally then applied; NOTE-3 coverage figure recorded. Baseline delta across the task: 825/82 @ `13a75bf` → 851/85 (+26 tests/+3 suites, incl. the disposition pin).
