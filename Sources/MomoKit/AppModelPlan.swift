@@ -109,6 +109,20 @@ public enum AppModelTrigger: Sendable {
     /// re-folds at the current instant; the executor re-derives the local
     /// calendar before submitting (§4.2's "re-derive dayKey" row).
     case significantTimeChange(now: Instant)
+
+    /// The onboarding Enter tap (TASK-032; FR-1 AC-2, FR-13 AC-1): the
+    /// executor mints the final pet identity AT THE TAP and passes it in, so
+    /// the plan core stays pure — no ambient randomness; determinism is
+    /// testable with injected UUIDs. NOT an engine-routed trigger: `plan`
+    /// dispatches it to the pure completion transformation (the settings
+    /// flag and the pet identity ONLY — grants nothing, UX-6) without
+    /// calling `reduce`, so no engine event exists for it and no response
+    /// or moments are emitted. The executor sends it at most once (the
+    /// onboarding gate makes a second send unreachable); the transformation
+    /// itself is unconditional — applied to an already-complete state it
+    /// still re-mints per the trigger and persists again (the pinned
+    /// idempotence stance, disclosed in the completion tests).
+    case onboardingCompleted(petID: UUID, name: String)
 }
 
 // MARK: - The plan core
@@ -162,13 +176,26 @@ public enum AppModelPlanCore {
     /// Applies the app model: routes the trigger through the engine's own
     /// interface, then wraps the outcome as the fixed-order plan (see
     /// `AppModelPlan`'s header for the order and the IFF rules).
+    ///
+    /// The onboarding-completion trigger is dispatched BEFORE the engine
+    /// path: it is not engine-routed (no `reduce`, no `EngineEvent` — the
+    /// completion grants nothing, UX-6/R6) — see `onboardingPlan`.
     public static func plan(
         state: EngineState,
         trigger: AppModelTrigger,
         clock: any EngineClock,
         calendar: Calendar
     ) -> AppModelPlan {
-        let event = engineEvent(for: trigger)
+        if case .onboardingCompleted(let petID, let name) = trigger {
+            return onboardingPlan(
+                state: state,
+                petID: petID,
+                name: name,
+                clock: clock,
+                calendar: calendar
+            )
+        }
+        let event = engineEvent(for: trigger, clock: clock)
         let foldInstant = foldInstant(for: trigger, clock: clock)
         var rng = SeededGenerator(
             seed: choreographySeed(petID: state.pet.id, instant: foldInstant, calendar: calendar)
@@ -192,13 +219,26 @@ public enum AppModelPlanCore {
 
     // MARK: Trigger → engine-event routing (see `AppModelTrigger`'s header)
 
-    private static func engineEvent(for trigger: AppModelTrigger) -> EngineEvent {
+    private static func engineEvent(
+        for trigger: AppModelTrigger,
+        clock: any EngineClock
+    ) -> EngineEvent {
         switch trigger {
         case .foreground(let now): return .evaluate(now: now)
         case .interaction(let intent): return .interaction(intent)
         case .characterReport(let report): return .characterReport(report)
         case .scheduledBoundary(let instant): return .evaluate(now: instant)
         case .significantTimeChange(let now): return .evaluate(now: now)
+        case .onboardingCompleted:
+            // Unreachable: `plan` dispatches `.onboardingCompleted` to
+            // `onboardingPlan` BEFORE this routing table is consulted — the
+            // completion is not engine-routed (no `EngineEvent` exists for a
+            // transformation that grants nothing, R6/UX-6). The arm exists
+            // to satisfy exhaustiveness; the clock-sourced fallback keeps
+            // the function total without an ambient time read (the
+            // QuestTick house shape).
+            assertionFailure("AppModelPlanCore: onboarding trigger reached engine-event routing — invariant regression")
+            return .evaluate(now: clock.now())
         }
     }
 
@@ -216,6 +256,76 @@ public enum AppModelPlanCore {
         case .characterReport: return clock.now()
         case .scheduledBoundary(let instant): return instant
         case .significantTimeChange(let now): return now
+        case .onboardingCompleted: return clock.now()
         }
+    }
+
+    // MARK: The onboarding completion (TASK-032; FR-1 AC-2, FR-13 AC-1)
+
+    /// The completion transformation (R5/R6): the settings flag → true and
+    /// the pet re-minted at the fold instant — and NOTHING else (the whole
+    /// remaining state carries over field-for-field, so the completion
+    /// grants no bond, no counters, no day records, no greeting stamp, no
+    /// stage ceiling, no intent ledger change — UX §3's "Post-onboarding").
+    /// No engine event exists for it: `reduce` is never called, no response
+    /// or moments are emitted.
+    ///
+    /// The outcome is `changed` ⇒ the fixed-order steps are
+    /// EXACTLY `[.persist, .pushWatchSnapshot]` — the persist IS the atomic
+    /// completion write of FR-13 AC-1; the Watch push is the reserved
+    /// EPIC-008 no-op. The trigger is unconditional (applied to an
+    /// already-complete state it still re-mints per the trigger and
+    /// persists again — the executor never sends it twice; the gate makes a
+    /// second send unreachable).
+    ///
+    /// The `Pet` failable init (INV-1) is re-honored as a second guard: a
+    /// whitespace-only name cannot mint a pet, so the plan falls back to
+    /// the UNCHANGED state with NO steps (nothing persisted — a no-op
+    /// completion). Unreachable from the product flow: the executor trims
+    /// and rejects whitespace-only names at the tap, and the S2 button is
+    /// disabled for them (INV-1's UI face).
+    private static func onboardingPlan(
+        state: EngineState,
+        petID: UUID,
+        name: String,
+        clock: any EngineClock,
+        calendar: Calendar
+    ) -> AppModelPlan {
+        let foldInstant = clock.now()
+        guard let pet = Pet(id: petID, name: name, createdAt: foldInstant) else {
+            return AppModelPlan(
+                appliedState: state,
+                steps: [],
+                nextBoundary: NextBoundaryRules.next(
+                    from: foldInstant,
+                    state: state,
+                    calendar: calendar
+                )
+            )
+        }
+        let completed = EngineState(
+            pet: pet,
+            state: state.state,
+            days: state.days,
+            settings: SettingsState(
+                onboardingComplete: true,
+                hapticsEnabled: state.settings.hapticsEnabled
+            ),
+            pendingHandshake: state.pendingHandshake,
+            processedIntents: state.processedIntents,
+            highestCelebratedStage: state.highestCelebratedStage,
+            lastOpenedAt: state.lastOpenedAt,
+            lastEvaluatedAt: state.lastEvaluatedAt,
+            lastGreeting: state.lastGreeting
+        )
+        return AppModelPlan(
+            appliedState: completed,
+            steps: [.persist, .pushWatchSnapshot],
+            nextBoundary: NextBoundaryRules.next(
+                from: foldInstant,
+                state: completed,
+                calendar: calendar
+            )
+        )
     }
 }

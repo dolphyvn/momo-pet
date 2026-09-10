@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import MomoCharacter
 import MomoKit
 import MomoCore
 import os
@@ -15,12 +16,14 @@ import os
 /// (`AppModelPlanCore` / `NextBoundaryRules` / `AppModelLaunch` in MomoKit);
 /// what remains here is deliberately mechanical.
 ///
-/// **D-R5 by construction.** This file is the only app-target file that
-/// imports the engine (`MomoCore`) and the only one that reaches engine or
-/// plan APIs; views consume the app model through SwiftUI's environment and
-/// never invoke the engine. The engine's `reduce` itself is called only
-/// inside the plan core — the facade (this executor + that core) is the
-/// engine's sole entry point.
+/// **D-R5 by construction.** This file is the engine-facing executor: besides
+/// this file, the only app-target file that imports `MomoCore` is the entry
+/// point's disclosed R7 UI-test clock enabler (`MomoApp.fixedTimeSources`,
+/// TASK-033 — it constructs a clock to INJECT into this model and reaches no
+/// other engine API); views consume the app model through SwiftUI's
+/// environment and never invoke the engine. The engine's `reduce` itself is
+/// called only inside the plan core — the facade (this executor + that core)
+/// is the engine's sole entry point.
 ///
 /// **The launch read is the ONE sanctioned synchronous main-thread I/O**
 /// (05 §5.2: "the main thread never blocks on I/O beyond launch's initial
@@ -79,6 +82,13 @@ final class MomoAppModel {
     /// in the executor flows through it.
     private let clock: any EngineClock
 
+    /// The presentation-owned character clock (TASK-032 R12; EPIC-006's
+    /// view API): ONE clock for the whole session, fed by the same injected
+    /// time source as the engine, handed to every `MomoRigView` host. The
+    /// view manages its own pause/resume on scene phase; TASK-033's
+    /// director/report wiring reuses this same clock.
+    let canvasClock: CharacterClock
+
     /// The significant-time-change observation token (§4.2's fifth trigger).
     /// The block-API's `NSObjectProtocol` token is not `Sendable`; the box
     /// below is the honest minimal crossing — its only use is
@@ -120,6 +130,22 @@ final class MomoAppModel {
     /// consumers (TASK-032/033) bind through the app model, never the engine.
     var displayState: DisplayState {
         makeDisplayState(state, at: clock.now(), calendar: calendar)
+    }
+
+    /// The character canvas's read-model (TASK-032 R12): the onboarding
+    /// canvas binds through this, never the engine (D-R5). The rig state
+    /// alone — the alive-at-rest blink/breath IS the whole S1/S3 "small
+    /// greeting animation"; director/moments wiring is TASK-033's.
+    var characterDisplayState: CharacterDisplayState {
+        makeCharacterDisplayState(state)
+    }
+
+    /// The Home composition's read-model (TASK-033 R2; UX §5.1): mirrors
+    /// `displayState` — the same (state, now, calendar) inputs through
+    /// MomoKit's `makeHomeReadModel`, so the Home view binds through the app
+    /// model and never the engine (D-R5).
+    var homeReadModel: HomeReadModel {
+        makeHomeReadModel(state, at: clock.now(), calendar: calendar)
     }
 
     /// The UI-facing delivery seam (§4.1's fixed order, steps 2–3): the
@@ -169,6 +195,7 @@ final class MomoAppModel {
         }
         self.store = SnapshotStore(directory: directory, clock: clock)
         self.clock = clock
+        self.canvasClock = CharacterClock(timeSource: clock)
         self.calendar = calendar
 
         // THE launch read (see the type header; OBS-1 review-attention
@@ -244,6 +271,23 @@ final class MomoAppModel {
     /// wiring routes through here.
     func submit(_ report: CharacterReport) {
         Task { await self.apply(trigger: .characterReport(report)) }
+    }
+
+    /// The onboarding completion tap (TASK-032 R5; FR-1 AC-2, FR-13 AC-1):
+    /// mints the final pet identity AT THE TAP (the injected UUID keeps the
+    /// plan core pure and determinism testable) and applies the completion
+    /// trigger — the transformation whose `.persist` step is the atomic
+    /// completion write. The S2 button's disabled state is INV-1's product
+    /// face (whitespace-only names never reach here enabled); a violation
+    /// now is an invariant regression — DEBUG-loud, inert in release (no
+    /// plan applied, nothing persisted, the gate keeps the flow on S2).
+    func completeOnboarding(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            Self.debugLoud("MomoAppModel: onboarding completion rejected a whitespace-only name")
+            return
+        }
+        Task { await self.apply(trigger: .onboardingCompleted(petID: UUID(), name: trimmed)) }
     }
 
     // MARK: The apply loop (§4.1's fixed order — the one engine entry)

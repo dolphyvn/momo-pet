@@ -2,13 +2,277 @@
   "sourceLanguage" : "en",
   "strings" : {
     "momo.line.day.00" : {
-      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves catalog lookup in the iPhone Home placeholder surface. Replaced by the tone-guide day pool in the engine/read-model tasks (04 §10.3); not product copy.",
+      "comment" : "04 §10.3 day pool, line 1 of 10 (0-based index 00 — TASK-033's catalog landing replaces the placeholder). Slot-line class: ≤12 words, third-person, soft ending.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Placeholder line — real lines arrive with the engine."
+            "value" : "Momo is watching dust drift in the light."
+          }
+        }
+      }
+    },
+    "momo.line.day.01" : {
+      "comment" : "04 §10.3 day pool, line 2 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A calm afternoon. Momo is content."
+          }
+        }
+      }
+    },
+    "momo.line.day.02" : {
+      "comment" : "04 §10.3 day pool, line 3 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is dozing with one ear up."
+          }
+        }
+      }
+    },
+    "momo.line.day.03" : {
+      "comment" : "04 §10.3 day pool, line 4 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo wouldn't mind a little company."
+          }
+        }
+      }
+    },
+    "momo.line.day.04" : {
+      "comment" : "04 §10.3 day pool, line 5 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo feels like playing, maybe."
+          }
+        }
+      }
+    },
+    "momo.line.day.05" : {
+      "comment" : "04 §10.3 day pool, line 6 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything is peaceful. Momo approves."
+          }
+        }
+      }
+    },
+    "momo.line.day.06" : {
+      "comment" : "04 §10.3 day pool, line 7 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is loafed in a warm spot."
+          }
+        }
+      }
+    },
+    "momo.line.day.07" : {
+      "comment" : "04 §10.3 day pool, line 8 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo tilts an ear toward you."
+          }
+        }
+      }
+    },
+    "momo.line.day.08" : {
+      "comment" : "04 §10.3 day pool, line 9 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A quiet hour. Momo is rested and easy."
+          }
+        }
+      }
+    },
+    "momo.line.day.09" : {
+      "comment" : "04 §10.3 day pool, line 10 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is saving energy for the evening."
+          }
+        }
+      }
+    },
+    "momo.line.evening.00" : {
+      "comment" : "04 §10.3 evening pool, line 1 of 10 (0-based index 00 — TASK-033's catalog landing).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The light is going soft. Momo is slowing down."
+          }
+        }
+      }
+    },
+    "momo.line.evening.01" : {
+      "comment" : "04 §10.3 evening pool, line 2 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is getting sleepy."
+          }
+        }
+      }
+    },
+    "momo.line.evening.02" : {
+      "comment" : "04 §10.3 evening pool, line 3 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo had a good day."
+          }
+        }
+      }
+    },
+    "momo.line.evening.03" : {
+      "comment" : "04 §10.3 evening pool, line 4 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is winding down beside you."
+          }
+        }
+      }
+    },
+    "momo.line.evening.04" : {
+      "comment" : "04 §10.3 evening pool, line 5 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A cozy hour. Momo's ears are at half-mast."
+          }
+        }
+      }
+    },
+    "momo.line.evening.05" : {
+      "comment" : "04 §10.3 evening pool, line 6 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo yawned. That's an evening signal."
+          }
+        }
+      }
+    },
+    "momo.line.evening.06" : {
+      "comment" : "04 §10.3 evening pool, line 7 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo wouldn't mind a tuck-in soon."
+          }
+        }
+      }
+    },
+    "momo.line.evening.07" : {
+      "comment" : "04 §10.3 evening pool, line 8 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The day is settling. So is Momo."
+          }
+        }
+      }
+    },
+    "momo.line.evening.08" : {
+      "comment" : "04 §10.3 evening pool, line 9 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is curled a little tighter."
+          }
+        }
+      }
+    },
+    "momo.line.evening.09" : {
+      "comment" : "04 §10.3 evening pool, line 10 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tonight looks good for an early night."
+          }
+        }
+      }
+    },
+    "momo.line.greeting.01" : {
+      "comment" : "04 §10.3 return-greeting pool — same-day return past the re-greet floor (GreetingKind.welcomeBack; TASK-033's fixed lookup starts this pool at 01).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo looked up right away."
+          }
+        }
+      }
+    },
+    "momo.line.greeting.02" : {
+      "comment" : "04 §10.3 return-greeting pool — absence ≥ 36 h, warm, no guilt vocabulary (GreetingKind.missedYou; TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo missed you."
+          }
+        }
+      }
+    },
+    "momo.line.greeting.03" : {
+      "comment" : "04 §10.3 return-greeting pool — first open of the local day (GreetingKind.freshMorning; TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is up and starting the day."
           }
         }
       }
@@ -25,6 +289,330 @@
         }
       }
     },
+    "momo.line.morning.00" : {
+      "comment" : "04 §10.3 morning pool, line 1 of 10 (0-based index 00 — TASK-033's catalog landing).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good morning. Momo just woke up."
+          }
+        }
+      }
+    },
+    "momo.line.morning.01" : {
+      "comment" : "04 §10.3 morning pool, line 2 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is stretching off the sleep."
+          }
+        }
+      }
+    },
+    "momo.line.morning.02" : {
+      "comment" : "04 §10.3 morning pool, line 3 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A soft start to the day."
+          }
+        }
+      }
+    },
+    "momo.line.morning.03" : {
+      "comment" : "04 §10.3 morning pool, line 4 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo perked up the moment you arrived."
+          }
+        }
+      }
+    },
+    "momo.line.morning.04" : {
+      "comment" : "04 §10.3 morning pool, line 5 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning light suits Momo."
+          }
+        }
+      }
+    },
+    "momo.line.morning.05" : {
+      "comment" : "04 §10.3 morning pool, line 6 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo was dreaming about breakfast."
+          }
+        }
+      }
+    },
+    "momo.line.morning.06" : {
+      "comment" : "04 §10.3 morning pool, line 7 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slow blinks. Momo is glad you're here."
+          }
+        }
+      }
+    },
+    "momo.line.morning.07" : {
+      "comment" : "04 §10.3 morning pool, line 8 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The day is quiet so far. Momo likes it."
+          }
+        }
+      }
+    },
+    "momo.line.morning.08" : {
+      "comment" : "04 §10.3 morning pool, line 9 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is doing small morning stretches."
+          }
+        }
+      }
+    },
+    "momo.line.morning.09" : {
+      "comment" : "04 §10.3 morning pool, line 10 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You two have a whole day ahead."
+          }
+        }
+      }
+    },
+    "momo.line.night.00" : {
+      "comment" : "04 §10.3 night pool, line 1 of 10 (0-based index 00 — TASK-033's catalog landing).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shhh… Momo is sleeping."
+          }
+        }
+      }
+    },
+    "momo.line.night.01" : {
+      "comment" : "04 §10.3 night pool, line 2 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is curled up, fast asleep."
+          }
+        }
+      }
+    },
+    "momo.line.night.02" : {
+      "comment" : "04 §10.3 night pool, line 3 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo's ear twitched. Still asleep."
+          }
+        }
+      }
+    },
+    "momo.line.night.03" : {
+      "comment" : "04 §10.3 night pool, line 4 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A small snore. Momo is deep in a dream."
+          }
+        }
+      }
+    },
+    "momo.line.night.04" : {
+      "comment" : "04 §10.3 night pool, line 5 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo sleeps best on quiet nights."
+          }
+        }
+      }
+    },
+    "momo.line.night.05" : {
+      "comment" : "04 §10.3 night pool, line 6 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All tucked in. Momo is warm."
+          }
+        }
+      }
+    },
+    "momo.line.night.06" : {
+      "comment" : "04 §10.3 night pool, line 7 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo stirs, then settles again."
+          }
+        }
+      }
+    },
+    "momo.line.night.07" : {
+      "comment" : "04 §10.3 night pool, line 8 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The house is quiet. Momo is resting."
+          }
+        }
+      }
+    },
+    "momo.line.night.08" : {
+      "comment" : "04 §10.3 night pool, line 9 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo will be ready for morning."
+          }
+        }
+      }
+    },
+    "momo.line.night.09" : {
+      "comment" : "04 §10.3 night pool, line 10 of 10 (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sweet dreams are in progress."
+          }
+        }
+      }
+    },
+    "momo.line.quest.q1" : {
+      "comment" : "PRD §5.2 Q1 wish, verbatim 'Name — wish' framing (UX §5.5's quest-card row; TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning hello — say hello to Momo"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q2" : {
+      "comment" : "PRD §5.2 Q2 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mealtime — Momo would like a meal"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q3" : {
+      "comment" : "PRD §5.2 Q3 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Second helping — Momo is extra hungry today"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q4" : {
+      "comment" : "PRD §5.2 Q4 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playtime — Momo feels like playing"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q5" : {
+      "comment" : "PRD §5.2 Q5 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra playful — Momo has lots of energy today"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q6" : {
+      "comment" : "PRD §5.2 Q6 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tuck-in — Momo is getting sleepy"
+          }
+        }
+      }
+    },
+    "momo.line.quest.q7" : {
+      "comment" : "PRD §5.2 Q7 wish, verbatim (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gentle pats — Momo wouldn't mind some pats"
+          }
+        }
+      }
+    },
     "momo.line.react.touch.00" : {
       "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.react namespace; wired as the VoiceOver accessibility label of the watch glance's pat capsule (UX-8: announced, never rendered). Replaced by the §6 reaction pools in engine tasks; not product copy.",
       "extractionState" : "manual",
@@ -33,6 +621,246 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Placeholder reaction line for VoiceOver."
+          }
+        }
+      }
+    },
+    "momo.line.status.energy.drowsy" : {
+      "comment" : "PRD §3.2 band name as the status row's energy word (TASK-033's status class).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drowsy"
+          }
+        }
+      }
+    },
+    "momo.line.status.energy.energetic" : {
+      "comment" : "PRD §3.2 band name as the status row's energy word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energetic"
+          }
+        }
+      }
+    },
+    "momo.line.status.energy.exhausted" : {
+      "comment" : "PRD §3.2 band name as the status row's energy word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exhausted"
+          }
+        }
+      }
+    },
+    "momo.line.status.energy.relaxed" : {
+      "comment" : "PRD §3.2 band name as the status row's energy word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relaxed"
+          }
+        }
+      }
+    },
+    "momo.line.status.stage.bestFriends" : {
+      "comment" : "PRD §3.3 stage name as the status row's stage word (TASK-033's status class).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best Friends"
+          }
+        }
+      }
+    },
+    "momo.line.status.stage.gettingClose" : {
+      "comment" : "PRD §3.3 stage name as the status row's stage word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting Close"
+          }
+        }
+      }
+    },
+    "momo.line.status.stage.newFriends" : {
+      "comment" : "PRD §3.3 stage name as the status row's stage word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Friends"
+          }
+        }
+      }
+    },
+    "momo.line.status.stage.soulCompanions" : {
+      "comment" : "PRD §3.3 stage name as the status row's stage word (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Soul Companions"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.energy.drowsy" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's energy phrase for the Drowsy band (VoiceOver formula; TASK-033 lands the catalog entries).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "is getting sleepy"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.energy.energetic" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's energy phrase for the Energetic band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "has plenty of energy"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.energy.exhausted" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's energy phrase for the Exhausted band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "is very sleepy"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.energy.relaxed" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's energy phrase for the Relaxed band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "is relaxed"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.mood.content" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's mood word for the Content band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "content"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.mood.joyful" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's mood word for the Joyful band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "joyful"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.mood.low" : {
+      "comment" : "OBS-1 a11y vocabulary — 04 §3.5's mood word for the Low band (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "low"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.mood.wistful" : {
+      "comment" : "OBS-1 a11y vocabulary — the Wistful band's word announces 04 §3.5's \"quiet\" remap (the KEY stays band-named; TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "quiet"
+          }
+        }
+      }
+    },
+    "momo.line.vocab.stage.bestFriends" : {
+      "comment" : "OBS-1 a11y vocabulary — PRD §3.3's Best Friends descriptor (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo knows your rhythms."
+          }
+        }
+      }
+    },
+    "momo.line.vocab.stage.gettingClose" : {
+      "comment" : "OBS-1 a11y vocabulary — PRD §3.3's Getting Close descriptor (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo perks up when you arrive."
+          }
+        }
+      }
+    },
+    "momo.line.vocab.stage.newFriends" : {
+      "comment" : "OBS-1 a11y vocabulary — PRD §3.3's New Friends descriptor (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just getting to know each other."
+          }
+        }
+      }
+    },
+    "momo.line.vocab.stage.soulCompanions" : {
+      "comment" : "OBS-1 a11y vocabulary — PRD §3.3's Soul Companions descriptor (TASK-033).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quietly inseparable."
           }
         }
       }

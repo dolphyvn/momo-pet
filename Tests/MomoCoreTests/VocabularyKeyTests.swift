@@ -111,4 +111,40 @@ struct VocabularyKeyTests {
         #expect(Self.catalogObligations.map(\.key) == minted)
         #expect(Self.catalogObligations.allSatisfy { !$0.text.isEmpty })
     }
+
+    // MARK: The catalog landing itself (TASK-033)
+
+    /// TASK-033 landed the catalog entries this suite's obligations name:
+    /// the shipped `MomoCopy.xcstrings` must carry ALL TWELVE vocabulary
+    /// entries verbatim — the 8 obligation texts above, plus the 4 mood
+    /// words (04 §3.5, including the Wistful key announcing "quiet"). The
+    /// engine stays key-only (INV-11); this test reads the catalog file so
+    /// the words can only change as a spec change, with this pin failing.
+    @Test("the shipped catalog carries every vocabulary entry verbatim, wistful→quiet included (TASK-033's landing)")
+    func catalogCarriesTheVocabularyVerbatim() throws {
+        var expected = [
+            // 04 §3.5's mood words — the Wistful entry announces "quiet".
+            "momo.line.vocab.mood.joyful": "joyful",
+            "momo.line.vocab.mood.content": "content",
+            "momo.line.vocab.mood.wistful": "quiet",
+            "momo.line.vocab.mood.low": "low",
+        ]
+        expected.merge(Self.catalogObligations.map { ($0.key, $0.text) }) { current, _ in current }
+        #expect(expected.count == 12, "the vocabulary is 4 mood + 4 energy + 4 stage")
+        let catalogs = try TestRepo.stringCatalogs()
+        let catalog = try #require(
+            catalogs.first { $0.name.hasSuffix("MomoCopy.xcstrings") },
+            "the shared app catalog was not found in the repo tree"
+        )
+        let data = try Data(contentsOf: catalog.url)
+        let root = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let strings = try #require(root["strings"] as? [String: Any])
+        for (key, text) in expected.sorted(by: { $0.key < $1.key }) {
+            let entry = try #require(strings[key] as? [String: Any], "'\(key)' is missing from the shipped catalog")
+            let localizations = try #require(entry["localizations"] as? [String: Any], "'\(key)' has no localizations")
+            let en = try #require(localizations["en"] as? [String: Any], "'\(key)' has no en localization")
+            let unit = try #require(en["stringUnit"] as? [String: Any], "'\(key)' has no stringUnit")
+            #expect(unit["value"] as? String == text, "'\(key)' must read verbatim: '\(text)'")
+        }
+    }
 }
