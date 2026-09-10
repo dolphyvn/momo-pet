@@ -116,7 +116,7 @@ Mandatory independent adversarial review (CLAUDE.md §10/§33) by a FRESH agent 
 
 ## Status
 
-IN_REVIEW — implementation + fix round 1 complete (REVIEW-TASK-027 disposition items 1–6; ADR-010/011/012 written), suite green (721/72), NOT committed (delta review next, then orchestrator commits per §10/§12).
+DONE — commit `d26b9d3` "feat(character): TASK-027 deterministic idle sequencer + expression system" (28 files, +4637/−160) on `feature/EPIC-006-character`, pushed to origin (`2e84cf7..d26b9d3`, verified 2026-09-10). Suite 721/72 green at commit time (§19 evidence in Completion Evidence). Independent review complete: REVIEW-TASK-027 (CHANGES_REQUIRED) → fix round 1 → REVIEW-TASK-027-FIX1 **APPROVED_WITH_MINOR_NOTES**, all findings addressed and delta-reviewed per §11.
 
 ## Implementation Notes
 
@@ -168,7 +168,8 @@ IN_REVIEW — implementation + fix round 1 complete (REVIEW-TASK-027 disposition
 - **New coverage:** 87 tests in 6 new suites — MomoExpressionTests 16, MomoIdleSequencerTests 21, MomoIdleRenderTests 20, MomoCurvesTask027Tests 14, MomoIdleRandomTests 10, R1CompositionTests 6; RigDisciplineTests extended 11 → 13 (§9.4 system-randomness scanners, fixture + whole-stack).
 - **Art budgets re-measured:** rig bucket 51,906 / 307,200 B (17 %); room+props 20,647 / 256,000 B (8 %); MomoCharacter sources 204,789 / 1,572,864 B (13 %). No new geometry — generated buckets byte-identical.
 - **Fix round 1 (2026-09-10, final tree):** `swift test` → **721 tests / 72 suites, passed** (1.4 s), exit 0; zero NEW warnings (stderr: only the pre-existing toolchain `/opt/extra/lib` ld note). Delta vs the implementation round: +2 MomoIdleRenderTests, +1 net MomoIdleSequencerTests, +2 MomoIdleResumeTests (new suite).
-- **Commit:** none by implementer/fix agent (Git Requirements). Working tree holds exactly the TASK-027 changeset: 9 modified sources/tests + 5 new sources + 6 new test files + ADR-009/010/011/012 + this file.
+- **Commit:** `d26b9d3` "feat(character): TASK-027 deterministic idle sequencer + expression system" — 28 files, +4637/−160, on `feature/EPIC-006-character`. Created by the orchestrator after the §10/§11 review loop cleared (reviewer + delta reviewer both recorded; task file updated to DONE first). No commit by implementer/fix agent (Git Requirements honored).
+- **Push:** `2e84cf7..d26b9d3` → `origin/feature/EPIC-006-character`, success, verified 2026-09-10 (§13).
 
 ## Handoff
 
