@@ -25,8 +25,12 @@ import MomoCore
 public struct RigMotionModel: Sendable {
 
     /// Which channels currently contribute to the pose. The default `.all`
-    /// is "everything the model knows how to drive"; TASK-029's Reduce
-    /// Motion mapping lands as static poses by disabling motion channels.
+    /// is "everything the model knows how to drive" (a channel-value gate:
+    /// disabling a channel zeroes the whole write, including the band's
+    /// STATIC values — it is not the Reduce Motion mechanism; TASK-029's
+    /// RM mapping rides the `reduceMotion` flag below, which masks the
+    /// idle EVENT substream and the breath/wag sines while leaving every
+    /// band's static base rendered).
     public var enabledChannels: RigChannel
 
     /// The engine-injected idle seed (§5.1): opaque to the character, the
@@ -67,6 +71,26 @@ public struct RigMotionModel: Sendable {
             reactionMotion: reactionMotion)
     }
 
+    /// The overlay form with TASK-029's injected Reduce Motion flag and
+    /// pending state-change crossfade (the view's RM path; the schedule
+    /// regenerates from the seed exactly as in the other convenience
+    /// forms).
+    public func pose(
+        at time: Double,
+        displayState: CharacterDisplayState,
+        reactionMotion: MomoReactionMotion,
+        reduceMotion: Bool,
+        staticPoseTransition: MomoReduceMotionTransition?
+    ) -> RigPose {
+        pose(
+            at: time, displayState: displayState,
+            schedule: MomoIdleSequencer.schedule(
+                idleSeed: idleSeed, displayState: displayState, windowEnd: time),
+            reactionMotion: reactionMotion,
+            reduceMotion: reduceMotion,
+            staticPoseTransition: staticPoseTransition)
+    }
+
     /// The pose with an explicit schedule — the injection point for a
     /// cached event log (the view regenerating per frame is correct but
     /// wasteful; callers may pass `MomoIdleSequencer.schedule` output for
@@ -87,21 +111,39 @@ public struct RigMotionModel: Sendable {
     /// laws below bound every write, so any emitted pose still satisfies
     /// them. `.identity` is the exact pre-TASK-028 pose (the TASK-027 pins
     /// stay green untouched).
+    ///
+    /// TASK-029 (04 §7.3): `reduceMotion` is the INJECTED render-only
+    /// flag (default `false` is an exact no-op). Under the flag the idle
+    /// EVENT substream contributes nothing (blink/gaze/variant/yawn), the
+    /// breath and slow-wag sines are off — the static pose per state —
+    /// and `staticPoseTransition` crossfades a state change between the
+    /// two static poses (§7.3 state changes row, 0.15 s; posture never
+    /// animates through intermediate motion).
     public func pose(
         at time: Double,
         displayState: CharacterDisplayState,
         schedule: [MomoIdleEvent],
-        reactionMotion: MomoReactionMotion
+        reactionMotion: MomoReactionMotion,
+        reduceMotion: Bool = false,
+        staticPoseTransition: MomoReduceMotionTransition? = nil
     ) -> RigPose {
         var pose = RigPose.rest
         let expression = MomoExpressions.expression(for: displayState)
-        let active = MomoIdleArbiter.admitted(schedule: schedule, at: time)
+        // §7.3 idle row: the schedulers' output is MASKED at the seam
+        // (the schedule itself stays a pure function of the seed — the
+        // observable law is the static pose at every t).
+        let active = reduceMotion
+            ? [] : MomoIdleArbiter.admitted(schedule: schedule, at: time)
 
         // MARK: Body — posture × breath (§3.2 + §7.1), bottom-anchored
 
         let asleep = displayState.wakefulness == .asleep
-        let breathAmplitude = expression.breathAmplitude
-            * (asleep ? 1 - MomoCurves.sleepAmplitudeReduction : 1)
+        // §7.3 idle row: the breath sine is OFF under RM (amplitude 0
+        // makes breathScaleY exactly 1 — the static posture stands).
+        let breathAmplitude = reduceMotion
+            ? 0
+            : expression.breathAmplitude
+                * (asleep ? 1 - MomoCurves.sleepAmplitudeReduction : 1)
         var bodyScaleY = expression.postureScaleY
             * MomoCurves.breathScaleY(
                 at: time, cycle: expression.breathCycleSeconds,
@@ -116,8 +158,10 @@ public struct RigMotionModel: Sendable {
         var tailDegrees = 0.0
 
         // Joyful's slow wag (§3.2): a pure sine like the breath, inside the
-        // ±10° tail bound; every other band's tail is still.
-        if expression.tail == .slowWag, enabledChannels.contains(.tailRotation) {
+        // ±10° tail bound; every other band's tail is still. §7.3 idle
+        // row: the wag sine is OFF under RM.
+        if !reduceMotion, expression.tail == .slowWag,
+            enabledChannels.contains(.tailRotation) {
             tailDegrees += MomoExpressions.tailWagAmplitudeDegrees
                 * sin(2 * .pi * time / MomoExpressions.tailWagPeriodSeconds)
         }
@@ -273,6 +317,23 @@ public struct RigMotionModel: Sendable {
             if enabledChannels.contains(.propSparkleB) {
                 pose.sparkleB = reactionMotion.sparkleB
             }
+        }
+
+        // MARK: §7.3 state changes row — the static↔static crossfade
+
+        // Under RM a display-state change crossfades between the two
+        // states' STATIC poses over the authored 0.15 s (the transition
+        // arrives injected, folded from the same .displayState events the
+        // director consumes). The departure pose is the FROM state's own
+        // static render (no overlay — the overlay belongs to now); the
+        // arrival pose is everything composed above.
+        if reduceMotion, let transition = staticPoseTransition {
+            let fromPose = self.pose(
+                at: time, displayState: transition.fromState, schedule: [],
+                reactionMotion: .identity, reduceMotion: true)
+            let amount = 1 - MomoCurves.smoothstep(
+                (time - transition.since) / MomoReduceMotion.stateCrossfadeSeconds)
+            pose = pose.blend(fromPose, amount: amount)
         }
 
         return pose

@@ -49,6 +49,7 @@ enum RigDiscipline {
         "Sources/MomoCharacter/MomoReactionDirector.swift",
         "Sources/MomoCharacter/MomoReactionState.swift",
         "Sources/MomoCharacter/MomoReactionOverlay.swift",
+        "Sources/MomoCharacter/MomoReduceMotion.swift",
     ]
 
     // MARK: - R1: no Path construction or mutation
@@ -185,7 +186,7 @@ struct RigDisciplineTests {
 
     @Test("NO hand-written rig file constructs or mutates geometry (R1)")
     func rigFilesAreGeometryFree() throws {
-        #expect(RigDiscipline.rigImplementationFiles.count == 21) // scanned set pinned
+        #expect(RigDiscipline.rigImplementationFiles.count == 22) // scanned set pinned
         for name in RigDiscipline.rigImplementationFiles {
             let source = try RigDiscipline.readRigFile(name)
             #expect(RigDiscipline.pathConstructionViolations(in: source).isEmpty,
@@ -300,5 +301,51 @@ struct RigDisciplineTests {
         // Non-vacuity of the presence check itself.
         #expect(!RigDiscipline.mentionsScenePhaseWiring(in: "struct V: View { var body: some View { EmptyView() } }"))
         #expect(!RigDiscipline.mentionsScenePhaseWiring(in: "onChange(of: x) { clock.resume() }"))
+    }
+
+    // MARK: - TASK-029: the RM environment read is the view's alone (R1)
+
+    @Test("accessibilityReduceMotion is read ONLY in the view's environment mapping")
+    func reduceMotionEnvironmentReadIsViewScoped() throws {
+        // The `scenePhase` firewall, extended to the RM flag: no pure
+        // layer may read ambient accessibility state — the flag arrives
+        // INJECTED (the view's environment read is its only source).
+        let characterDir = "Sources/MomoCharacter"
+        let files = try FileManager.default
+            .contentsOfDirectory(atPath: characterDir)
+            .filter { $0.hasSuffix(".swift") }
+        #expect(!files.isEmpty)
+        for file in files {
+            let source = try RigDiscipline.readRigFile("\(characterDir)/\(file)")
+            let reads = source.contains("accessibilityReduceMotion")
+            if file == "MomoRigView.swift" {
+                #expect(reads, "the view's default source should be present")
+            } else {
+                #expect(!reads, "\(file) reads ambient accessibility state (R1)")
+            }
+        }
+    }
+
+    @Test("RM leaves the glyph tier byte-identical: the AOD branch renders the .rest constant")
+    func glyphTierIsFlagFree() throws {
+        // The glyph tier is already static (TASK-026) — the view's AOD
+        // branch renders the CONSTANT rest pose (no clock, no model, no
+        // flag input), so RM cannot change what it paints. Pinned as a
+        // structural wire check (the branch's exact shape), plus the
+        // painted transforms are a pure function of `.rest` (recomputed —
+        // identical, no ambient input).
+        let source = try RigDiscipline.readRigFile("Sources/MomoCharacter/MomoRigView.swift")
+        #expect(source.contains("tier == .glyph"))
+        #expect(source.contains("rigCanvas(pose: .rest)"))
+        let transforms = RigLayerTree.slots(for: .glyph).map {
+            RigLayerTree.affineTransform(of: $0, at: .rest)
+        }
+        let again = RigLayerTree.slots(for: .glyph).map {
+            RigLayerTree.affineTransform(of: $0, at: .rest)
+        }
+        #expect(transforms == again)
+        // Non-vacuity: the shape pin fires on the real file.
+        #expect(try !RigDiscipline.readRigFile("Sources/MomoCharacter/RigLayerTree.swift")
+            .contains("rigCanvas(pose: .rest)"))
     }
 }

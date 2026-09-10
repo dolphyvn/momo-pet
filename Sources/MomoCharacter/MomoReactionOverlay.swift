@@ -99,7 +99,11 @@ extension MomoDirectorState {
         return play.followStart + baseline
     }
 
-    private func reactionMotion(
+    /// TASK-029: internal (not private) so the Reduce Motion transform
+    /// (`MomoReduceMotion.swift`) extracts a run's end pose through the
+    /// EXACT same dispatch — the RM end pose is this function evaluated
+    /// at the director-resolved end (R6's "carries its meaning" law).
+    func reactionMotion(
         _ slot: MomoReactionSlot, at t: Double
     ) -> MomoReactionMotion {
         if slot.glanceUp {
@@ -116,7 +120,9 @@ extension MomoDirectorState {
 
     /// Rule 5's glance-up: the meal keeps chewing while the eyes find the
     /// touch (AUTHORED ~0.5 s).
-    private func glanceUpMotion(at elapsed: Double) -> MomoReactionMotion {
+    /// TASK-029: internal so the RM transform renders the glance-up's
+    /// plateau posture from THIS authored shape (no duplicate constants).
+    func glanceUpMotion(at elapsed: Double) -> MomoReactionMotion {
         let shape = MomoReactionChoreography.bump(
             elapsed, duration: Self.glanceUpSeconds, attack: 0.12, release: 0.2)
         return MomoReactionMotion(
@@ -128,7 +134,10 @@ extension MomoDirectorState {
     /// The L1 press micro-feedback: a whisper of ear lift and an upward
     /// glance while the finger is down; Rule 1 fades it on reaction
     /// arrival.
-    private func pressMotion(_ press: MomoPressState, at t: Double) -> MomoReactionMotion {
+    /// TASK-029: internal — the RM overlay renders the L1 press feedback
+    /// UNCHANGED (it already is the §7.3 look-around row's static touch
+    /// glance; its micro-eases are the coherence envelope).
+    func pressMotion(_ press: MomoPressState, at t: Double) -> MomoReactionMotion {
         let alive = press.fadingSince == nil || t < press.fadingSince! + Self.l1FadeSeconds
         guard alive, t >= press.start else { return .identity }
         let presence: Double
@@ -145,7 +154,9 @@ extension MomoDirectorState {
 
     // MARK: Visibility
 
-    private func isVisible(_ slot: MomoReactionSlot, at t: Double) -> Bool {
+    /// TASK-029: internal — the RM overlay gates slots with the SAME
+    /// visibility (§4.1 governs WHAT renders under RM too).
+    func isVisible(_ slot: MomoReactionSlot, at t: Double) -> Bool {
         guard slot.start <= t else { return false }
         if let superseded = slot.supersededAt {
             return t < superseded + slot.fadeOutSeconds

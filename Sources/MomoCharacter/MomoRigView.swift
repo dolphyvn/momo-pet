@@ -46,10 +46,16 @@ public struct MomoRigView: View {
     private let clock: CharacterClock
     private let model: RigMotionModel
     private let stageSide: CGFloat
-    private let reactionMotion: @Sendable (Double) -> MomoReactionMotion
+    private let reactionMotion: @Sendable (Double, Bool) -> MomoReactionMotion
+    private let reduceMotionOverride: Bool?
+    private let staticPoseTransition: MomoReduceMotionTransition?
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
+    /// TASK-029's RM DEFAULT SOURCE (the `scenePhase` precedent): the
+    /// environment read lives HERE and only here; every pure layer
+    /// receives the resolved injected `Bool` (an explicit override wins).
+    @Environment(\.accessibilityReduceMotion) private var environmentReduceMotion
     @State private var clockRunning = false
 
     /// - Parameters:
@@ -60,16 +66,26 @@ public struct MomoRigView: View {
     ///   - model: the motion model (idle seed + channels steerable).
     ///   - stageSide: the §2.1 stage size in points (tier bands in `RigLOD`).
     ///   - reactionMotion: the TASK-028 overlay, sampled at the frame's
-    ///     clock time (a session passes `{ state.overlay(at: $0) }` over
-    ///     its `MomoDirectorState`; the default is the no-op overlay, whose
-    ///     pose is exactly the pre-TASK-028 pose).
+    ///     clock time with the RESOLVED Reduce Motion flag (a session
+    ///     passes `{ state.overlay(at: $0) }` — or, under RM,
+    ///     `{ state.reduceMotionOverlay(at: $0) }`; the flag lets one
+    ///     closure serve both readings). The default is the no-op overlay,
+    ///     whose pose is exactly the pre-TASK-028 pose.
+    ///   - reduceMotion: the TASK-029 override; nil (the default) resolves
+    ///     from `\.accessibilityReduceMotion`. Injected into the pose seam
+    ///     and handed to the overlay closure — never read anywhere else.
+    ///   - staticPoseTransition: the pending state-change crossfade under
+    ///     RM (folded from the same `.displayState` events the director
+    ///     consumes — see `MomoReduceMotionStateTracker`).
     public init(
         displayState: CharacterDisplayState,
         tier: RigLODTier,
         clock: CharacterClock,
         model: RigMotionModel = RigMotionModel(),
         stageSide: CGFloat = 260,
-        reactionMotion: @escaping @Sendable (Double) -> MomoReactionMotion = { _ in .identity }
+        reactionMotion: @escaping @Sendable (Double, Bool) -> MomoReactionMotion = { _, _ in .identity },
+        reduceMotion: Bool? = nil,
+        staticPoseTransition: MomoReduceMotionTransition? = nil
     ) {
         self.displayState = displayState
         self.tier = tier
@@ -77,22 +93,21 @@ public struct MomoRigView: View {
         self.model = model
         self.stageSide = stageSide
         self.reactionMotion = reactionMotion
+        self.reduceMotionOverride = reduceMotion
+        self.staticPoseTransition = staticPoseTransition
     }
 
     public var body: some View {
         Group {
             if tier == .glyph {
                 // The glyph tier is a static snapshot — stillness IS the
-                // AOD posture, so this branch never binds the clock.
+                // AOD posture, so this branch never binds the clock (and
+                // RM leaves it byte-identical: it was already static).
                 rigCanvas(pose: .rest)
             } else {
                 TimelineView(.animation(paused: !clockRunning)) { context in
                     let time = clock.elapsed(at: context.date)
-                    rigCanvas(
-                        pose: model.pose(
-                            at: time,
-                            displayState: displayState,
-                            reactionMotion: reactionMotion(time)))
+                    rigCanvas(pose: renderedPose(at: time))
                 }
             }
         }
@@ -111,6 +126,20 @@ public struct MomoRigView: View {
         case .pause: clock.pause()
         }
         clockRunning = clock.isRunning
+    }
+
+    /// The frame's pose through the pure model: the overlay closure
+    /// samples at the frame's clock time with the RESOLVED RM flag, and
+    /// the same flag drives the pose seam (idle masking + the state
+    /// crossfade).
+    private func renderedPose(at time: Double) -> RigPose {
+        let reduceMotion = reduceMotionOverride ?? environmentReduceMotion
+        return model.pose(
+            at: time,
+            displayState: displayState,
+            reactionMotion: reactionMotion(time, reduceMotion),
+            reduceMotion: reduceMotion,
+            staticPoseTransition: staticPoseTransition)
     }
 
     // MARK: - Layer rendering
