@@ -106,7 +106,7 @@ Build/launch verification (record in the task file): `xcodebuild build` (Momo sc
 
 ## Status
 
-DONE pending commit+push (2026-09-10) — implemented (R1–R13) → reviewed APPROVED_WITH_MINOR_NOTES → findings dispositioned (NITPICK-1 fixed, NOTE-2 hardened, NOTE-3 recorded) → §19 green (857/86). Orchestrator committing next; hash + push range land in Completion Evidence, then this file moves to `.claude/tasks/completed/`.
+DONE (2026-09-10) — implemented (R1–R13) → reviewed APPROVED_WITH_MINOR_NOTES → findings dispositioned (NITPICK-1 fixed, NOTE-2 hardened, NOTE-3 recorded) → §19 green → committed + pushed.
 
 ## Implementation Notes
 
@@ -228,4 +228,8 @@ Orchestrator additionally folded one held citation alignment into the same dispo
 
 ## Completion Evidence
 
-(filled at close: commit hash, push range, §19 results, test counts, launch evidence, review verdict)
+- **Review:** REVIEW-TASK-032 — **APPROVED_WITH_MINOR_NOTES** (0 MAJOR / 0 MINOR / 1 NITPICK / 3 NOTE; five sha256-proven mutation bites all red + restored; independent reproduction: `swift test` 857/86, `xcodebuild build` BUILD SUCCEEDED, UI battery 5/5, two screenshot-verified launches). All findings dispositioned (see Reviewer Findings).
+- **Commit:** `53e433f` — `feat(app): TASK-032 onboarding S1→S2→S3 — three calm steps, atomic completion flag` (15 files: 8 modified + 7 new, 1187 insertions; includes REVIEW-TASK-032.md per the TASK-031 precedent).
+- **Push:** `c0ad5ec..53e433f` → `origin/feature/EPIC-007-iphone-home` — SUCCESS; branch in sync.
+- **§19 evidence:** `swift test` after dispositions — **857 tests / 86 suites, all PASSED** (baseline 851/85 @ contract commit + 6 new; the NOTE-2 hardening adds asserts inside an existing test, no count change). App build + UI battery 5/5 + two-launch evidence as recorded under Tests Run / Test Results (implementation agent's runs, independently reproduced by the reviewer).
+- **Task count:** 2/9 of EPIC-007 complete (TASK-031, TASK-032). Next: TASK-033 — Home composition (reuses `MomoAppModel.canvasClock` + `characterDisplayState`; director/moment wiring stays TASK-036's).
