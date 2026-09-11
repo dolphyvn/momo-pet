@@ -106,4 +106,19 @@ struct StoreRulesPinnedTests {
         #expect(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory))
         #expect(isDirectory.boolValue, "the factory must create the directory when missing")
     }
+
+    // MARK: - The TASK-041 Watch-side store constants (05 §6.6; ADR-013)
+
+    @Test("the Watch snapshot generation names are the contract names, byte-for-byte")
+    func watchSnapshotFileNames() {
+        #expect(StoreRules.watchSnapshotFileName == "watch-snapshot.json")
+        #expect(StoreRules.previousWatchSnapshotFileName == "watch-snapshot.prev.json")
+    }
+
+    @Test("the Watch-side temp names live in their documents' namespaces (same-volume renames)")
+    func watchTemporaryFileNames() {
+        #expect(StoreRules.temporaryWatchSnapshotFileName == "watch-snapshot.json.tmp")
+        #expect(StoreRules.watchConsumedMarkerFileName == "watch-consumed-marker.json")
+        #expect(StoreRules.temporaryWatchConsumedMarkerFileName == "watch-consumed-marker.json.tmp")
+    }
 }

@@ -89,16 +89,72 @@ MomoWatch leaves its placeholder shell and becomes **W1** — the one glanceable
 
 ## Status
 
-IN_PROGRESS — contract authored 2026-09-11 (this file + ADR-014 ride the contract commit); awaiting fresh Jupiter implementation dispatch.
+DONE — implemented 2026-09-11 (fresh Jupiter agent), independently reviewed (REVIEW-TASK-041: **APPROVED_WITH_MINOR_NOTES**, 0 Critical / 0 Major / 2 Minor / 2 Notes; F-1 DEBUG-loud nil-character log + F-2 "skipped vs held" wording routed to TASK-042's receive-path work; F-3 UX §6.1 "~40 %" doc-erratum → backlog; F-4 cosmetic nit, no action). All gates green over the final tree (1056/104; coverage 91.48 %; both builds zero touched-file warnings; UI suite 3/3; 4 probes sha256-restored byte-identical). Commit + push per the placeholders below.
 
 ## Implementation Notes
 
-(to be completed by the implementing agent — design decisions, the O4 judgment record with the chosen `stageSide`, the restore-measurement semantics, the fixture-seam disclosure, any disclosed scope-adjacent touches)
+**(implemented 2026-09-11, fresh Jupiter agent; branch `feature/EPIC-008-watch-sync`, uncommitted for review per §9)**
+
+### Delivered shape (R1–R10 map)
+
+- MomoKit (new): `WatchCharacterDTO` + additive-optional `WatchSnapshot.character` (ADR-014, `decodeIfPresent`/`encodeIfPresent`, no schema bump), `makeWatchCharacterDisplay` assembly, `WatchSnapshotBuilder` character threading, `WatchSnapshotStore` (current + one `.prev`, atomic writes, current→prev→nil read chain), `WatchResetConsumption.decide` (pure), `WatchConsumedMarkerStore`, `StoreRules` Watch file-name constants.
+- Apps/Momo (one-file touch): `MomoAppModel+Watch.swift` derives the DTO from `makeCharacterDisplayState(state)` in the push arm. `MomoAppModel.swift` untouched (verified 800/800 byte-identical).
+- Apps/MomoWatch (new, per ADR-013 duplication): `MomoWatchTransport.swift` (receive-only WC twin, sink-before-activate), `MomoWatchAppModel.swift` (`@Observable` executor: decode-or-skip → §6.6 consumption → latest-wins render → persist; background-transition persist; DEBUG seams), `GlanceView.swift` (W1 four slots + settling-in + AOD tier branch + VO composite), `WatchCopyKeys.swift` (Watch-slot catalog keys, app-target internal), `MomoCopyText.swift` (plain catalog lookup).
+- Tests: new MomoKit suites (store rotation/corruption/one-writer, DTO decode-compat + assembly incl. nil path, consumption boundaries first/repeat/newer/nil/regression, builder threading), `MomoWatchGlanceScanTests` + `WatchGlanceScan` (three structural guards with two-direction stub fixtures), catalog pins + law coverage for the new W1 keys, and the rewritten `MomoWatchUITests` (3 tests: settling-in-only fresh launch; fixture-seeded W1 content + ≥44 pt targets; restore-within-budget).
+
+### O4 judgment of record (R7) — PASS; chosen stageSide: glance 68, glyph 28
+
+`GlanceLayout.glanceStageSide = 68` (mid-band of `RigLOD.glanceStagePoints` 60–80) and `GlanceLayout.glyphStageSide = 28` (mid-band of `RigLOD.glyphStagePoints` 24–32). Evidence vehicle: DEBUG `-momo-aod-preview` launch over the pinned Watch SE sim renders the glyph branch full-screen; the evidence still is copied to `.claude/tasks/reviews/aod-preview-still-TASK-041.png`. Pixel-measured (not eyeballed): the glyph's rendered ink at 28 pt stage is ≈ 36 pt wide × 52 pt tall — the rig's sprite overflows its stage square at a consistent ~1.9× (foreground ink ≈ 88 × 130 pt at the 68 pt stage), and the ink clears a low luminance threshold even in the dimmed AOD render. The silhouette reads as the creature (rounded body; ears carry the "bunny" read). Honest caveats: the glyph is compact (~10–12 % of screen height) and ear detail compresses at this size. No STOP condition fired — per R7, no redesign of the glyph or the band was made or needed.
+
+### Layout-share deviation record (UX §6.1 "~40 %" vs frozen §2.1 glance band)
+
+UX §6.1 specifies the pet canvas at "~40 % of the screen height"; the frozen §2.1 glance stage band (60–80 pt) caps any glance stage at 80/448 ≈ 17.9 % of the Watch SE 44 mm's 448 pt screen. The two specs are arithmetically irreconcilable. This implementation pins the frozen band (the task contract and the `RigLOD` pins govern): stage 68 in a fixed `canvasHeight = 76` slot (stage + `MomoSpacing.small`), which also preserves the ≥ 44 pt canvas pat target and lets the AOD glyph center in an UNCHANGED slot — no layout jump at the luminance transition. The inaccurate "~40 %" doc comments that initially appeared in `GlanceView.swift` were corrected to state band governance (comment-only final edits). **For reviewer/orchestrator attention:** honoring §6.1's share would be a `RigLOD`/UX-doc decision, not a W1-code change; routed here rather than silently implemented (§22).
+
+### Quest-line render — measured, not transcribed
+
+Vision-model reads of the evidence stills repeatedly reported the quest line truncating ("Gentle pats — Momo…"); direct pixel-extent measurement disproved this. The quest `Text` renders ONE left-aligned line spanning ≈ 295 pt with ≈ 41 pt of right slack inside the ≈ 336 pt text container — the full catalog string "Gentle pats — Momo wouldn't mind some pats" fits untruncated (a truncated SwiftUI line always runs to its container's edge). `.lineLimit(2)` stays as the safety net for longer owner-approved copy; the full wish is also in the VO composite (UI-test-asserted).
+
+### Observed cosmetic nit — recorded, not fixed (§22)
+
+On the fixture still, the stack's ink spans nearly the full 448 pt screen and the Pat capsule's bottom edge may kiss the screen edge by ~2 pt (the label is fully visible; the UI test asserts pill height ≥ 44). Any fix is a layout redesign outside this task's contract — flagged for reviewer judgment.
+
+### Persister / threading design (O1, OBS-1, TR9, F-3)
+
+`MomoWatchSnapshotPersister` is the snapshot files' ONE writer: an actor exposing async `persist(directory:snapshot:)` and `consumeWipe(directory:eraseCount:)`. Consumption fuses wipe-then-record into ONE mailbox step, so the F-3 order cannot interleave; a marker/journal disagreement cannot wedge the Watch because the decision is count-based (incoming ≤ consumed → plain render) and the wipe replays idempotently (reasoning at the `consumeWipe` site; the journal-wipe leg is TASK-042's and does not exist yet — nothing to wipe there). Exactly two `persister.persist(` production legs exist (receive; background-gated transition) — structural guard 1 enforces the census. The WC queue's frames hop to the main actor; the main actor's only synchronous I/O is the KB-scale launch read (OBS-1). The F-3 reasoning and the count-regression boundary tests are in the consumption suite.
+
+### Fixture-seam disclosure (DEBUG-only; release never seeds)
+
+`-momo-watch-fixture w1` seeds a deterministic snapshot through the REAL `WatchSnapshotStore.save` BEFORE the synchronous launch read, so the UI restore test exercises the genuine persistence + read path. The seed must precede the sync launch read (that is the seam's whole point), but `save` is actor-isolated and `init` is synchronous — the disclosed bridge is a detached task plus a `DispatchSemaphore` that blocks the launch thread for the one KB write (the store actor is independent of the main actor; no deadlock). `-momo-store-directory` honors absolute paths and resolves relative names inside the app's own temporary directory (runner/app sandbox separation; per-launch UUID isolation). Both seams are DEBUG-gated or argument-absent in production launches.
+
+### Other implementation decisions
+
+- `WatchCopyKeys` lives as an app-target file internal to `Apps/MomoWatch` (ADR-013 per-target duplication); shared vocab/stage/quest keys resolve through the existing shared `HomeCopyKeys`.
+- W1 catalog entries use ASCII apostrophes, matching the existing catalog convention; the UI-test assertions pin those same bytes.
+- Restore measurement semantics (honest by construction): the assertion is `restore − baseline ≤ 2.0 s` where baseline is a measured fresh-store launch in the same run — the large, sim-dependent XCUITest launch overhead cancels, and the bound is exactly NFR-9's budget; both durations are recorded in the failure message.
+- MomoKit line coverage moved 92.47 % → 91.48 % (floor 80 %): the new store's hard-to-reach defensive legs (unrecoverable-store fallbacks, decode-skip logging) and the consumption guards account for the dip; rotation, restore chain, DTO compatibility, and all decision boundaries are suite-covered.
+
+### Disclosed scope-adjacent touches
+
+- The AOD evidence still was copied into `.claude/tasks/reviews/` as review evidence (non-code).
+- Comment-only corrections to `GlanceView.swift` doc comments (the "~40 %" inaccuracy, above) were made after the guard bites were recorded — see Completion Evidence for the hash note.
 
 ## Reviewer Findings
 
-(to be completed by the review agent — see `.claude/tasks/reviews/REVIEW-TASK-041.md`)
+Pending — not yet reviewed. The independent review agent records its findings in `.claude/tasks/reviews/REVIEW-TASK-041.md` and its verdict here (APPROVED / APPROVED_WITH_MINOR_NOTES / CHANGES_REQUIRED / BLOCKED).
+
+**VERDICT (independent adversarial review, 2026-09-11): APPROVED_WITH_MINOR_NOTES** — full record in `.claude/tasks/reviews/REVIEW-TASK-041.md`; 0 Critical / 0 Major / 2 Minor (F-1 DEBUG-loud nil-character log absent, F-2 "slot skipped vs held" wording) + 2 Notes (F-3 layout-share resolution acceptable, route UX §6.1 "~40 %" wording to doc-errata; F-4 cosmetic Pat capsule nit); all 7 gates green independently reproduced (1056/104 tests, coverage 91.48%, both builds 0 touched-file warnings, UI tests 3/3, frozen surfaces clean); Bite C re-verified exactly-one-red + 3 reviewer probes (2 at exactly-one-red), all sha256-restored byte-identical.
 
 ## Completion Evidence
 
-(to be completed at closeout — gates run and their real outputs, commit hash, push status; the closeout convention applies: placeholders written as "(this commit)"/"(this push pending)" resolve in the NEXT status.md edit)
+(gates re-run over the FINAL tree — the only post-bite deltas are the comment-only `GlanceView.swift` edits, documented above)
+
+- **swift test:** 1056 tests in 104 suites PASSED, exit 0 (re-run after all edits; baseline 995/100 grew by this task's suites).
+- **Coverage (MomoKit):** lines 91.48 % (137/1608 missed), regions 89.84 %, functions 91.53 % — floor 80 % cleared.
+- **MomoWatch build:** BUILD SUCCEEDED, zero warnings (re-run after final edits; destination id `8A854895-225C-411B-89C1-B03337BFE957`, Watch SE 3 44 mm).
+- **Momo app build:** green, zero warnings in touched files (iPhone SE `1F25E487`; `GlanceView.swift` is not in the Momo target — unaffected by the final comment edits).
+- **MomoWatchUITests:** 3/3 green on the pinned Watch sim.
+- **Structural guard bites (recorded at bite time, each exactly-one-red, sha256-restored):** Bite A (receive-persist removed) `a166c8b6dd7c1f0b61cc36b9d725507622f16bb342e13dde689d4f878ed835eb`; Bite B (background persist removed) same file, same restore hash; Bite C (AOD glyph branch reverted) `1ec58ffa2716b36872419933913da20e38c0edffa2d393def2167039f464a256`. Post-bite verification: `MomoWatchAppModel.swift` current sha256 == `a166c8b6…` (byte-identical restore confirmed). `GlanceView.swift` current sha256 is `1cc7d04ecd832a50831cbc3a233ed1d90a225a9e4be4e9471b4decc0ba830cc9` — differs from Bite C's restore hash solely because of the post-bite comment-only edits; the scanner is comment-stripping (the property Bite C itself proved), and the standing AOD scan is green over the final tree in the re-run suite.
+- **Frozen surfaces (verified at closeout):** `git diff Sources/MomoCore/` empty; `git status Sources/MomoCharacter/` empty; `Apps/Momo/MomoAppModel.swift` 800/800 lines with no diff; pbxproj: `Momo` and `MomoWatch` app targets both `dependencies = ()` (D-R3 — the UI-test bundles keep only their test-host dependencies); no new entitlements/capabilities/Info.plist keys/permissions (§27).
+- **AOD evidence:** `.claude/tasks/reviews/aod-preview-still-TASK-041.png` (DEBUG `-momo-aod-preview` true-size still; SE has no AOD hardware — §25 disclosure, live observation routed to TASK-044).
+- **Commit:** (this commit) — `feat(watch): TASK-041 W1 glance + snapshot persistence + AOD`, created by the orchestrator after review approval.
+- **Push:** (this push pending) — orchestrator pushes to `feature/EPIC-008-watch-sync` per §13.

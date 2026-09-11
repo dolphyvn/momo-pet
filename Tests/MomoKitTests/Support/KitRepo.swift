@@ -50,4 +50,21 @@ enum KitRepo {
             (name: url.lastPathComponent, contents: try String(contentsOf: url, encoding: .utf8))
         }
     }
+
+    /// All Swift sources under `Apps/MomoWatch` (the watchOS app target),
+    /// sorted by name — the same flat-listing convention, for the TASK-041
+    /// glance scans that pin the W1 target's seams (persist-on-receive, the
+    /// no-engine rule, the AOD glyph branch). The scan tests assert the set
+    /// is non-empty so a missing/renamed watch directory can never make a
+    /// scan vacuously green.
+    static func momoWatchSources() throws -> [(name: String, contents: String)] {
+        let directory = repoRoot + "/Apps/MomoWatch"
+        let urls = try FileManager.default
+            .contentsOfDirectory(at: URL(fileURLWithPath: directory), includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "swift" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        return try urls.map { url in
+            (name: url.lastPathComponent, contents: try String(contentsOf: url, encoding: .utf8))
+        }
+    }
 }

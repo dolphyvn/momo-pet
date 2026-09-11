@@ -42,13 +42,19 @@ import MomoCore
 ///   live the wiring passes it on EVERY build, because the context
 ///   coalesces latest-wins (only the newest value is guaranteed observed)
 ///   and the count is the Watch's one-shot consumption key.
+/// - `character` ← the caller's character DTO, passed through verbatim
+///   (ADR-014, TASK-041 R1): the builder owns no character derivation — the
+///   wiring derives it from the SHARED `makeCharacterDisplayState(state)`
+///   (never re-implemented; 04 §9.2) and threads it here. Default `nil`
+///   (the degraded shape the additive-OPTIONAL adjudication pins).
 public func makeWatchSnapshot(
     state: EngineState,
     display: DisplayState,
     questInputs: [QuestProgress],
     watermarkEpoch: UUID,
     sync: SyncState,
-    resetMarkerEraseCount: Int? = nil
+    resetMarkerEraseCount: Int? = nil,
+    character: WatchCharacterDTO? = nil
 ) -> (snapshot: WatchSnapshot, nextSync: SyncState) {
     let (advancedSync, assignedSeq) = sync.consumingSnapshotSeq()
     let snapshot = WatchSnapshot(
@@ -58,7 +64,8 @@ public func makeWatchSnapshot(
         hapticsEnabled: state.settings.hapticsEnabled,
         lastAppliedIntentSeq: sync.watermark(for: watermarkEpoch),
         lastAppliedEpoch: watermarkEpoch,
-        resetMarkerEraseCount: resetMarkerEraseCount
+        resetMarkerEraseCount: resetMarkerEraseCount,
+        character: character
     )
     return (snapshot, advancedSync)
 }

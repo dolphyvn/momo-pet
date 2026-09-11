@@ -154,6 +154,43 @@ public enum StoreRules {
     /// never read by anyone.
     public static let temporaryWatchResetMarkerFileName = "watch-reset-marker.json.tmp"
 
+    // MARK: - Watch-side stores (05 §6.6; ADR-013 duplicate; TASK-041)
+
+    /// The Watch's last-synced snapshot file (TASK-041 R2; the contract's
+    /// `watch-snapshot.json`): what W1 renders between syncs and at launch.
+    /// The bytes are the `WatchSnapshot` DTO ITSELF — no envelope, because the
+    /// DTO already carries `schemaVersion` and `WatchSnapshot.decoded(from:)`
+    /// gates it (the envelope's only jobs here). Watch-local bookkeeping
+    /// like the sync state: plain JSON, `.sortedKeys` on the record.
+    public static let watchSnapshotFileName = "watch-snapshot.json"
+
+    /// The snapshot's ONE retained predecessor (the contract's single
+    /// `.prev` — deliberately fewer generations than the iPhone store: the
+    /// Watch file is written once per RECEIVED snapshot, not per engine
+    /// event, so its exposure window is tiny and one fallback generation
+    /// covers it; `generationCount` is the iPhone store's record, not this
+    /// file family's).
+    public static let previousWatchSnapshotFileName = "watch-snapshot.prev.json"
+
+    /// The snapshot save's in-flight temp file (the commit-point
+    /// discipline, mirrored from the store family). Same-volume rule — it
+    /// lives in the store directory; never read by anyone.
+    public static let temporaryWatchSnapshotFileName = "watch-snapshot.json.tmp"
+
+    /// The Watch's §6.6 consumption record (TASK-041 R5): the last
+    /// `resetMarkerEraseCount` this Watch has CONSUMED (wipe + record, in
+    /// that order). Reuses the `WatchResetMarker` one-int record — the
+    /// count is the same number on the other side of the link — but the
+    /// FILE is Watch-local bookkeeping in the store directory, distinct
+    /// from the iPhone's out-of-tree sentinel (watch out: wiping the
+    /// snapshot store must never touch this file, or the same count would
+    /// re-consume forever).
+    public static let watchConsumedMarkerFileName = "watch-consumed-marker.json"
+
+    /// The consumed-marker save's temp file (the commit-point discipline).
+    /// Same-volume rule; never read by anyone.
+    public static let temporaryWatchConsumedMarkerFileName = "watch-consumed-marker.json.tmp"
+
     /// The default store directory (05 §5.2): `Application Support/Momo/`,
     /// created if missing — so EPIC-007's wiring is one call. This is the ONE
     /// sanctioned ambient-path site in MomoKit (the discipline scan exempts

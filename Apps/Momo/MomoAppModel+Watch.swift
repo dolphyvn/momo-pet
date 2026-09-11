@@ -118,7 +118,11 @@ extension MomoAppModel {
             questInputs: todaysQuestInputs(now: now),
             watermarkEpoch: watchSyncEpoch ?? StoreRules.zeroWatchSyncEpoch,
             sync: watchSyncState,
-            resetMarkerEraseCount: watchResetMarkerEraseCount > 0 ? watchResetMarkerEraseCount : nil
+            resetMarkerEraseCount: watchResetMarkerEraseCount > 0 ? watchResetMarkerEraseCount : nil,
+            // ADR-014 (TASK-041 R1): the character DTO derives from the
+            // SHARED read-model derivation — never re-implemented here
+            // (04 §9.2; EPIC-008 AC-5).
+            character: makeWatchCharacter(makeCharacterDisplayState(state))
         )
         watchSyncState = nextSync
         guard let data = snapshot.encoded() else {
