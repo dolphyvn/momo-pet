@@ -74,7 +74,7 @@ Orchestrator commits after review approval: `feat(home): TASK-037 room tab — s
 
 ## Status
 
-IN_REVIEW (2026-09-11, implementation complete; all six gates green — see Handoff; awaiting the independent §10/§33 review).
+DONE (2026-09-11) — REVIEW-TASK-037 APPROVED_WITH_MINOR_NOTES (all three findings NOTE-grade, none blocking; dispositions below) → §19 glass gate re-run by the orchestrator at the reviewed tree → atomic commit `bcecbed` → pushed `2b486b3..bcecbed`. Contract committed at `2b486b3`; the closeout commit that moves this file to `completed/` resolves the contract placeholders.
 
 ## Implementation Notes
 
@@ -91,11 +91,22 @@ IN_REVIEW (2026-09-11, implementation complete; all six gates green — see Hand
 
 ## Reviewer Findings
 
-(reviewer fills)
+REVIEW-TASK-037 (fresh independent §10/§33 agent): **APPROVED_WITH_MINOR_NOTES** — record at `.claude/tasks/reviews/REVIEW-TASK-037.md`. Scope audit: diff = exactly the contract surface; B walls clean by grep (MomoCharacter/MomoCore/Watch diff-absent; MomoKit only HomeCopyKeys); epoch-4 residue pins verbatim green in unmodified files. Requirements R1–R7 + AC1–5 verified with evidence (incl. the §25 compile gap closed by the reviewer's own generic-destination app build). Guard bites B-1/B-2 → exactly 1 failure each, token-attributed; reviewer's negative probe P-1 (legs relocated Canvas→VStack) stayed GREEN — the scan family's known attachment blindness, backstopped by the glass UI test. Restorations sha256-proven; package gate reproduced ×2 (931/95).
+
+Disposition of the three NOTEs (none blocking, per the record):
+- **N-1** (R5 guard is file-text-wide — proves the three a11y legs exist somewhere, not that they attach to the scene Canvas): accepted trade of the substring-guard family (cf. REVIEW-TASK-035 N-3); the glass backstop (exact scene label + separate caption) breaks under the relocation shape. **Routed to TASK-039's guard-hardening list alongside REVIEW-TASK-036 F-2** (optional: assert leg ORDER/attachment).
+- **N-2** (contract's literal `app.buttons.count == 0` unsatisfiable — tab bar always carries 3 buttons): accepted — the disclosed namespace-scoped adaptation preserves FR-3 AC-1/AC-2 intent; disclosure stands as the record.
+- **N-3** (RoomView scales inside the Canvas via `min(w,h)/1000` vs MomoRigView's `.frame().scaleEffect()` — same 1000-unit centered aspect-preserving convention, different mechanism): accepted — accurate as disclosed, arguably more robust for a non-square region; no action.
 
 ## Completion Evidence
 
-(orchestrator fills at closeout)
+Orchestrator §19 glass gate re-run at the exact reviewed tree (restorations personally sha256-verified first: RoomView `12863867…`, RigDisciplineTests `9d768dce…` — both byte-identical to the reviewer's baselines):
+
+1. `swift test` → **PASS — 931 tests in 95 suites** (exit 0; matches handoff and both reviewer runs).
+2. `xcodebuild test -scheme Momo -destination 'id=1F25E487-…'` (pinned iPhone SE 3rd gen) → **TEST SUCCEEDED, 22/22** — including the new `testRoomTabShowsTheStaticSceneWithZeroInteractivity` (10.5 s).
+3. `xcodebuild build -scheme MomoWatch -destination 'id=8A854895-…'` (pinned Watch SE 3 44mm) → **BUILD SUCCEEDED, zero warnings** (only pre-existing environment noise).
+4. Atomic commit `bcecbed` (13 files, +632/−46) — message `feat(home): TASK-037 room tab — static scene, single a11y element, D12 tab labels`; TASK-ID present per §12.
+5. Push `2b486b3..bcecbed` → `origin/feature/EPIC-007-iphone-home` — SUCCESS (remote HEAD verified at `bcecbed`).
 
 ## Handoff
 
@@ -147,18 +158,18 @@ None. No TODO/FIXME/HACK/TEMP debt added. No state, no animation, no clock, no d
 
 ### Reviewer Status
 
-PENDING — fresh independent §10/§33 review owed; record at `.claude/tasks/reviews/REVIEW-TASK-037.md`. Reviewer note: the R5 guard bites (two-direction SOME-legs fixtures); epoch-4 residue pins untouched (no CopyRules/LineSelection edits in the diff); the wall files (MomoCharacter/MomoCore/MomoKit-engine/Watch) are diff-absent.
+APPROVED_WITH_MINOR_NOTES — `.claude/tasks/reviews/REVIEW-TASK-037.md` (REVIEW-COMPLETE marker present). N-1/N-2/N-3 all NOTE-grade, dispositioned above; N-1's optional guard hardening rides TASK-039 with REVIEW-TASK-036 F-2.
 
 ### Commit
 
-NONE — orchestrator commits after review (per dispatch order). Suggested message in Git Requirements holds.
+`bcecbed` — `feat(home): TASK-037 room tab — static scene, single a11y element, D12 tab labels` (13 files, +632/−46; includes REVIEW-TASK-037.md per §12 atomicity).
 
 ### Push
 
-NONE — nothing committed; nothing to push.
+`2b486b3..bcecbed` → `origin/feature/EPIC-007-iphone-home` — SUCCESS (2026-09-11; remote HEAD verified at `bcecbed`).
 
 ### Recommended Next Step
 
-Spawn the fresh review agent for TASK-037 (requirements R1–R7, no-touch walls, epoch pins verbatim, guard-bites check, catalog interpolation/banned-vocab audit, a11y construction, §25 disclosure audit); on APPROVED, commit `feat(home): TASK-037 room tab — static scene, single a11y element, D12 tab labels` and push per §13.
+(resolved — TASK-037 DONE; see Completion Evidence) Next in the epic chain: TASK-038 Settings + rename + erase-all-data.
 
 HANDOFF-COMPLETE TASK-037
