@@ -123,6 +123,28 @@ public enum AppModelTrigger: Sendable {
     /// still re-mints per the trigger and persists again (the pinned
     /// idempotence stance, disclosed in the completion tests).
     case onboardingCompleted(petID: UUID, name: String)
+
+    /// The Settings rename save (TASK-038 R3; FR-19 AC-1): the executor
+    /// trims and rejects whitespace-only names at the tap (the Save button
+    /// is disabled for empty input — INV-1's UI face) and passes the
+    /// trimmed name in with the pet it targets. NOT an engine-routed
+    /// trigger: `plan` dispatches it to the pure rename transformation (the
+    /// pet's NAME only — the identity id + createdAt carried, everything
+    /// else field-for-field). Guards: a petID that isn't this state's pet
+    /// and an INV-1-invalid name (the `Pet` failable init re-honored) are
+    /// IDENTITY plans — no steps, nothing persisted; a rename to the
+    /// identical name is an identity plan too (persist-IFF-changed).
+    case petRenamed(petID: UUID, name: String)
+
+    /// The Settings haptics toggle (TASK-038 R4; FR-19): the user's new
+    /// haptics preference. NOT an engine-routed trigger: `plan` dispatches
+    /// it to the pure settings transformation — the flag flips with
+    /// `onboardingComplete` preserved, everything else field-for-field. An
+    /// application of the current value is the identity plan
+    /// (persist-IFF-changed). The toggle's EFFECT is not the plan's to
+    /// perform: the moment-haptic delivery gate reads the flag at delivery
+    /// time (TASK-036's wiring), so the next delivery simply follows.
+    case hapticsToggled(enabled: Bool)
 }
 
 // MARK: - The plan core
@@ -177,16 +199,20 @@ public enum AppModelPlanCore {
     /// interface, then wraps the outcome as the fixed-order plan (see
     /// `AppModelPlan`'s header for the order and the IFF rules).
     ///
-    /// The onboarding-completion trigger is dispatched BEFORE the engine
-    /// path: it is not engine-routed (no `reduce`, no `EngineEvent` — the
-    /// completion grants nothing, UX-6/R6) — see `onboardingPlan`.
+    /// The non-engine triggers are dispatched BEFORE the engine path: the
+    /// onboarding completion (no `reduce`, no `EngineEvent` — the
+    /// completion grants nothing, UX-6/R6 — see `onboardingPlan`) and the
+    /// TASK-038 settings transformations (`petRenamed`/`hapticsToggled` —
+    /// settings-only writes, never engine events — see `renamePlan` and
+    /// `hapticsPlan`).
     public static func plan(
         state: EngineState,
         trigger: AppModelTrigger,
         clock: any EngineClock,
         calendar: Calendar
     ) -> AppModelPlan {
-        if case .onboardingCompleted(let petID, let name) = trigger {
+        switch trigger {
+        case .onboardingCompleted(let petID, let name):
             return onboardingPlan(
                 state: state,
                 petID: petID,
@@ -194,6 +220,24 @@ public enum AppModelPlanCore {
                 clock: clock,
                 calendar: calendar
             )
+        case .petRenamed(let petID, let name):
+            return renamePlan(
+                state: state,
+                petID: petID,
+                name: name,
+                clock: clock,
+                calendar: calendar
+            )
+        case .hapticsToggled(let enabled):
+            return hapticsPlan(
+                state: state,
+                enabled: enabled,
+                clock: clock,
+                calendar: calendar
+            )
+        case .foreground, .interaction, .characterReport,
+             .scheduledBoundary, .significantTimeChange:
+            break
         }
         let event = engineEvent(for: trigger, clock: clock)
         let foldInstant = foldInstant(for: trigger, clock: clock)
@@ -229,15 +273,16 @@ public enum AppModelPlanCore {
         case .characterReport(let report): return .characterReport(report)
         case .scheduledBoundary(let instant): return .evaluate(now: instant)
         case .significantTimeChange(let now): return .evaluate(now: now)
-        case .onboardingCompleted:
-            // Unreachable: `plan` dispatches `.onboardingCompleted` to
-            // `onboardingPlan` BEFORE this routing table is consulted — the
-            // completion is not engine-routed (no `EngineEvent` exists for a
-            // transformation that grants nothing, R6/UX-6). The arm exists
-            // to satisfy exhaustiveness; the clock-sourced fallback keeps
-            // the function total without an ambient time read (the
-            // QuestTick house shape).
-            assertionFailure("AppModelPlanCore: onboarding trigger reached engine-event routing — invariant regression")
+        case .onboardingCompleted, .petRenamed, .hapticsToggled:
+            // Unreachable: `plan` dispatches the non-engine triggers to
+            // their pure transformations (`onboardingPlan`, `renamePlan`,
+            // `hapticsPlan`) BEFORE this routing table is consulted — none
+            // is engine-routed (no `EngineEvent` exists for a completion
+            // that grants nothing, R6/UX-6, or for settings-only writes).
+            // The arm exists to satisfy exhaustiveness; the clock-sourced
+            // fallback keeps the function total without an ambient time
+            // read (the QuestTick house shape).
+            assertionFailure("AppModelPlanCore: a non-engine trigger reached engine-event routing — invariant regression")
             return .evaluate(now: clock.now())
         }
     }
@@ -256,7 +301,7 @@ public enum AppModelPlanCore {
         case .characterReport: return clock.now()
         case .scheduledBoundary(let instant): return instant
         case .significantTimeChange(let now): return now
-        case .onboardingCompleted: return clock.now()
+        case .onboardingCompleted, .petRenamed, .hapticsToggled: return clock.now()
         }
     }
 
@@ -324,6 +369,129 @@ public enum AppModelPlanCore {
             nextBoundary: NextBoundaryRules.next(
                 from: foldInstant,
                 state: completed,
+                calendar: calendar
+            )
+        )
+    }
+
+    // MARK: The Settings rename (TASK-038 R3; FR-19 AC-1)
+
+    /// The rename transformation: the pet re-minted with the trigger's name
+    /// — identity (id + createdAt) PRESERVED — and nothing else changed
+    /// (the whole `EngineState` carries over field-for-field, so a rename
+    /// moves no bond, no counters, no day records, no stamps, no settings).
+    /// No engine event exists for it: `reduce` is never called, no response
+    /// or moments are emitted.
+    ///
+    /// Changed ⇒ the fixed-order steps are EXACTLY `[.persist,
+    /// .pushWatchSnapshot]` (the snapshot carries the new name; the push
+    /// itself stays the reserved EPIC-008 no-op). The guards, in order:
+    /// a petID that isn't this state's pet grants nothing (identity plan —
+    /// a rename aimed at some other pet is a no-op here); the `Pet`
+    /// failable init (INV-1) re-honors the type-level name validation (a
+    /// whitespace-only name cannot mint a pet — unreachable from the
+    /// product flow, the executor trims and the Save button is the first
+    /// gate); and a rename to the IDENTICAL name is an identity plan
+    /// (persist-IFF-changed — a no-op rename writes nothing).
+    private static func renamePlan(
+        state: EngineState,
+        petID: UUID,
+        name: String,
+        clock: any EngineClock,
+        calendar: Calendar
+    ) -> AppModelPlan {
+        let foldInstant = clock.now()
+        func identityPlan() -> AppModelPlan {
+            AppModelPlan(
+                appliedState: state,
+                steps: [],
+                nextBoundary: NextBoundaryRules.next(
+                    from: foldInstant,
+                    state: state,
+                    calendar: calendar
+                )
+            )
+        }
+        guard petID == state.pet.id else { return identityPlan() }
+        guard let renamed = Pet(id: state.pet.id, name: name, createdAt: state.pet.createdAt)
+        else { return identityPlan() }
+        guard renamed != state.pet else { return identityPlan() }
+        let renamedState = EngineState(
+            pet: renamed,
+            state: state.state,
+            days: state.days,
+            settings: state.settings,
+            pendingHandshake: state.pendingHandshake,
+            processedIntents: state.processedIntents,
+            highestCelebratedStage: state.highestCelebratedStage,
+            lastOpenedAt: state.lastOpenedAt,
+            lastEvaluatedAt: state.lastEvaluatedAt,
+            lastGreeting: state.lastGreeting
+        )
+        return AppModelPlan(
+            appliedState: renamedState,
+            steps: [.persist, .pushWatchSnapshot],
+            nextBoundary: NextBoundaryRules.next(
+                from: foldInstant,
+                state: renamedState,
+                calendar: calendar
+            )
+        )
+    }
+
+    // MARK: The Settings haptics toggle (TASK-038 R4; FR-19)
+
+    /// The haptics transformation: the settings flag rebuilt with the
+    /// trigger's value — `onboardingComplete` PRESERVED — and everything
+    /// else carried field-for-field. Settings-only, never an engine event:
+    /// no `reduce`, no response, no moments. The toggle's effect is the
+    /// DELIVERY gate's (TASK-036): the moment-haptic sink reads the flag at
+    /// delivery time, so the next delivery simply follows the flipped flag.
+    ///
+    /// Changed ⇒ the fixed-order steps are EXACTLY `[.persist,
+    /// .pushWatchSnapshot]`; applying the current value is the identity
+    /// plan (persist-IFF-changed — a toggle that changes nothing writes
+    /// nothing).
+    private static func hapticsPlan(
+        state: EngineState,
+        enabled: Bool,
+        clock: any EngineClock,
+        calendar: Calendar
+    ) -> AppModelPlan {
+        let foldInstant = clock.now()
+        let updatedSettings = SettingsState(
+            onboardingComplete: state.settings.onboardingComplete,
+            hapticsEnabled: enabled
+        )
+        guard updatedSettings != state.settings else {
+            return AppModelPlan(
+                appliedState: state,
+                steps: [],
+                nextBoundary: NextBoundaryRules.next(
+                    from: foldInstant,
+                    state: state,
+                    calendar: calendar
+                )
+            )
+        }
+        let updatedState = EngineState(
+            pet: state.pet,
+            state: state.state,
+            days: state.days,
+            settings: updatedSettings,
+            pendingHandshake: state.pendingHandshake,
+            processedIntents: state.processedIntents,
+            highestCelebratedStage: state.highestCelebratedStage,
+            lastOpenedAt: state.lastOpenedAt,
+            lastEvaluatedAt: state.lastEvaluatedAt,
+            lastGreeting: state.lastGreeting
+        )
+        return AppModelPlan(
+            appliedState: updatedState,
+            steps: [.persist, .pushWatchSnapshot],
+            nextBoundary: NextBoundaryRules.next(
+                from: foldInstant,
+                state: updatedState,
                 calendar: calendar
             )
         )

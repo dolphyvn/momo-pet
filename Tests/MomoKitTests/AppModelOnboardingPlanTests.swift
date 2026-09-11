@@ -212,9 +212,11 @@ struct AppModelOnboardingPlanTests {
     // MARK: The census (Required Test 5)
 
     /// The trigger's full case set, mapped through an exhaustive,
-    /// default-free switch: a seventh case breaks this BUILD — the census
-    /// law's belt, now covering the sixth case too.
-    @Test("trigger census: six cases, exhaustively handled")
+    /// default-free switch: a ninth case breaks this BUILD — the census
+    /// law's belt, now covering the seventh and eighth cases too (TASK-038's
+    /// `.petRenamed` / `.hapticsToggled`, the `onboardingCompleted`
+    /// precedent's second and third pre-engine triggers).
+    @Test("trigger census: eight cases, exhaustively handled")
     func triggerCensus() {
         let minted = mintInstant
         let cases: [AppModelTrigger] = [
@@ -228,8 +230,10 @@ struct AppModelOnboardingPlanTests {
             .scheduledBoundary(instant: minted),
             .significantTimeChange(now: minted),
             .onboardingCompleted(petID: AppModelFixture.onboardedPetID, name: "Mochi"),
+            .petRenamed(petID: AppModelFixture.petID, name: "Mochi"),
+            .hapticsToggled(enabled: false),
         ]
-        #expect(cases.count == 6)
+        #expect(cases.count == 8)
         #expect(cases.map(label(of:)) == [
             "foreground",
             "interaction",
@@ -237,6 +241,8 @@ struct AppModelOnboardingPlanTests {
             "scheduledBoundary",
             "significantTimeChange",
             "onboardingCompleted",
+            "petRenamed",
+            "hapticsToggled",
         ])
     }
 
@@ -249,6 +255,8 @@ struct AppModelOnboardingPlanTests {
         case .scheduledBoundary: return "scheduledBoundary"
         case .significantTimeChange: return "significantTimeChange"
         case .onboardingCompleted: return "onboardingCompleted"
+        case .petRenamed: return "petRenamed"
+        case .hapticsToggled: return "hapticsToggled"
         }
     }
 }

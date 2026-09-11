@@ -78,6 +78,15 @@ final class MomoAppModel {
     /// The write-through store (its actor serializes every save; §5.2).
     private let store: SnapshotStore
 
+    /// The store directory the RUNNING session uses (TASK-038 R5.1):
+    /// retained at init so the erase path deletes EXACTLY this directory —
+    /// the `-momo-store-directory` override honored, never a re-resolved
+    /// path (`SnapshotStore` keeps its own copy; this is the executor's).
+    /// Internal, not private: the same-target settings extension
+    /// (`MomoAppModel+Settings.swift`, TASK-038's disclosed extraction for
+    /// the 800-line budget) reads it — target-scoped only.
+    let storeDirectory: URL
+
     /// The production time source (05 §4.10) — every engine time read
     /// in the executor flows through it.
     private let clock: any EngineClock
@@ -331,6 +340,7 @@ final class MomoAppModel {
             }
         }
         self.store = SnapshotStore(directory: directory, clock: clock)
+        self.storeDirectory = directory
         self.clock = clock
         self.canvasClock = CharacterClock(timeSource: clock)
         self.calendar = calendar
@@ -644,13 +654,61 @@ final class MomoAppModel {
         Task { await self.apply(trigger: .onboardingCompleted(petID: UUID(), name: trimmed)) }
     }
 
+    // MARK: The settings-extension seams (TASK-038; the disclosed extraction)
+
+    /// TASK-038 R5.3's transient reset: every transient app-model
+    /// presentation state returns to its post-init value — the boundary
+    /// schedule, the play round's ticker/Done-pill machinery and its
+    /// fingertip memory, the celebration banner and its auto-fade task, the
+    /// quest-flip flourish and its task, the latest-care-moment memory, the
+    /// open-touch guard. The erase path calls this BEFORE the fresh-state
+    /// swap. The `canvasClock` needs no reset — it is monotonic and
+    /// ambient-free, so post-erase events simply stamp at the current
+    /// elapsed time. Internal: the same-target settings extension
+    /// (`MomoAppModel+Settings.swift`) drives it; target-scoped only.
+    func resetTransientPresentationState() {
+        boundaryTask?.cancel()
+        boundaryTask = nil
+        playTickerTask?.cancel()
+        playTickerTask = nil
+        donePillTask?.cancel()
+        donePillTask = nil
+        isDonePillWindowOpen = false
+        lastPlayFingertipOffset = nil
+        celebrationTask?.cancel()
+        celebrationTask = nil
+        questFlipTask?.cancel()
+        questFlipTask = nil
+        activeCelebrationStage = nil
+        celebratingQuests = []
+        latestCareMoment = nil
+        isTouchOpen = false
+    }
+
+    /// TASK-038 R5.3's in-memory fresh swap: the state and the reaction
+    /// director return to the SAME fresh construction the init path uses —
+    /// `freshDefaultState(clock:)`, single-sourced, so erase and
+    /// fresh-install are indistinguishable (NFR-7). Deliberately NO
+    /// persist here: the first write remains the onboarding completion
+    /// write (`SnapshotStore.save` recreates the deleted directory).
+    /// Internal: the settings extension calls it after the directory
+    /// deletion and the transient reset.
+    func installFreshDefaultState() {
+        let fresh = Self.freshDefaultState(clock: clock)
+        state = fresh
+        director = MomoDirectorState(displayState: makeCharacterDisplayState(fresh))
+    }
+
     // MARK: The apply loop (§4.1's fixed order — the one engine entry)
 
     /// Applies one trigger through the pure plan core, then performs the
     /// plan mechanically: step 0 apply → the steps in their fixed order →
     /// re-schedule the boundary from the folded state. The decision is ALL
     /// in `AppModelPlanCore.plan`; nothing here interprets the domain.
-    private func apply(trigger: AppModelTrigger) async {
+    /// Internal since TASK-038: the same-target settings extension's
+    /// rename/haptics entries apply their triggers through this ONE loop
+    /// (no side door), like every other trigger entry.
+    func apply(trigger: AppModelTrigger) async {
         let plan = AppModelPlanCore.plan(
             state: state,
             trigger: trigger,
@@ -879,8 +937,10 @@ final class MomoAppModel {
     }
 
     /// The `MomoCopy` DEBUG-loud discipline: invariant regressions trip the
-    /// debugger in debug builds and stay silent in release.
-    private static func debugLoud(_ message: String) {
+    /// debugger in debug builds and stay silent in release. Internal since
+    /// TASK-038: the same-target settings extension rejects its invalid
+    /// inputs through the same discipline.
+    static func debugLoud(_ message: String) {
         #if DEBUG
         assertionFailure(message)
         #endif

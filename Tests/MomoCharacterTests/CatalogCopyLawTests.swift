@@ -18,24 +18,31 @@ import Testing
 /// includes both, the banner template's `%1$@`/`%2$@` placeholders not
 /// being words. TASK-037's disclosure extends the law to the room lines
 /// (`momo.line.room.01–02` — the scene's spoken label template and the
-/// caption that renders in the Room tab's single-line visual slot). A line
+/// caption that renders in the Room tab's single-line visual slot).
+/// TASK-038's disclosure extends the law to the Settings About privacy
+/// statement (`momo.settings.about.privacy` — the surface's one rendered
+/// sentence; the alert strings are UI chrome, not body copy, and the
+/// verbatim S6.2 line is longer than 12 words by spec). A line
 /// longer than 12 whitespace-separated words fails
 /// with the key attributed. The word COUNT is measured strictly
 /// (whitespace tokens — punctuation and the ellipsis are not words), so
 /// the pin cannot be gamed by joining with commas.
-@Suite("Catalog copy law — 12-word max over the visual and spoken line classes (TASK-033 + TASK-035 + TASK-036 + TASK-037)")
+@Suite("Catalog copy law — 12-word max over the visual and spoken line classes (TASK-033 + TASK-035 + TASK-036 + TASK-037 + TASK-038)")
 struct CatalogCopyLawTests {
 
     /// The scanned classes: the four time slots (ten lines each), the two
     /// moment lines (TASK-036's fixed lookups — same visual class), the
     /// greetings (disclosed strict — see the header), the care-moment
-    /// visuals, the four spoken react pools, and TASK-037's two room lines.
+    /// visuals, the four spoken react pools, TASK-037's two room lines, and
+    /// TASK-038's privacy statement.
     private static let scannedPattern =
         "^momo\\.line\\.(morning|day|evening|night|moment|care-moment|room)\\.\\d{2}$"
     private static let greetingPattern =
         "^momo\\.line\\.greeting\\.\\d{2}$"
     private static let reactPattern =
         "^momo\\.line\\.react\\.(touch|feed|play|care)\\.\\d{2}$"
+    private static let settingsPrivacyPattern =
+        "^momo\\.settings\\.about\\.privacy$"
 
     /// The hard max (04 §10.1 rule 1: ≤ 8 typical, ≤ 12 absolute).
     private static let maxWords = 12
@@ -60,8 +67,9 @@ struct CatalogCopyLawTests {
         // Never vacuous: the TASK-033 landing's 40 slot lines + the 3
         // greetings, TASK-035's 3 care-moment visuals, the 23 react lines
         // (TASK-034's 5 touch + TASK-035's 18), TASK-036's 2 moment
-        // lines, and TASK-037's 2 room lines are all in scope.
-        #expect(scanned == 73, "expected 73 scanned lines (40 slots + 2 moment + 3 greetings + 3 care-moments + 23 react + 2 room); found \(scanned) — a new visual or spoken class needs this law's scope review")
+        // lines, TASK-037's 2 room lines, and TASK-038's privacy
+        // statement are all in scope.
+        #expect(scanned == 74, "expected 74 scanned lines (40 slots + 2 moment + 3 greetings + 3 care-moments + 23 react + 2 room + 1 privacy); found \(scanned) — a new visual or spoken class needs this law's scope review")
         if !violations.isEmpty {
             Issue.record(
                 CopyLawViolations(descriptions: violations),
@@ -106,6 +114,7 @@ struct CatalogCopyLawTests {
             let inScope = key.range(of: scannedPattern, options: .regularExpression) != nil
                 || key.range(of: greetingPattern, options: .regularExpression) != nil
                 || key.range(of: reactPattern, options: .regularExpression) != nil
+                || key.range(of: settingsPrivacyPattern, options: .regularExpression) != nil
             guard inScope, let entry = entryAny as? [String: Any],
                   let localizations = entry["localizations"] as? [String: Any],
                   let en = localizations["en"] as? [String: Any],
