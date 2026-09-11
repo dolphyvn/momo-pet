@@ -133,6 +133,20 @@ enum RigDiscipline {
         source.contains("clockAction(for:")
     }
 
+    // MARK: - TASK-034: the composed Home samples the director (wire check)
+
+    /// Presence check that the composed Home canvas passes the rig's
+    /// `reactionMotion` closure (TASK-034 R3). The director machinery is
+    /// fully headless-tested, but the one leg every green suite missed
+    /// (REVIEW-TASK-034 F-1) was the view→rig wiring itself — the frozen
+    /// identity default served every frame — so the wire is pinned
+    /// structurally at its construction site: the rig must be constructed
+    /// with the app model's closure factory.
+    static func mentionsHomeReactionWiring(in source: String) -> Bool {
+        source.contains("MomoRigView(") &&
+        source.contains("reactionMotion: appModel.reactionMotion()")
+    }
+
     // MARK: - File access
 
     static func readRigFile(_ name: String) throws -> String {
@@ -301,6 +315,24 @@ struct RigDisciplineTests {
         // Non-vacuity of the presence check itself.
         #expect(!RigDiscipline.mentionsScenePhaseWiring(in: "struct V: View { var body: some View { EmptyView() } }"))
         #expect(!RigDiscipline.mentionsScenePhaseWiring(in: "onChange(of: x) { clock.resume() }"))
+    }
+
+    @Test("The composed Home wires the rig's reaction closure (structural presence pin)")
+    func homeWiresReactionMotion() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/HomeView.swift")
+        #expect(RigDiscipline.mentionsHomeReactionWiring(in: source))
+
+        // Non-vacuity of the presence check itself: the F-1 shape — a
+        // MomoRigView construction with the closure argument absent — must
+        // fail the check.
+        #expect(!RigDiscipline.mentionsHomeReactionWiring(in: """
+            MomoRigView(
+                displayState: state,
+                tier: .full,
+                clock: clock,
+                stageSide: 260
+            )
+            """))
     }
 
     // MARK: - TASK-029: the RM environment read is the view's alone (R1)

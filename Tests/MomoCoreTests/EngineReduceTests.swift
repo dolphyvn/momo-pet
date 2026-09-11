@@ -223,13 +223,14 @@ struct EngineReduceTests {
         // TASK-019 supersession (in place, per the contract): the lineKey
         // seam is filled — each plan carries its intent family's day-stable
         // key (raw literals restating the momo.line.react.<family>.<nn>
-        // keyspace + the placeholder-era single-slot draw, index 00; pat and
-        // stroke are both the touch family).
+        // keyspace + the epoch-3 draw over this fixture's (petID, day):
+        // TASK-034's touch pool draws index 02; pat and stroke are both the
+        // touch family).
         let expectedLineKeys = [
-            "momo.line.react.touch.00",
+            "momo.line.react.touch.02",
             "momo.line.react.feed.00",
             "momo.line.react.play.00",
-            "momo.line.react.touch.00",
+            "momo.line.react.touch.02",
         ]
         for (index, intent) in intents.enumerated() {
             let outcome = reduce(current, .interaction(intent), clock: ManualEngineClock(), calendar: calendar, rng: &rng)

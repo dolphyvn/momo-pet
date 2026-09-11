@@ -85,8 +85,10 @@ final class MomoAppModel {
     /// The presentation-owned character clock (TASK-032 R12; EPIC-006's
     /// view API): ONE clock for the whole session, fed by the same injected
     /// time source as the engine, handed to every `MomoRigView` host. The
-    /// view manages its own pause/resume on scene phase; TASK-033's
-    /// director/report wiring reuses this same clock.
+    /// view manages its own pause/resume on scene phase; TASK-034's
+    /// director/report wiring reuses this same clock — every director
+    /// event's `at:` stamp is `canvasClock.elapsed()`, so the folded
+    /// choreography lives on the SAME timeline the rig samples.
     let canvasClock: CharacterClock
 
     /// The significant-time-change observation token (§4.2's fifth trigger).
@@ -135,7 +137,7 @@ final class MomoAppModel {
     /// The character canvas's read-model (TASK-032 R12): the onboarding
     /// canvas binds through this, never the engine (D-R5). The rig state
     /// alone — the alive-at-rest blink/breath IS the whole S1/S3 "small
-    /// greeting animation"; director/moments wiring is TASK-033's.
+    /// greeting animation"; director/moments wiring is TASK-034's.
     var characterDisplayState: CharacterDisplayState {
         makeCharacterDisplayState(state)
     }
@@ -147,6 +149,23 @@ final class MomoAppModel {
     var homeReadModel: HomeReadModel {
         makeHomeReadModel(state, at: clock.now(), calendar: calendar)
     }
+
+    // MARK: The reaction director (TASK-034; EPIC-006's frozen fold)
+
+    /// The folded reaction director state (04 §4.1's choreography layer):
+    /// every `MomoCharacterEvent` the presentation observes — the engine's
+    /// plans, the read-model updates, the canvas touch boundaries, the app
+    /// hide/show gates — folds HERE, and the Home rig samples the projection
+    /// through `reactionMotion(at:reduceMotion:)`. The app model is the ONE
+    /// app-target owner of the fold (D-R5: the view never touches the
+    /// director; MomoKit never imports MomoCharacter). Value-typed and
+    /// observable: a fold re-renders the rig on the next frame.
+    private(set) var director: MomoDirectorState
+
+    /// Whether a canvas touch is currently open (the `touchEnded`
+    /// idempotence guard — the FIX1-NOTE-1 cancel seam closes the press
+    /// EXACTLY once per opened touch, whichever path ends it).
+    private var isTouchOpen = false
 
     /// The UI-facing delivery seam (§4.1's fixed order, steps 2–3): the
     /// shell hosts these closures; the character layer's full wiring is
@@ -205,7 +224,15 @@ final class MomoAppModel {
         self.launchOrigin = AppModelLaunch.hasGenerations(directory: directory)
             ? .loadedStore
             : .freshStore
-        self.state = store.load(fallback: freshDefault ?? Self.freshDefaultState(clock: clock))
+        let loadedState = store.load(fallback: freshDefault ?? Self.freshDefaultState(clock: clock))
+        self.state = loadedState
+        // The director starts from the LOADED state's read-model (the rig's
+        // waking/settling choreography follows the state the session opens
+        // onto, not a fresh default's) — derived from the load result's
+        // LOCAL, since `self` is not yet fully initialized here.
+        self.director = MomoDirectorState(
+            displayState: makeCharacterDisplayState(loadedState)
+        )
         switch launchOrigin {
         case .freshStore:
             Self.logger.notice("app model live — fresh store, onboarding input surfaced")
@@ -240,12 +267,29 @@ final class MomoAppModel {
     /// scenePhase → the trigger table's foreground/background behavior:
     /// `.active` is the catch-up fold; `.background` makes the boundary
     /// schedule inert; `.inactive` is transitional (app switcher) and
-    /// triggers nothing in §4.2's table.
+    /// triggers NOTHING in §4.2's table — its fold below is the DIRECTOR's
+    /// clock-pause gate ONLY (TASK-034): the rig's clock rule pauses on
+    /// anything but `.active` (the frozen `RigMotionViewMapping`), and the
+    /// director must mirror that pause or its windows would reference a
+    /// timeline the zeroed clock abandoned. `.appHidden`/`.appShown` are
+    /// its pause/resume face (§7.4 rule 8; ADR-010). Only `.background`
+    /// ALSO runs the §4.2 backgrounding side — the foreground flag and the
+    /// boundary-task cancel (`backgrounded()`); `.inactive` leaves the
+    /// engine semantics untouched.
     func scenePhaseChanged(to phase: ScenePhase) {
         switch phase {
-        case .active: foregrounded()
-        case .background: backgrounded()
-        case .inactive: break
+        case .active:
+            foldDirector(.appShown(at: canvasClock.elapsed()))
+            foregrounded()
+        case .background:
+            foldDirector(.appHidden(at: canvasClock.elapsed()))
+            backgrounded()
+        case .inactive:
+            // The paused-clock tear argument holds on the app-switcher
+            // transition too — but §4.2's backgrounding machinery is
+            // `.background`-only (the trigger table gives `.inactive` no
+            // row).
+            foldDirector(.appHidden(at: canvasClock.elapsed()))
         @unknown default: break
         }
     }
@@ -271,6 +315,88 @@ final class MomoAppModel {
     /// wiring routes through here.
     func submit(_ report: CharacterReport) {
         Task { await self.apply(trigger: .characterReport(report)) }
+    }
+
+    // MARK: The canvas touch entries (TASK-034 R2; 04 §6.1)
+
+    /// A canvas touch BEGAN at `zone` — opens the director's L1 press
+    /// layer (the §6.1 press-length input starts at the physical touch,
+    /// which is what makes a long-press's hold length the press clip's
+    /// length). Returns the `canvasClock` stamp the gesture layer
+    /// classifies the touch with (the view reads no clock — D-R5).
+    ///
+    /// Recovery: one finger means touches cannot overlap, so a `touchBegan`
+    /// arriving while one is still open means the gesture layer lost the
+    /// old touch's end (a system cancellation SwiftUI never surfaced — the
+    /// FIX1-NOTE-1 seam's residual gap). The stale press closes at THIS
+    /// instant before the new one opens, so the open-touch invariant can
+    /// never wedge; `touchEnded` stays the idempotent normal close.
+    @discardableResult
+    func touchBegan(zone: TouchZone?) -> Double {
+        let now = canvasClock.elapsed()
+        if isTouchOpen {
+            isTouchOpen = false
+            foldDirector(.touchEnded(at: now))
+        }
+        isTouchOpen = true
+        foldDirector(.touchBegan(zone: zone, at: now))
+        return now
+    }
+
+    /// The canvas touch ENDED (a lift OR a cancellation — the gesture
+    /// layer's FIX1-NOTE-1 seam calls this on BOTH, so a system-stolen
+    /// touch resolves exactly like a released one). Idempotent: without an
+    /// open touch it is a no-op. Returns the close stamp.
+    @discardableResult
+    func touchEnded() -> Double {
+        let now = canvasClock.elapsed()
+        guard isTouchOpen else { return now }
+        isTouchOpen = false
+        foldDirector(.touchEnded(at: now))
+        return now
+    }
+
+    // MARK: The rig's reaction-motion seam (TASK-034 R3)
+
+    /// The Home rig's `reactionMotion` closure (R3): a `@Sendable` sampler
+    /// over the CURRENT director value — static reading under Reduce Motion
+    /// (the RESOLVED flag arrives from `MomoRigView`, which owns the
+    /// environment resolution). The director is captured BY VALUE, so the
+    /// closure never touches the main-actor model and the rig re-renders
+    /// its samples fresh on every fold (reading this method from the view's
+    /// body tracks `director`, re-evaluating `MomoRigView`'s closure with
+    /// the successor value). D-R5 holds: the view calls this one method and
+    /// never touches the director itself.
+    func reactionMotion() -> @Sendable (Double, Bool) -> MomoReactionMotion {
+        let director = self.director
+        return { time, reduceMotion in
+            reduceMotion
+                ? director.reduceMotionOverlay(at: time)
+                : director.overlay(at: time)
+        }
+    }
+
+    /// Folds ONE presentation event into the director. The frozen `apply`
+    /// is a mutating fold over a value type; the successor is built in a
+    /// local copy and stored wholesale — the observable property changes
+    /// once per event, never mid-fold.
+    private func foldDirector(_ event: MomoCharacterEvent) {
+        var successor = director
+        successor.apply(event)
+        director = successor
+    }
+
+    /// The R7 seam: a touch reaction's catalog line announced while
+    /// VoiceOver runs — NEVER rendered as body copy (UX-8; 04 §10.1
+    /// rule 7). The prefix gate (`SpokenReaction`) admits only
+    /// `momo.line.react.touch.*`, so the feed/play/care pools stay silent
+    /// until their own tasks land their real lines, and plans without a
+    /// line announce nothing.
+    private func announceSpokenLine(for response: ResponsePlan) {
+        guard UIAccessibility.isVoiceOverRunning,
+              let key = SpokenReaction.announcementKey(for: response.lineKey)
+        else { return }
+        UIAccessibility.post(notification: .announcement, argument: MomoCopyText.render(key))
     }
 
     /// The onboarding completion tap (TASK-032 R5; FR-1 AC-2, FR-13 AC-1):
@@ -305,6 +431,16 @@ final class MomoAppModel {
         )
         // Step 0 — apply the new state.
         state = plan.appliedState
+        // TASK-034 R4: the read-model feed. A display-state CHANGE (the
+        // wakefulness transitions and L4 moment-request transitions §9.3
+        // routes through this door) folds into the director on the canvas
+        // timeline the rig samples. Equality-gated so the fold log carries
+        // transitions only — the director's wake/settle choreography keys
+        // off `displayState` edges, not steady states.
+        let characterState = makeCharacterDisplayState(state)
+        if characterState != director.displayState {
+            foldDirector(.displayState(characterState, at: canvasClock.elapsed()))
+        }
         // Exactly ONE next boundary from the folded state — scheduled BEFORE
         // the effect awaits below, so under two racing applies the surviving
         // schedule is always the one derived by the LATEST apply to start
@@ -320,6 +456,14 @@ final class MomoAppModel {
                 // event).
                 await store.save(plan.appliedState)
             case .deliverResponse(let response):
+                // TASK-034: the engine's plan folds into the director —
+                // the §6.1 clip the rig then plays through
+                // `reactionMotion(at:reduceMotion:)` — and the touch
+                // pool's spoken line is announced under VoiceOver (R7/
+                // UX-8, accessibility-only; the prefix gate admits
+                // `momo.line.react.touch.*` keys alone).
+                foldDirector(.plan(response, at: canvasClock.elapsed()))
+                announceSpokenLine(for: response)
                 deliverResponse?(response)
             case .deliverMoments(let moments):
                 deliverMoments?(moments)

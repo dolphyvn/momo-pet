@@ -1,27 +1,29 @@
 import Foundation
 import Testing
+import MomoCore
 @testable import MomoCharacter
 
 /// Standing tests over the shipped String Catalog (TASK-011 Requirements 2
-/// and 4; TASK-033 Requirement 5's catalog-era split). These run against the
-/// real file in the repo tree — they assert the catalog exists (never
-/// vacuous), parses, exposes the `momo.line.*` namespaces, keeps every key
-/// inside the law (the frozen validator's grammar OR one of the enumerated
-/// fixed-lookup grammars), carries the per-class counts the TASK-033 catalog
-/// landing committed to, and marks the two remaining placeholder entries per
-/// the documented convention. (Tone over VALUES is the TASK-010
+/// and 4; TASK-033 Requirement 5's catalog-era split; TASK-034's touch
+/// pool). These run against the real file in the repo tree — they assert
+/// the catalog exists (never vacuous), parses, exposes the `momo.line.*`
+/// namespaces, keeps every key inside the law (the frozen validator's
+/// grammar OR one of the enumerated fixed-lookup grammars), carries the
+/// per-class counts the TASK-033/TASK-034 landings committed to, pins the
+/// touch pool's five lines VERBATIM (the `catalogCarriesTheVocabularyVerbatim`
+/// pattern — AC-5), and marks the remaining placeholder entry per the
+/// documented convention. (Tone over VALUES is the TASK-010
 /// banned-vocabulary scan's job, with the 12-word rule pinned in
 /// `CatalogCopyLawTests`; not duplicated here.)
 @Suite("String Catalog scaffolding (momo.line.*)")
 struct MomoCatalogScaffoldingTests {
 
     /// The remaining placeholder entries — `momo.line.day.00` became REAL
-    /// copy in TASK-033's catalog landing; the moment and react namespaces
-    /// stay placeholder-seeded until their surfaces land (FR-10 AC-4 / the
-    /// TASK-034/035 reaction era).
+    /// copy in TASK-033's catalog landing, `momo.line.react.touch.00` in
+    /// TASK-034's; the moment namespace stays placeholder-seeded until its
+    /// surface lands (FR-10 AC-4).
     private static let placeholderKeys = [
         "momo.line.moment.00",
-        "momo.line.react.touch.00",
     ]
 
     /// The approved-namespace law (INV-11), TASK-033-era shape:
@@ -78,13 +80,13 @@ struct MomoCatalogScaffoldingTests {
         }
     }
 
-    /// The per-class counts the TASK-033 landing committed to (04 §10.3's
-    /// ten lines per time slot; the OBS-1 vocabulary's 12; the status words'
-    /// 8; the PRD §5.2 wishes' 7; the three return greetings; the two
-    /// placeholder seeds) — 72 keys in all. A new class or count lands only
-    /// with its own task, its own epoch bump when variational (§4.10), and
-    /// this pin's update.
-    @Test("the per-class key counts match the TASK-033 landing: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 2 placeholders")
+    /// The per-class counts the TASK-033/TASK-034 landings committed to
+    /// (04 §10.3's ten lines per time slot; the OBS-1 vocabulary's 12; the
+    /// status words' 8; the PRD §5.2 wishes' 7; the three return greetings;
+    /// TASK-034's five spoken touch lines; the one placeholder seed) — 76
+    /// keys in all. A new class or count lands only with its own task, its
+    /// own epoch bump when variational (§4.10), and this pin's update.
+    @Test("the per-class key counts match the TASK-033 + TASK-034 landings: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 5 touch, 1 placeholder")
     func perClassCountsPinned() throws {
         let keys = try Self.catalogKeys()
         func count(matching pattern: String) -> Int {
@@ -101,8 +103,41 @@ struct MomoCatalogScaffoldingTests {
         #expect(count(matching: "^momo\\.line\\.status\\.") == 8, "the status words: 4 energy + 4 stage")
         #expect(count(matching: "^momo\\.line\\.quest\\.q[1-7]$") == 7, "PRD §5.2's seven wishes")
         #expect(count(matching: "^momo\\.line\\.moment\\.") == 1, "the moment namespace stays at its placeholder seed")
-        #expect(count(matching: "^momo\\.line\\.react\\.") == 1, "the react namespace stays at its placeholder seed")
-        #expect(keys.count == 72, "the whole catalog is exactly the classes above")
+        #expect(count(matching: "^momo\\.line\\.react\\.") == 5, "the react namespace is TASK-034's five-line touch pool")
+        #expect(count(matching: "^momo\\.line\\.react\\.touch\\.\\d{2}$") == 5, "the touch pool is exactly five lines")
+        #expect(keys.count == 76, "the whole catalog is exactly the classes above")
+    }
+
+    // MARK: The touch pool's verbatim lines (TASK-034 AC-5)
+
+    /// TASK-034 landed the §6.1 spoken touch pool; its five entries are the
+    /// contract's verbatim copy — the `catalogCarriesTheVocabularyVerbatim`
+    /// pattern extended to the pool (AC-5), so the words can only change as
+    /// a spec change, with this pin failing. The lines are
+    /// ACCESSIBILITY-ONLY (UX-8: announced under VoiceOver, never rendered
+    /// as body copy).
+    private static let touchPoolVerbatim: [(key: String, text: String)] = [
+        ("momo.line.react.touch.00", "Momo nuzzles into your hand."), // the 03 §5.1 example line
+        ("momo.line.react.touch.01", "Momo leans into the touch."),
+        ("momo.line.react.touch.02", "Momo blinks slowly, content."),
+        ("momo.line.react.touch.03", "Momo's tail curls happily."),
+        ("momo.line.react.touch.04", "Momo presses closer for a moment."),
+    ]
+
+    @Test("the shipped catalog carries the touch pool's five lines verbatim (TASK-034's landing, AC-5)")
+    func catalogCarriesTheTouchPoolVerbatim() throws {
+        #expect(Self.touchPoolVerbatim.count == CopyRules.reactLineCount(for: .touch),
+                "the verbatim table and the pool constant must move together")
+        let strings = try Self.stringsDictionary()
+        for (key, text) in Self.touchPoolVerbatim {
+            let entry = try #require(
+                strings[key] as? [String: Any],
+                "'\(key)' is missing from the shipped catalog")
+            let localizations = try #require(entry["localizations"] as? [String: Any], "'\(key)' has no localizations")
+            let en = try #require(localizations["en"] as? [String: Any], "'\(key)' has no en localization")
+            let unit = try #require(en["stringUnit"] as? [String: Any], "'\(key)' has no stringUnit")
+            #expect(unit["value"] as? String == text, "'\(key)' must read verbatim: '\(text)'")
+        }
     }
 
     @Test("placeholder entries are present and marked per the convention")

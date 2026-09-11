@@ -19,7 +19,7 @@ import MomoKit
 /// functional inside the scroll.
 ///
 /// **VoiceOver (UX §10).** The canvas is ONE element labeled with the pet's
-/// name (its touch/gesture vocabulary is TASK-034's custom actions); the
+/// name, carrying TASK-034's "Pat"/"Cuddle" custom actions; the
 /// rows expose their own labels (`HomeStatusRowView`'s formula,
 /// `HomeQuestCardView`'s per-wish lines).
 struct HomeView: View {
@@ -92,9 +92,27 @@ struct HomeView: View {
             }
         }
         .overlay { canvasBody }
+        .overlay { HomeCanvasTouchSurface(stageSide: HomeLayout.standardStageSide) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.petName)
         .accessibilityIdentifier("home.canvas")
+        .accessibilityActions { canvasCustomActions }
+    }
+
+    /// TASK-034 R6: the canvas's VoiceOver custom actions — the touch
+    /// vocabulary's gesture ANALOGS, assembled from MomoKit's ONE pinned
+    /// `CanvasCustomAction` name list (the doc's "Pat"/"Cuddle" labels, 03
+    /// §5.1) and routed through the app model as the zone-less intents (no
+    /// rotor geometry; feed/play/care stay the labeled action row, 04 §10's
+    /// no-duplication resolution). SwiftUI surfaces them as the element's
+    /// named actions (the rotor's "actions" row).
+    @ViewBuilder
+    private var canvasCustomActions: some View {
+        ForEach(CanvasCustomAction.allCases, id: \.self) { action in
+            Button(action.rawValue) {
+                appModel.interact(action.intent)
+            }
+        }
     }
 
     private var canvasBody: some View {
@@ -102,7 +120,8 @@ struct HomeView: View {
             displayState: appModel.characterDisplayState,
             tier: .full,
             clock: appModel.canvasClock,
-            stageSide: HomeLayout.standardStageSide
+            stageSide: HomeLayout.standardStageSide,
+            reactionMotion: appModel.reactionMotion()
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

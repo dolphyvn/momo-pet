@@ -231,6 +231,92 @@ final class MomoHomeUITests: XCTestCase {
         )
     }
 
+    // MARK: TASK-034 — the canvas touch surface at the glass
+
+    /// The gesture vocabulary routes through the app model IN PLACE: tap
+    /// (head + belly), double-tap, long-press, and stroke all leave the
+    /// composition untouched — no sheet, no alert, no navigation (a touch
+    /// is a quiet moment of contact, never a mode change). Each tap-speed
+    /// gesture dispatches after its 0.35 s double-tap window, which the
+    /// assertions' timing-insensitivity absorbs (nothing visual is pinned
+    /// to a pat beyond still being on Home).
+    func testCanvasGesturesRouteThroughTheAppModelInPlace() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+
+        // Head tap (region center − 40 pt ≈ grid y 346) and belly tap
+        // (+ 40 pt ≈ grid y 653 — across the 550 rule line).
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -40)).tap()
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: 40)).tap()
+
+        // Double-tap (the element-center taps pair inside the window).
+        canvas.doubleTap()
+
+        // Long-press and stroke.
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+            .press(forDuration: 0.8)
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
+            .press(forDuration: 0.2, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.65)))
+
+        // Every gesture stayed in place: still on Home, nothing presented.
+        XCTAssertTrue(canvas.exists, "the gestures never navigate away")
+        XCTAssertEqual(app.alerts.count, 0, "a touch never presents anything")
+        XCTAssertEqual(app.sheets.count, 0, "a touch never presents anything")
+    }
+
+    /// The canvas is ONE accessibility element (the region), labeled with
+    /// the pet's name — the touch overlay is transparent to the a11y tree
+    /// — and it stays exactly one after gestures.
+    func testCanvasIsOneElementLabeledWithThePetName() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+        XCTAssertEqual(
+            app.descendants(matching: .any).matching(identifier: "home.canvas").count,
+            1,
+            "the canvas exposes exactly ONE accessibility element"
+        )
+        XCTAssertEqual(canvas.label, "Momo", "the canvas speaks the pet's name")
+
+        // Gestures do not multiply or relabel the element.
+        canvas.tap()
+        XCTAssertEqual(
+            app.descendants(matching: .any).matching(identifier: "home.canvas").count,
+            1,
+            "the canvas stays one element after a touch"
+        )
+        XCTAssertEqual(canvas.label, "Momo")
+    }
+
+    /// The zero-bond product law at the glass (G2): petting moves NO bond
+    /// — the stage element's words are identical before and after taps in
+    /// both zones (the once-daily hello is spent by this test's first pat,
+    /// which is exactly the point: steady-state petting is free of bond
+    /// movement).
+    func testPettingMovesNoStageWords() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+
+        let stage = homeElement(app, "home.statusRow.stage")
+        XCTAssertTrue(stage.waitForExistence(timeout: 10))
+        let stageBefore = stage.label
+
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -40)).tap()
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: 40)).tap()
+
+        // The stage words cannot move on petting (bond is untouched — the
+        // zero-bond facade pin's E2E face). The read is timing-insensitive:
+        // no pat ever changes it, however late the dispatch lands.
+        XCTAssertTrue(stage.waitForExistence(timeout: 5))
+        XCTAssertEqual(stage.label, stageBefore, "petting never moves the stage words")
+    }
+
     // MARK: Helpers
 
     private static let setup = "2026-09-10T08:59:00Z"

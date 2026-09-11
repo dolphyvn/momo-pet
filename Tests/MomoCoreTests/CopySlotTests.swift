@@ -87,17 +87,23 @@ struct CopySlotTests {
 
     /// Each family's key names the family — the rawValue is the template's
     /// middle segment, so a renamed case shifts the keyspace (a catalog-era
-    /// event, never a silent one). The index is the pool-count constant's
-    /// zero-based last index (the raw `.00` literals live in
-    /// `CopySelectionPinnedTests`).
+    /// event, never a silent one). Since TASK-034's contracted touch-pool
+    /// growth (1→5 copies), no family has a single "only" index, so the law
+    /// here is structural: the key is the react template with a suffix
+    /// INSIDE the family's pool. The concrete day-stable draws stay raw in
+    /// `CopySelectionPinnedTests`.
     @Test("each family's react key names its family under the react template")
     func familyKeySpellings() {
         let petID = UUID(uuidString: "7C47A9C4-2E5F-4B8A-9C1D-3E6F8A2B4C0D")!
         let day = "2026-09-08"
         for family in CopyRules.ReactFamily.allCases {
-            let onlyIndex = String(format: "%02d", CopyRules.reactLineCount(for: family) - 1)
-            #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: family)
-                == "momo.line.react.\(family.rawValue).\(onlyIndex)")
+            let key = LineSelection.reactLineKey(petID: petID, dayKey: day, family: family)
+            let prefix = "momo.line.react.\(family.rawValue)."
+            #expect(key.hasPrefix(prefix), "\(key) must name its family under the react template")
+            let index = Int(key.dropFirst(prefix.count))
+            #expect(index != nil, "the key's suffix is a pool index — got '\(key)'")
+            #expect((0..<CopyRules.reactLineCount(for: family)).contains(index ?? -1),
+                    "the draw stays inside the family's pool of \(CopyRules.reactLineCount(for: family))")
         }
     }
 }

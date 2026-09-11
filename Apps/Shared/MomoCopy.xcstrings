@@ -614,13 +614,61 @@
       }
     },
     "momo.line.react.touch.00" : {
-      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.react namespace; wired as the VoiceOver accessibility label of the watch glance's pat capsule (UX-8: announced, never rendered). Replaced by the §6 reaction pools in engine tasks; not product copy.",
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool; the 03 §5.1 example line). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Placeholder reaction line for VoiceOver."
+            "value" : "Momo nuzzles into your hand."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.01" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo leans into the touch."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.02" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo blinks slowly, content."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.03" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo's tail curls happily."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.04" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo presses closer for a moment."
           }
         }
       }

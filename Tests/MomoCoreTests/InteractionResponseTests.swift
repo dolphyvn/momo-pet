@@ -54,7 +54,7 @@ struct InteractionResponseTests {
             // pinned in BondLedgerTests.
             let start = fixture.state(dayKey: day, helloAwarded: true, lastEvaluatedAt: fixture.instant(t))
             let outcome = fixture.send(start, .pat(gesture: cell.gesture, zone: cell.zone), at: fixture.instant(t), dayKey: day)
-            #expect(outcome.response == ResponsePlan(reaction: cell.beat, lineKey: "momo.line.react.touch.00", haptic: nil),
+            #expect(outcome.response == ResponsePlan(reaction: cell.beat, lineKey: "momo.line.react.touch.02", haptic: nil),
                     "\(cell.gesture) × \(String(describing: cell.zone)) must map to \(cell.beat.rawValue)")
             #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
             // TASK-018 supersession (in place, per the contract): the first
@@ -74,7 +74,7 @@ struct InteractionResponseTests {
             let start = fixture.state(dayKey: day, energy: energy, lastEvaluatedAt: fixture.instant(t))
             let outcome = fixture.send(start, .pat(gesture: .stroke, zone: .head), at: fixture.instant(t), dayKey: day)
             #expect(makeEnergyBand(energy) == band) // fixture sanity
-            #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.strokeHead, lineKey: "momo.line.react.touch.00", haptic: nil))
+            #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.strokeHead, lineKey: "momo.line.react.touch.02", haptic: nil))
             #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
             #expect(outcome.newState.days.first?.patCount == 1)
         }
@@ -84,7 +84,7 @@ struct InteractionResponseTests {
     func asleepTouchStirsAndCounts() {
         let start = fixture.state(dayKey: day, wakefulness: .asleep, lastEvaluatedAt: fixture.instant(t))
         let outcome = fixture.send(start, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.02", haptic: nil))
         #expect(outcome.newState.state.wakefulness == .asleep)
         #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
         #expect(outcome.newState.days.first?.patCount == 1)
@@ -94,7 +94,7 @@ struct InteractionResponseTests {
     func nappingTouchStirs() {
         let start = fixture.state(dayKey: day, wakefulness: .awake, activity: .napping, lastEvaluatedAt: fixture.instant(t))
         let outcome = fixture.send(start, .pat(gesture: .tap, zone: .belly), at: fixture.instant(t), dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.02", haptic: nil))
         #expect(outcome.newState.state.activity == .napping)
         #expect(outcome.newState.days.first?.patCount == 1)
     }
@@ -317,7 +317,7 @@ struct InteractionResponseTests {
             lastEvaluatedAt: fixture.instant(t)
         )
         let pat = fixture.send(patStart, .pat(gesture: .tap, zone: .head), at: fixture.instant(t), dayKey: day)
-        #expect(pat.response == ResponsePlan(reaction: ReactionKeys.tapHead, lineKey: "momo.line.react.touch.00", haptic: nil))
+        #expect(pat.response == ResponsePlan(reaction: ReactionKeys.tapHead, lineKey: "momo.line.react.touch.02", haptic: nil))
         #expect(pat.newState.state.mood == patStart.state.mood + InteractionRules.touchMoodDelta * InteractionRules.repetitionMultipliers[0])
         #expect(pat.newState.pendingHandshake == Handshake(kind: .wake, token: token))
 
@@ -361,10 +361,12 @@ struct InteractionResponseTests {
         // seam is likewise filled (TASK-019 supersession, in place): each
         // plan carries its intent family's day-stable key. The raw literals
         // restate the `momo.line.react.<family>.<nn>` keyspace shape plus
-        // the placeholder-era single-slot draw (index 00) without calling
-        // the production helper, so a regression cannot hide behind a
-        // circular expectation. `haptic` stays the presentation seam — nil.
-        let touch = "momo.line.react.touch.00"
+        // the epoch-3 draw over this fixture's (petID, day) — TASK-034's
+        // touch pool draws index 02, the still-placeholder pools stay 00 —
+        // without calling the production helper, so a regression cannot
+        // hide behind a circular expectation. `haptic` stays the
+        // presentation seam — nil.
+        let touch = "momo.line.react.touch.02"
         let feed = "momo.line.react.feed.00"
         let scenarios: [(EngineState, InteractionIntent.Kind, String, [CharacterMoment])] = [
             (fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t)), .pat(gesture: .stroke, zone: .belly), touch, [.questCompleted]), // pat counts → Q1 completes (09:00 is in Q1's window)

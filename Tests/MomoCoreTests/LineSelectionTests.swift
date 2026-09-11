@@ -86,9 +86,10 @@ struct LineSelectionTests {
 
     /// One engine-minted plan per intent family carries the family's
     /// day-stable key — the TASK-016 nil seam, filled at every
-    /// `InteractionSemantics` site. The expected keys restate the template +
-    /// the pool-count constant's single index (raw literals in the pinned
-    /// suite).
+    /// `InteractionSemantics` site. Since TASK-034's contracted touch-pool
+    /// growth (1→5 copies), the key is pinned STRUCTURALLY: the react
+    /// template naming the family, with a suffix inside the family's pool
+    /// (the concrete day-stable draws stay raw in the pinned suite).
     @Test("one plan per family carries its day-stable react key", arguments: [
         (InteractionIntent.Kind.pat(gesture: .tap, zone: .head), CopyRules.ReactFamily.touch),
         (InteractionIntent.Kind.feed, CopyRules.ReactFamily.feed),
@@ -100,8 +101,13 @@ struct LineSelectionTests {
         let state = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant("2026-09-08T09:00:00Z"))
         let outcome = fixture.send(state, kind, at: fixture.instant("2026-09-08T09:00:00Z"), dayKey: day)
         let plan = try #require(outcome.response)
-        let onlyIndex = String(format: "%02d", CopyRules.reactLineCount(for: family) - 1)
-        #expect(plan.lineKey == "momo.line.react.\(family.rawValue).\(onlyIndex)")
+        let key = try #require(plan.lineKey, "the plan carries a line key")
+        let prefix = "momo.line.react.\(family.rawValue)."
+        #expect(key.hasPrefix(prefix), "\(key) must name its family under the react template")
+        let index = Int(key.dropFirst(prefix.count))
+        #expect(index != nil, "the key's suffix is a pool index — got '\(key)'")
+        #expect((0..<CopyRules.reactLineCount(for: family)).contains(index ?? -1),
+                "the draw stays inside the family's pool of \(CopyRules.reactLineCount(for: family))")
     }
 
     /// The day-stability contract THROUGH the engine: two distinct fresh
