@@ -271,6 +271,88 @@ enum RigDiscipline {
         source.contains(".accessibilityLabel(")
     }
 
+    // MARK: - TASK-038 R8: the Settings surface's inventory + erase discipline
+    // (the F-1 rule again: headless suites cannot see a view's inventory)
+
+    /// Substrings that would mean the Settings surface grew a row FR-19's
+    /// MUST-NOT list forbids (no account/sign-in, no notifications, no
+    /// HealthKit, no purchases/subscriptions, no sound toggle — the sound
+    /// row is ABSENT by adjudication: FR-19 ships it only if Phase 1 ships
+    /// audio, and 04 §11 shipped none). Scanned case-insensitively over the
+    /// source STRIPPED of line comments: the file's doc comments DISCUSS
+    /// the forbidden vocabulary (they name the absent rows), so a raw scan
+    /// would fire on its own documentation. Over-matching is the safe
+    /// direction for a defense scan: any hit fails.
+    static let settingsForbiddenTokens: [String] = [
+        "account", "sign in", "signin", "notification", "healthkit",
+        "purchase", "subscription", "sound",
+    ]
+
+    /// Drops every line whose trimmed form is a line comment (`//`,
+    /// including `///` docs) — the guard scanners read CODE, not
+    /// documentation about code.
+    static func stripLineComments(_ source: String) -> String {
+        source
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+    }
+
+    static func settingsForbiddenViolations(in source: String) -> [String] {
+        let stripped = stripLineComments(source).lowercased()
+        return settingsForbiddenTokens.filter { stripped.contains($0) }
+    }
+
+    /// Presence check that the Settings surface carries its full FR-19
+    /// inventory WIRED: the rename field routes through the app model, the
+    /// haptics toggle flips through the plan core's trigger, the erase row
+    /// opens the SYSTEM alert whose destructive confirmation routes through
+    /// the executor's erase, and the About section carries the privacy
+    /// statement. Absent any leg the row silently degrades — a toggle that
+    /// writes local view state, an alert that dismisses without erasing.
+    static func mentionsSettingsInventory(in source: String) -> Bool {
+        source.contains("SettingsCopyKeys.renameFieldLabelKey") &&
+        source.contains("appModel.renamePet(to:") &&
+        source.contains("SettingsCopyKeys.hapticsToggleKey") &&
+        source.contains("appModel.setHapticsEnabled(") &&
+        source.contains("SettingsCopyKeys.eraseRowKey") &&
+        source.contains("appModel.eraseAllData()") &&
+        source.contains("SettingsCopyKeys.aboutPrivacyKey") &&
+        source.contains(".alert(")
+    }
+
+    /// The erase sequence (R5; FR-19 AC-2): delete the store tree FIRST,
+    /// then reset the transient presentation state, then swap to the fresh
+    /// default — ORDERED by index over the extension's STRIPPED source (the
+    /// doc comments narrate the steps — and name the helpers BEFORE the
+    /// code does — so a raw scan would read the narration, not the code).
+    /// The erase path NEVER persists (no `store.save`, no `.persist` step
+    /// rides it — a re-persisting erase would leave the store rotation's
+    /// stale `prev`/`prev2` bytes behind and resurrect a store a fresh
+    /// install does not have), and the swap rides the SAME factory the app
+    /// model's init path uses (fresh-install indistinguishability —
+    /// `requiresOnboarding` then routes to S1 with zero new machinery).
+    /// Absent any leg: a reordering leaves transients pointing at dead
+    /// state, a persist resurrects the deleted store, and a bespoke fresh
+    /// state drifts from the launch path.
+    static func mentionsEraseSequence(
+        in extensionSource: String,
+        appModelSource: String
+    ) -> Bool {
+        let code = stripLineComments(extensionSource)
+        guard let deleteRange = code.range(of: "removeItem(at: storeDirectory)"),
+              let resetRange = code.range(of: "resetTransientPresentationState()"),
+              let installRange = code.range(of: "installFreshDefaultState()")
+        else { return false }
+        let ordered = deleteRange.lowerBound < resetRange.lowerBound
+            && resetRange.lowerBound < installRange.lowerBound
+        let neverPersists = !code.contains("store.save")
+            && !code.contains(".persist")
+        let freshFactory = appModelSource
+            .contains("let fresh = Self.freshDefaultState(clock: clock)")
+        return ordered && neverPersists && freshFactory
+    }
+
     // MARK: - File access
 
     static func readRigFile(_ name: String) throws -> String {
@@ -612,6 +694,86 @@ struct RigDisciplineTests {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("room.scene")
             """))
+    }
+
+    // MARK: - TASK-038 R8: the Settings surface's inventory + erase discipline
+
+    @Test("The Settings tab carries EXACTLY the FR-19 inventory, wired through the app model (R8)")
+    func settingsInventoryIsExactAndWired() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/SettingsView.swift")
+
+        // The MUST-NOT vocabulary is absent from the STRIPPED source — and
+        // the raw source DOES carry it (the header's adjudication doc names
+        // the absent rows), proving the comment strip is load-bearing and
+        // the scan on the real file is never vacuous.
+        #expect(RigDiscipline.settingsForbiddenViolations(in: source).isEmpty,
+                "SettingsView carries a row FR-19's MUST-NOT list forbids")
+        #expect(source.lowercased().contains("sound"),
+                "the adjudication doc should name the absent sound row — the strip is load-bearing")
+
+        // All four sections present AND wired through the app model.
+        #expect(RigDiscipline.mentionsSettingsInventory(in: source),
+                "SettingsView must carry rename/haptics/erase/about, each routed through the app model")
+
+        // Non-vacuity, both directions: (a) an inventory with SOME legs but
+        // not all fails the presence pin (here: a sound-style toggle that
+        // writes local view state and no erase wiring); (b) the forbidden
+        // scanner fires on a stripped fixture carrying a forbidden row.
+        #expect(!RigDiscipline.mentionsSettingsInventory(in: """
+            Toggle("Haptics", isOn: $localFlag)
+            LabeledContent("Version", value: "1.0")
+            """))
+        #expect(!RigDiscipline.settingsForbiddenViolations(in: """
+            // The sound row is discussed here but that is a comment.
+            Toggle("Sound", isOn: $soundOn)
+            """).isEmpty)
+    }
+
+    @Test("The erase sequence deletes first, resets, swaps to the fresh default, never persists (R8)")
+    func eraseSequenceIsDeleteThenResetThenFreshSwap() throws {
+        let extensionSource = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel+Settings.swift")
+        let appModel = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        #expect(
+            RigDiscipline.mentionsEraseSequence(in: extensionSource, appModelSource: appModel),
+            "erase must delete the store tree, reset transients, then install the init path's fresh default — never persisting")
+
+        // Non-vacuity, one leg at a time:
+        // (a) a reordering (reset before the delete) fails the order leg.
+        #expect(!RigDiscipline.mentionsEraseSequence(in: """
+            func eraseAllData() {
+                resetTransientPresentationState()
+                try? FileManager.default.removeItem(at: storeDirectory)
+                installFreshDefaultState()
+            }
+            """, appModelSource: appModel))
+        // (b) a persisting erase (the store re-saved after the swap) fails
+        // the never-persists leg — the stale rotation bytes would survive.
+        #expect(!RigDiscipline.mentionsEraseSequence(in: """
+            func eraseAllData() {
+                try? FileManager.default.removeItem(at: storeDirectory)
+                resetTransientPresentationState()
+                installFreshDefaultState()
+                store.save(state)
+            }
+            """, appModelSource: appModel))
+        // (c) a bespoke fresh state (not the init path's factory) fails the
+        // fresh-install-symmetry leg.
+        #expect(!RigDiscipline.mentionsEraseSequence(
+            in: extensionSource,
+            appModelSource: "self.state = makeSomethingBespoke()"))
+        // (d) the doc-order trap (bitten for real during implementation):
+        // the method's doc narrates the steps and can name the helpers in
+        // ANY order — the scan reads the stripped CODE, so the narration
+        // never fails the order leg.
+        #expect(RigDiscipline.mentionsEraseSequence(in: """
+            /// Narrated out of order on purpose: installFreshDefaultState()
+            /// is described first here, before removeItem(at: storeDirectory).
+            func eraseAllData() {
+                try? FileManager.default.removeItem(at: storeDirectory)
+                resetTransientPresentationState()
+                installFreshDefaultState()
+            }
+            """, appModelSource: appModel))
     }
 
     // MARK: - TASK-029: the RM environment read is the view's alone (R1)

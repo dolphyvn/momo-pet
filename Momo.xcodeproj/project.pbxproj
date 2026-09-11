@@ -17,8 +17,9 @@
 		8A4000000000000000000013 /* MomoCopyText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000013 /* MomoCopyText.swift */; };
 		8A4000000000000000000053 /* HomeCanvasTouchLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */; };
 		8A4000000000000000000054 /* RoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000054 /* RoomView.swift */; };
-		8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000005 /* PlaceholderSettingsView.swift */; };
+		8A4000000000000000000005 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000005 /* SettingsView.swift */; };
 		8A4000000000000000000006 /* MomoAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000006 /* MomoAppModel.swift */; };
+		8A4000000000000000000055 /* MomoAppModel+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000055 /* MomoAppModel+Settings.swift */; };
 		8A4000000000000000000007 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000007 /* OnboardingFlow.swift */; };
 		8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000008 /* OnboardingCanvasView.swift */; };
 		8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000009 /* OnboardingMeetView.swift */; };
@@ -36,6 +37,7 @@
 		8A4000000000000000000042 /* MomoWatchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000032 /* MomoWatchUITests.swift */; };
 		8A4000000000000000000043 /* MomoOnboardingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000033 /* MomoOnboardingUITests.swift */; };
 		8A4000000000000000000044 /* MomoHomeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000034 /* MomoHomeUITests.swift */; };
+		8A4000000000000000000045 /* MomoSettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000035 /* MomoSettingsUITests.swift */; };
 		8A4000000000000000000051 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
 		8A4000000000000000000052 /* MomoCopy.xcstrings in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000041 /* MomoCopy.xcstrings */; };
 /* End PBXBuildFile section */
@@ -72,8 +74,9 @@
 		8A5000000000000000000013 /* MomoCopyText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoCopyText.swift; sourceTree = "<group>"; };
 		8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCanvasTouchLayer.swift; sourceTree = "<group>"; };
 		8A5000000000000000000054 /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
-		8A5000000000000000000005 /* PlaceholderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderSettingsView.swift; sourceTree = "<group>"; };
+		8A5000000000000000000005 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000006 /* MomoAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoAppModel.swift; sourceTree = "<group>"; };
+		8A5000000000000000000055 /* MomoAppModel+Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoAppModel+Settings.swift"; sourceTree = "<group>"; };
 		8A5000000000000000000007 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
 		8A5000000000000000000008 /* OnboardingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCanvasView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000009 /* OnboardingMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingMeetView.swift; sourceTree = "<group>"; };
@@ -87,6 +90,7 @@
 		8A5000000000000000000032 /* MomoWatchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000033 /* MomoOnboardingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoOnboardingUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000034 /* MomoHomeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoHomeUITests.swift; sourceTree = "<group>"; };
+		8A5000000000000000000035 /* MomoSettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoSettingsUITests.swift; sourceTree = "<group>"; };
 		8A5000000000000000000041 /* MomoCopy.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = MomoCopy.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -157,8 +161,9 @@
 				8A5000000000000000000013 /* MomoCopyText.swift */,
 				8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */,
 				8A5000000000000000000054 /* RoomView.swift */,
-				8A5000000000000000000005 /* PlaceholderSettingsView.swift */,
+				8A5000000000000000000005 /* SettingsView.swift */,
 				8A5000000000000000000006 /* MomoAppModel.swift */,
+				8A5000000000000000000055 /* MomoAppModel+Settings.swift */,
 				8A5000000000000000000007 /* OnboardingFlow.swift */,
 				8A5000000000000000000008 /* OnboardingCanvasView.swift */,
 				8A5000000000000000000009 /* OnboardingMeetView.swift */,
@@ -194,6 +199,7 @@
 				8A5000000000000000000031 /* MomoUITests.swift */,
 				8A5000000000000000000033 /* MomoOnboardingUITests.swift */,
 				8A5000000000000000000034 /* MomoHomeUITests.swift */,
+				8A5000000000000000000035 /* MomoSettingsUITests.swift */,
 			);
 			path = MomoUITests;
 			sourceTree = "<group>";
@@ -359,8 +365,9 @@
 				8A4000000000000000000013 /* MomoCopyText.swift in Sources */,
 				8A4000000000000000000053 /* HomeCanvasTouchLayer.swift in Sources */,
 				8A4000000000000000000054 /* RoomView.swift in Sources */,
-				8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */,
+				8A4000000000000000000005 /* SettingsView.swift in Sources */,
 				8A4000000000000000000006 /* MomoAppModel.swift in Sources */,
+				8A4000000000000000000055 /* MomoAppModel+Settings.swift in Sources */,
 				8A4000000000000000000007 /* OnboardingFlow.swift in Sources */,
 				8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */,
 				8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */,
@@ -387,6 +394,7 @@
 				8A4000000000000000000041 /* MomoUITests.swift in Sources */,
 				8A4000000000000000000043 /* MomoOnboardingUITests.swift in Sources */,
 				8A4000000000000000000044 /* MomoHomeUITests.swift in Sources */,
+				8A4000000000000000000045 /* MomoSettingsUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

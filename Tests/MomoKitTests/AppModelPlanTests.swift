@@ -542,4 +542,162 @@ struct AppModelPlanTests {
         ))
         #expect(AppModelPlanCore.choreographyEpoch == 1)
     }
+
+    // MARK: The settings triggers (TASK-038; FR-19)
+
+    /// The rename transform (R3): the pet re-minted with the trigger's name
+    /// — id and createdAt STABLE — and the whole remaining state carried
+    /// field-for-field (no bond, no counters, no ledger, no stamp, no
+    /// settings change). Changed ⇒ steps EXACTLY [persist → the reserved
+    /// Watch seam]; the boundary re-derives from the renamed (otherwise
+    /// unchanged) state — the fixture pet is awake at 15:00 UTC, so the
+    /// next boundary is the same-day night onset.
+    @Test("rename: new name, stable identity, whole-state carry, persist → watch seam")
+    func renameHappyTransform() {
+        let carrier = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T09:00:00Z"),
+            lastOpenedAt: AppModelFixture.instant("2026-03-03T09:00:00Z")
+        )
+        let foldAt = AppModelFixture.instant("2026-03-03T15:00:00Z")
+        let plan = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .petRenamed(petID: AppModelFixture.petID, name: "Mochi"),
+            clock: ManualEngineClock(at: foldAt),
+            calendar: calendar
+        )
+        // The intended write: the name only — identity pinned stable.
+        #expect(plan.appliedState.pet.name == "Mochi")
+        #expect(plan.appliedState.pet.id == carrier.pet.id)
+        #expect(plan.appliedState.pet.createdAt == carrier.pet.createdAt)
+        // Everything else, field-by-field:
+        #expect(plan.appliedState.state == carrier.state)
+        #expect(plan.appliedState.days == carrier.days)
+        #expect(plan.appliedState.settings == carrier.settings)
+        #expect(plan.appliedState.settings.onboardingComplete)
+        #expect(plan.appliedState.settings.hapticsEnabled == carrier.settings.hapticsEnabled)
+        #expect(plan.appliedState.pendingHandshake == carrier.pendingHandshake)
+        #expect(plan.appliedState.processedIntents == carrier.processedIntents)
+        #expect(plan.appliedState.highestCelebratedStage == carrier.highestCelebratedStage)
+        #expect(plan.appliedState.lastOpenedAt == carrier.lastOpenedAt)
+        #expect(plan.appliedState.lastEvaluatedAt == carrier.lastEvaluatedAt)
+        #expect(plan.appliedState.lastGreeting == carrier.lastGreeting)
+        // The fixed-order steps and the re-derived boundary.
+        #expect(plan.steps == [.persist, .pushWatchSnapshot])
+        #expect(plan.nextBoundary == NextBoundary(
+            kind: .nightOnset,
+            instant: AppModelFixture.instant("2026-03-03T22:00:00Z")
+        ))
+    }
+
+    /// The rename's three identity guards, each yielding the UNCHANGED
+    /// state with NO steps (persist-IFF-changed): a petID that isn't this
+    /// state's pet; a whitespace-only name (the `Pet` failable init —
+    /// INV-1's type-level guard, unreachable from the product flow: the
+    /// executor trims and the Save button is the first gate); a rename to
+    /// the identical name; and a name that TRIMS to the current one (the
+    /// mint trims, so "  Momo " mints the same pet — no write).
+    @Test("rename identity guards: foreign id, whitespace-only, identical, trimmed-equal")
+    func renameIdentityGuards() {
+        let carrier = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T09:00:00Z")
+        )
+        let foldAt = AppModelFixture.instant("2026-03-03T15:00:00Z")
+        let clock = ManualEngineClock(at: foldAt)
+        let foreign = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .petRenamed(petID: AppModelFixture.onboardedPetID, name: "Mochi"),
+            clock: clock, calendar: calendar
+        )
+        #expect(foreign.steps.isEmpty)
+        #expect(foreign.appliedState == carrier)
+        let whitespace = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .petRenamed(petID: AppModelFixture.petID, name: "   "),
+            clock: clock, calendar: calendar
+        )
+        #expect(whitespace.steps.isEmpty)
+        #expect(whitespace.appliedState == carrier)
+        let identical = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .petRenamed(petID: AppModelFixture.petID, name: "Momo"),
+            clock: clock, calendar: calendar
+        )
+        #expect(identical.steps.isEmpty)
+        #expect(identical.appliedState == carrier)
+        let trimmedEqual = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .petRenamed(petID: AppModelFixture.petID, name: "  Momo "),
+            clock: clock, calendar: calendar
+        )
+        #expect(trimmedEqual.steps.isEmpty)
+        #expect(trimmedEqual.appliedState == carrier)
+        // Every identity plan still derives its boundary (the executor has
+        // something to schedule either way).
+        #expect(foreign.nextBoundary == NextBoundary(
+            kind: .nightOnset,
+            instant: AppModelFixture.instant("2026-03-03T22:00:00Z")
+        ))
+    }
+
+    /// The haptics transform (R4): the flag flips, `onboardingComplete` is
+    /// preserved, and the whole remaining state carries field-for-field —
+    /// steps EXACTLY [persist → the reserved Watch seam].
+    @Test("haptics flip: flag written, onboarding preserved, whole-state carry")
+    func hapticsFlipTransform() {
+        let carrier = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T09:00:00Z"),
+            lastOpenedAt: AppModelFixture.instant("2026-03-03T09:00:00Z")
+        )
+        #expect(carrier.settings.hapticsEnabled)
+        let foldAt = AppModelFixture.instant("2026-03-03T15:00:00Z")
+        let plan = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .hapticsToggled(enabled: false),
+            clock: ManualEngineClock(at: foldAt),
+            calendar: calendar
+        )
+        // The intended write: the flag only.
+        #expect(!plan.appliedState.settings.hapticsEnabled)
+        #expect(plan.appliedState.settings.onboardingComplete == carrier.settings.onboardingComplete)
+        #expect(plan.appliedState.settings.onboardingComplete)
+        // Everything else, field-by-field:
+        #expect(plan.appliedState.pet == carrier.pet)
+        #expect(plan.appliedState.state == carrier.state)
+        #expect(plan.appliedState.days == carrier.days)
+        #expect(plan.appliedState.pendingHandshake == carrier.pendingHandshake)
+        #expect(plan.appliedState.processedIntents == carrier.processedIntents)
+        #expect(plan.appliedState.highestCelebratedStage == carrier.highestCelebratedStage)
+        #expect(plan.appliedState.lastOpenedAt == carrier.lastOpenedAt)
+        #expect(plan.appliedState.lastEvaluatedAt == carrier.lastEvaluatedAt)
+        #expect(plan.appliedState.lastGreeting == carrier.lastGreeting)
+        // The fixed-order steps and the re-derived boundary.
+        #expect(plan.steps == [.persist, .pushWatchSnapshot])
+        #expect(plan.nextBoundary == NextBoundary(
+            kind: .nightOnset,
+            instant: AppModelFixture.instant("2026-03-03T22:00:00Z")
+        ))
+    }
+
+    /// Applying the CURRENT haptics value is the identity plan — no steps,
+    /// unchanged state (persist-IFF-changed: a toggle that changes nothing
+    /// writes nothing).
+    @Test("haptics same-value: identity plan, no steps")
+    func hapticsSameValueIsIdentity() {
+        let carrier = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T09:00:00Z")
+        )
+        #expect(carrier.settings.hapticsEnabled)
+        let plan = AppModelPlanCore.plan(
+            state: carrier,
+            trigger: .hapticsToggled(enabled: true),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T15:00:00Z")),
+            calendar: calendar
+        )
+        #expect(plan.steps.isEmpty)
+        #expect(plan.appliedState == carrier)
+    }
 }

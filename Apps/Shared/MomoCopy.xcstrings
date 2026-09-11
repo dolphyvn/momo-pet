@@ -1201,6 +1201,126 @@
         }
       }
     },
+    "momo.settings.about.privacy" : {
+      "comment" : "The About section's short privacy statement (TASK-038 R6; FR-19/FR-20/D7/D19 restated, unnamed). Body copy — the 12-word law scans it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything stays on this iPhone. Nothing about Momo ever leaves."
+          }
+        }
+      }
+    },
+    "momo.settings.about.version.label" : {
+      "comment" : "The About section's version row label (TASK-038 R6). The version NUMBER is a bundle value, never catalog copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "momo.settings.erase.alert.cancel" : {
+      "comment" : "The S6.2 erase alert's cancel button, as a %1$@ TEMPLATE for the pet name (TASK-038 R5.6). Cancelling performs nothing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep %1$@"
+          }
+        }
+      }
+    },
+    "momo.settings.erase.alert.confirm" : {
+      "comment" : "The S6.2 erase alert's destructive confirm button (TASK-038 R5.6). The destructive ROLE is the Button's, not the copy's.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase"
+          }
+        }
+      }
+    },
+    "momo.settings.erase.alert.message" : {
+      "comment" : "The S6.2 erase alert's message TEMPLATE (TASK-038 R5.6) — the UX §9 copy after the title, the pet name interpolating TWICE through positional %1$@ placeholders. The assembled alert (title + this) reads the UX copy verbatim.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This deletes %1$@ and all memories on this iPhone; %1$@’s Watch snapshot resets at its next sync. This can’t be undone."
+          }
+        }
+      }
+    },
+    "momo.settings.erase.alert.title" : {
+      "comment" : "The S6.2 erase alert's title (TASK-038 R5.6) — the UX §9 message line's first sentence. The product's ONLY modal.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase everything?"
+          }
+        }
+      }
+    },
+    "momo.settings.erase.row" : {
+      "comment" : "The Erase all data row's label (TASK-038 R5; FR-19). Destructive by the row's Button ROLE, never by the copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase all data"
+          }
+        }
+      }
+    },
+    "momo.settings.haptics.toggle" : {
+      "comment" : "The haptics toggle's label (TASK-038 R4). The sound row is adjudicated ABSENT (FR-19's conditional resolved by 04 §11's no-audio scope) — do not add one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haptics"
+          }
+        }
+      }
+    },
+    "momo.settings.rename.field.label" : {
+      "comment" : "The rename field's label (TASK-038 R2; S1/S2's naming convention) — the section header and the field's VoiceOver label.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pet name"
+          }
+        }
+      }
+    },
+    "momo.settings.rename.save" : {
+      "comment" : "The rename Save button's label (TASK-038 R2). Disabled while the trimmed field is empty — the disabled state is the signal, never error copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
     "momo.tab.home" : {
       "comment" : "The Home tab's label (TASK-037 R4(c); UX-1's three flat tabs). The catalog's chrome class — one-word labels, never body copy. A FIXED lookup.",
       "extractionState" : "manual",
