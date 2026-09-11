@@ -159,8 +159,8 @@ Engine side (frozen, untouched): the unified cease treats `.handshakeCancelled(.
 - **Review chain:** REVIEW-TASK-035 APPROVED_WITH_MINOR_NOTES → F-1 fixed in-task by a fresh fixer agent (`fix-task-035-f1`) → REVIEW-TASK-035-FIX (delta) APPROVED_WITH_MINOR_NOTES. Both records in `.claude/tasks/reviews/`. No CHANGES_REQUIRED outstanding.
 - **§19 gate at the FINAL tree (post-fix):** `swift test` = **907 tests / 92 suites, 0 failures** (baseline 887/91 → +19 tests/+1 suite implementation, +1 R9d fix; green by implementer, round-1 reviewer, delta reviewer). App UI suite: **17/17 TEST SUCCEEDED** (315.3 s; 13 baseline + 4 new care-loop tests) on the pinned iPhone SE 3rd gen `1F25E487-A78E-464C-95AF-0BD1A9B3E1BE` — carried over to the final tree validly per the delta review's byte-identity proof (delta test-file-only). MomoWatch: **BUILD SUCCEEDED** (scheme `MomoWatch`, Apple Watch SE 3 40mm, watchOS 26.5) — same carry-over basis. Zero compiler warnings from any touched file (the 19-actor-isolation pre-existing `MomoUITests.swift` debt disclosed as F-3 → TASK-039).
 - **Scope evidence (R10):** `Sources/MomoCore/` diff = `CopyRules.swift` ONLY; `Sources/MomoCharacter/` diff = the two disclosed R6 files ONLY; `MomoReduceMotion.swift` untouched; pbxproj byte-identical with HEAD.
-- **Commit:** (this commit) — `feat(home): TASK-035 wire feed/play/care — pools, play round, report drain` on `feature/EPIC-007-iphone-home`, with this task file (moved to completed/), both review records, and the status/epic refresh (§12).
-- **Push:** (recorded in `.claude/tasks/status.md` Recent Pushes after the §13 push).
+- **Commit:** `b8d181a` — `feat(home): TASK-035 wire feed/play/care — pools, play round, report drain` on `feature/EPIC-007-iphone-home`, with this task file (moved to completed/), both review records, and the status/epic refresh (§12).
+- **Push:** `3a1698b..b8d181a` → origin — success (recorded in `.claude/tasks/status.md` Recent Pushes).
 
 ## Handoff
 
