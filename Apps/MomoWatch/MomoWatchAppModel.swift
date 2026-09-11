@@ -34,16 +34,18 @@ actor MomoWatchSnapshotPersister {
         Self.logger.debug("snapshot persisted")
     }
 
-    /// The §6.6 consumption's store half: wipe the snapshot pair FIRST,
-    /// record the consumed count SECOND (the F-3 order — a crash between
+    /// The §6.6 consumption's store half: wipe the snapshot pair FIRST, the
+    /// journal SECOND (TASK-042's R2c leg — all wipes BEFORE the record),
+    /// record the consumed count THIRD (the F-3 order — a crash between
     /// them replays the wipe idempotently; the inverse order would let
     /// stale pet data outlive its erase forever behind a consumed count).
-    /// The record runs synchronously after the wipe resumes, on this actor:
+    /// The record runs synchronously after the wipes resume, on this actor:
     /// a later submission can only carry POST-consumption state (the main
     /// actor's program order — every writer reads the model it just
-    /// decided), so no pre-erase payload can land between the two legs.
+    /// decided), so no pre-erase payload can land between the legs.
     func consumeWipe(directory: URL, eraseCount: Int) async {
         await WatchSnapshotStore(directory: directory).wipe()
+        wipeJournal(directory: directory)
         WatchConsumedMarkerStore(directory: directory).save(WatchResetMarker(eraseCount: eraseCount))
         Self.logger.debug("consumption wipe recorded (erase \(eraseCount))")
     }
@@ -86,14 +88,63 @@ final class MomoWatchAppModel {
     private(set) var consumedEraseCount: Int = 0
 
     /// The injected store directory (`StoreRules.defaultDirectory()` in
-    /// production; the UI-test seam overrides).
-    private let storeDirectory: URL
+    /// production; the UI-test seam overrides). Internal — not `private` —
+    /// because the pat seam's cross-file extension reads it (Swift's
+    /// `private` is file-scoped; the `MomoAppModel+Canvas` pattern).
+    let storeDirectory: URL
 
-    /// The receive-only transport (the ADR-013 twin).
-    private let transport: any MomoWatchTransporting
+    /// The receive-only transport (the ADR-013 twin). Internal for the pat
+    /// seam's cross-file extension (see `storeDirectory`).
+    let transport: any MomoWatchTransporting
 
-    /// The snapshot files' ONE writer (O1).
-    private let persister = MomoWatchSnapshotPersister()
+    /// The snapshot files' ONE writer (O1) — and, since TASK-042, the
+    /// intent journal's (the journal legs live in the same-target
+    /// `MomoWatchPersister+Journal.swift` extension). Internal for the pat
+    /// seam's cross-file extension (see `storeDirectory`).
+    let persister = MomoWatchSnapshotPersister()
+
+    /// This Watch's session identity (R1; 05 §6.2): resolved from the
+    /// persisted store at init; a miss MINTS one in memory (the leg's
+    /// persistence + journal self-defense ride the init task below — a
+    /// crash before the save lands simply regenerates on the next launch,
+    /// whose generation leg wipes again). Every journaled intent is wrapped
+    /// in this epoch; the iPhone's own epoch gate declines anything else.
+    private(set) var watchSessionEpoch: UUID
+
+    /// The intent journal's haptic seam (R6; ADR-015 D3): the live
+    /// `WKInterfaceDevice` conformance in production; injectable for
+    /// doubles/fakes. The `hapticsEnabled` gate lives at the call site (at
+    /// pat time), never in the seam.
+    let haptics: any MomoWatchHaptics
+
+    /// The intent's timestamp clock (R3): INJECTED — the journaled pat's
+    /// `timestamp` and `localDayKey` are derived from THIS clock and
+    /// calendar, never ambient `Date()`/`.current` (the 23:30 offline
+    /// midnight case is pinned against the injected pair in MomoKit).
+    /// Internal for the pat seam's cross-file extension (see
+    /// `storeDirectory`).
+    let wallClock: any EngineClock
+
+    /// The intent's day-attribution calendar (R3; D20/INV-9). Internal for
+    /// the pat seam's cross-file extension (see `storeDirectory`).
+    let calendar: Calendar
+
+    /// The pat reaction's clip renderer (R5; ADR-015 D1) — a transient
+    /// holder for the reaction slots the pat folds in (the ONLY public path
+    /// to the frozen vocabulary's authored clip motion; the rationale is
+    /// recorded on `reactionMotion()` in `MomoWatchPat.swift`). Re-seeded
+    /// from the launch snapshot and from every accepted steady receive;
+    /// nil until a renderable character exists (the words-only degraded
+    /// state has no rig to animate). Whole property internal — setter
+    /// included — because the pat seam's cross-file extension folds the
+    /// reaction into it (see `storeDirectory`); only this file and the pat
+    /// seam ever assign it.
+    var reactionDirector: MomoDirectorState?
+
+    /// F-1's once-per-snapshot memo (the nil-character DEBUG-loud fires on
+    /// the FIRST body evaluation of a degraded snapshot — an unconditional
+    /// log would trap on every render and crash-loop DEBUG builds).
+    @ObservationIgnored private var f1LoggedSnapshotSeq: Int?
 
     /// The presentation-owned character clock — ONE clock for the session,
     /// handed to the rig view; the view pauses/resumes it with the scene
@@ -113,7 +164,16 @@ final class MomoWatchAppModel {
     ///     settling-in shape — degraded, never wedged). The UI-test seam
     ///     injects a throwaway directory.
     ///   - transport: the live WC twin in production; tests inject a fake.
-    init(storeDirectory: URL?, transport: any MomoWatchTransporting) {
+    ///   - haptics: the live `WKInterfaceDevice` seam in production.
+    ///   - wallClock/calendar: the intent's timestamp + day attribution
+    ///     (injected per R3; production defaults are the system pair).
+    init(
+        storeDirectory: URL?,
+        transport: any MomoWatchTransporting,
+        haptics: any MomoWatchHaptics = LiveWatchHaptics(),
+        wallClock: any EngineClock = SystemEngineClock(),
+        calendar: Calendar = .current
+    ) {
         let resolved: URL
         if let storeDirectory {
             resolved = storeDirectory
@@ -128,6 +188,9 @@ final class MomoWatchAppModel {
         }
         self.storeDirectory = resolved
         self.transport = transport
+        self.haptics = haptics
+        self.wallClock = wallClock
+        self.calendar = calendar
         self.aodPreview = Self.aodPreviewEnabled()
 
         // The DEBUG fixture seam seeds through the REAL store BEFORE the
@@ -140,6 +203,40 @@ final class MomoWatchAppModel {
         snapshot = WatchSnapshotStore(directory: resolved).load()
         consumedEraseCount = WatchConsumedMarkerStore(directory: resolved)
             .load()?.eraseCount ?? 0
+
+        // The session epoch (R1; 05 §6.2): the persisted identity is
+        // preferred. A miss mints one IN MEMORY now, while the save and the
+        // F-3 journal self-defense ride the init task OFF the main actor
+        // (OBS-1's no-main-thread-I/O rule — the identity is usable this
+        // launch regardless; if the save never lands, the next launch's
+        // generation repeats and wipes again). The wipe is submitted through
+        // the persister's mailbox BEFORE any pat can exist, so a stale-
+        // epoch journal cannot outlive its epoch even against an
+        // immediately-following pat.
+        if let persisted = WatchSessionEpochStore(directory: resolved).load()?.epoch {
+            watchSessionEpoch = persisted
+        } else {
+            let minted = UUID()
+            watchSessionEpoch = minted
+            let epochStore = WatchSessionEpochStore(directory: resolved)
+            let directory = resolved
+            let persister = self.persister
+            Task.detached(priority: .utility) {
+                epochStore.save(WatchSessionEpoch(epoch: minted))
+                await persister.wipeJournal(directory: directory)
+            }
+        }
+
+        // The pat reaction's clip renderer seeds from the launch snapshot's
+        // assembled character (R5); a degraded or nil launch read leaves it
+        // nil until the first renderable receive.
+        if let snapshot,
+            let display = makeWatchCharacterDisplay(
+                display: snapshot.display,
+                character: snapshot.character
+            ) {
+            reactionDirector = MomoDirectorState(displayState: display)
+        }
 
         // The sink binds FIRST, activation SECOND (the WCSession.h:42-45
         // discipline). The WC queue's frames hop to the main actor; the
@@ -160,9 +257,25 @@ final class MomoWatchAppModel {
     /// OR nil character (cross-version skew) yields nil: the view renders
     /// words-only / the settling-in line — never a crash (UX §9). The Watch
     /// derives NOTHING: no band, stage, or moment derivation happens here.
+    ///
+    /// The nil-character case is DEBUG-loud (ADR-014's promised log, landed
+    /// as TASK-042's F-1 fold): cross-version skew cannot ship in Phase 1
+    /// (both targets update together), so an invariant regression trips the
+    /// debugger. The memo makes it ONCE PER SNAPSHOT — this property is
+    /// evaluated on every body render, and an unconditional trap would
+    /// crash-loop a DEBUG build instead of surfacing one actionable log.
     var characterDisplay: CharacterDisplayState? {
         guard let snapshot else { return nil }
-        return makeWatchCharacterDisplay(display: snapshot.display, character: snapshot.character)
+        guard let character = snapshot.character else {
+            if f1LoggedSnapshotSeq != snapshot.snapshotSeq {
+                f1LoggedSnapshotSeq = snapshot.snapshotSeq
+                Self.debugLoud(
+                    "watch snapshot seq \(snapshot.snapshotSeq) carries a nil character — cross-version skew; rendering words-only"
+                )
+            }
+            return nil
+        }
+        return makeWatchCharacterDisplay(display: snapshot.display, character: character)
     }
 
     // MARK: The receive path (R4/R5)
@@ -184,13 +297,13 @@ final class MomoWatchAppModel {
         )
         if case .consume = decision {
             // A NEW erase is pending: the just-received payload is PRE-erase
-            // state — discarded, never rendered. Wipe → record → settle;
-            // the journal-wipe leg is TASK-042's (the journal does not
-            // exist yet — nothing to wipe there, and F-3's disagreement
-            // reasoning is documented at the decision site). The count is
-            // non-nil by `decide`'s contract (.consume requires an incoming
-            // count that exceeds the consumed one); the guard is the
-            // compiler-visible restatement, never a silent fallback.
+            // state — discarded, never rendered. Wipe snapshot pair → wipe
+            // journal → record → settle (the F-3 order, all inside the
+            // persister's one serialized step — TASK-042's R2c landed the
+            // journal leg in `consumeWipe`). The count is non-nil by
+            // `decide`'s contract (.consume requires an incoming count that
+            // exceeds the consumed one); the guard is the compiler-visible
+            // restatement, never a silent fallback.
             guard let eraseCount = snapshot.resetMarkerEraseCount else {
                 Self.debugLoud("receiveContext: .consume decided with a nil marker count — skipped")
                 return
@@ -201,10 +314,29 @@ final class MomoWatchAppModel {
             return
         }
         // The steady shape: latest-wins render first (§6.3's instant local
-        // render), persist second — the submission order through the
+        // render), persist second, journal prune third (R2b — the §6.4
+        // step-4 leg: the snapshot's watermark pair prunes the applied
+        // entries, epoch-matched; the mailbox keeps it strictly after the
+        // persist that carried the pair). The submission order through the
         // persister's mailbox matches the receive order (O1).
         self.snapshot = snapshot
         await persister.persist(directory: storeDirectory, snapshot: snapshot)
+        await persister.pruneJournal(
+            directory: storeDirectory,
+            watermarkEpoch: snapshot.lastAppliedEpoch,
+            watermarkSeq: snapshot.lastAppliedIntentSeq
+        )
+        // The pat reaction's clip renderer re-seeds from the NEWEST
+        // snapshot (R5): the next pat's clip context rides the latest
+        // state. A mid-flight reaction is cut by this re-seed — accepted:
+        // the snapshot IS the newest truth (the drain's returning echo must
+        // not outrank it), and reaction continuity is not a contract.
+        if let display = makeWatchCharacterDisplay(
+            display: snapshot.display,
+            character: snapshot.character
+        ) {
+            reactionDirector = MomoDirectorState(displayState: display)
+        }
     }
 
     // MARK: The lifecycle leg (TR9)
@@ -325,7 +457,7 @@ final class MomoWatchAppModel {
     /// The `MomoCopy` DEBUG-loud discipline: invariant regressions trip the
     /// debugger in debug builds and stay silent in release, where the
     /// documented fallback governs.
-    private static func debugLoud(_ message: String) {
+    static func debugLoud(_ message: String) {
         #if DEBUG
         assertionFailure(message)
         #endif

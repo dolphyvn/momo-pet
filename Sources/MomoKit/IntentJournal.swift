@@ -75,14 +75,18 @@ public struct IntentJournal {
     /// Appends one event as a canonical, newline-terminated line (the type
     /// header's crash-window analysis). Never throws: an encoding or I/O
     /// failure trips the DEBUG-loud discipline and leaves the journal as it
-    /// stands.
-    public func append(_ event: IntentEvent) {
+    /// stands. Returns whether the line LANDED — the caller's durability
+    /// signal (TASK-042's send gate: the `transferUserInfo` drain goes out
+    /// only for journaled events, so a declined watermark seq can never be
+    /// handed to a later pat).
+    @discardableResult
+    public func append(_ event: IntentEvent) -> Bool {
         guard var line = event.encoded() else {
             // A valid `IntentEvent` that cannot encode is a domain-model
             // regression (every field is JSON-native). DEBUG-loud; nothing
             // is appended.
             Self.debugLoudFailure("IntentJournal: event encoding failed — append skipped")
-            return
+            return false
         }
         line.append(0x0A) // the newline terminator (ASCII \n)
         let fileManager = FileManager.default
@@ -98,6 +102,7 @@ public struct IntentJournal {
             }
             contents.append(line)
             try contents.write(to: url)
+            return true
         } catch {
             // Crash-window honesty: an interruption MID-write leaves a torn
             // prefix (complete lines + torn trailing line) — the parse path's
@@ -105,6 +110,7 @@ public struct IntentJournal {
             // (not a crash) is an I/O regression: DEBUG-loud, journal keeps
             // whatever survived.
             Self.debugLoudFailure("IntentJournal: append failed (\(error)) — journal kept as-is")
+            return false
         }
     }
 
@@ -208,6 +214,38 @@ public struct IntentJournal {
                 at: directory.appendingPathComponent(StoreRules.temporaryIntentJournalFileName)
             )
             Self.debugLoudFailure("IntentJournal: prune failed (\(error)) — journal kept as-is")
+        }
+    }
+
+    // MARK: Wipe (§6.6's journal half; TASK-042 R2c)
+
+    /// Removes the journal file — the §6.6 consumption's journal half AND
+    /// the epoch (re)generation's F-3 self-defense (stale-epoch entries can
+    /// never apply and must never linger). Never throws; an ABSENT journal
+    /// is already the wiped state (removing it would throw; nothing to do —
+    /// the same shape `prune`'s empty-survivor branch documents). MUST be
+    /// idempotent: a crash between any wipe leg and the consumed-marker
+    /// record replays the whole consumption, and the replay must be a no-op
+    /// second time. Deliberately touches NOTHING else in the directory —
+    /// only the journal file named by `StoreRules.intentJournalFileName`
+    /// (the temp is prune's own in-flight artifact and is removed by the
+    /// prune path's cleanup, not here; a wipe racing a prune's temp leaves
+    /// an inert orphan the next prune overwrites).
+    public func wipe() {
+        let fileManager = FileManager.default
+        let url = directory.appendingPathComponent(StoreRules.intentJournalFileName)
+        guard fileManager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
+        do {
+            try fileManager.removeItem(at: url)
+        } catch {
+            // A removal failure over an EXISTING file is an I/O regression:
+            // DEBUG-loud like the prune's removal branch — the leftovers are
+            // inert (stale-epoch entries can never apply; same-epoch entries
+            // sit above the watermark gate) and the next wipe/prune retries
+            // the cleanup.
+            Self.debugLoudFailure(
+                "IntentJournal: wipe failed to remove the journal (\(error)) — leftovers left in place, inert under the watermark gate"
+            )
         }
     }
 

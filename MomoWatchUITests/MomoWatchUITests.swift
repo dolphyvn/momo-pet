@@ -82,8 +82,8 @@ final class MomoWatchUITests: XCTestCase {
             "the settling-in line must yield to the rendered snapshot"
         )
 
-        // The pat targets are labeled and ≥ 44 pt (AC-3's target floor) —
-        // inert this task (TASK-042 captures), disclosed in the task notes.
+        // The pat targets are labeled and ≥ 44 pt (AC-3's target floor);
+        // both capture for real since TASK-042 (the flows below).
         let canvas = watchElement(app, "watch.canvas")
         XCTAssertTrue(canvas.exists, "the tappable canvas target must exist")
         XCTAssertGreaterThanOrEqual(
@@ -144,6 +144,49 @@ final class MomoWatchUITests: XCTestCase {
                 format: "restore must stay within the ~%.1f s budget over the measured baseline (restore %.2f s, baseline %.2f s)",
                 Self.restoreBudget, restoreElapsed, baselineElapsed
             )
+        )
+    }
+
+    // MARK: TASK-042 — the pat-pill flow
+
+    /// The pill is a REAL pat target now: tapping it must run the whole
+    /// offline-first flow (the immediate reaction fold, the haptic seam, the
+    /// journal append, the drain attempt) and leave the app alive with the
+    /// glance still rendered — no crash, no wedge, no error surface (the
+    /// journal's keep-as-is discipline makes every I/O outcome quiet).
+    func testPatPillTapKeepsTheGlanceRendered() {
+        let app = seededW1App(store: "momo-watch-uitest-pill-\(UUID().uuidString)")
+        let pill = watchElement(app, "watch.patPill")
+        XCTAssertTrue(pill.isHittable, "the Pat pill must be tappable in the rendered glance")
+        pill.tap()
+        // The glance survives the flow: still rendered, app foreground.
+        XCTAssertTrue(
+            watchElement(app, "watch.glance").exists,
+            "the glance must still render after a pat"
+        )
+        XCTAssertEqual(
+            app.state, .runningForeground,
+            "the app must stay foreground after the pat flow"
+        )
+    }
+
+    // MARK: TASK-042 — the canvas tap flow
+
+    /// The canvas is the touch-only pat affordance (the composite a11y
+    /// element keeps VoiceOver users on the pill): tapping anywhere on the
+    /// slot must run the same flow and leave the glance rendered.
+    func testCanvasTapKeepsTheGlanceRendered() {
+        let app = seededW1App(store: "momo-watch-uitest-canvas-\(UUID().uuidString)")
+        let canvas = watchElement(app, "watch.canvas")
+        XCTAssertTrue(canvas.isHittable, "the canvas must be tappable in the rendered glance")
+        canvas.tap()
+        XCTAssertTrue(
+            watchElement(app, "watch.glance").exists,
+            "the glance must still render after a canvas pat"
+        )
+        XCTAssertEqual(
+            app.state, .runningForeground,
+            "the app must stay foreground after the canvas pat flow"
         )
     }
 

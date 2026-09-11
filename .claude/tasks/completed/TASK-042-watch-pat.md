@@ -107,20 +107,122 @@ Branch `feature/EPIC-008-watch-sync` (continues from `2e65019`). The implementat
 
 ## Status
 
-READY — contract authored 2026-09-11 (ADR-015 accepted; folds R7/R8 + TASK-040 F-3 in R1/R2). Awaiting fresh Jupiter implementation dispatch.
+IN_REVIEW — implementation complete 2026-09-11, all gates green (see Handoff). Awaiting the fresh independent reviewer (§10/§33).
 
 ## Implementation Notes
 
-(implementation agent fills: WKHapticType choices + header citations; Reduce Motion mechanism chosen; reaction sampler wiring notes; seq formula verification; any VERIFY-AT-BUILD resolutions; disclosed deltas — heart backlog item; file inventory + line counts.)
+**(implementation agent, 2026-09-11).** All requirements R1–R10 implemented; AC 1–9 satisfied; every quality gate green. The details below are the reviewer's map.
+
+### WKHapticType choices (R6; ADR-015 D3 — VERIFY-AT-BUILD, resolved)
+
+Resolved against the watchOS 26.5 SDK header `WKInterfaceDevice.h:16–33` (cases enumerated verbatim in `LiveWatchHaptics`'s doc): the Swift overlay renames `playHaptic:` to `play(_:)` (watchOS 2.0+); a pat touches only the always-available cases. **tick → `.click`** (the single-pulse user-interaction tick — UX §6.3's "single soft tick" read literally). **celebration → `.retry`** — chosen for PULSE SHAPE (the set's double-pulse case); the NAME is mismatched (its iOS meaning is "retry"), disclosed here and in code. `.success` is single-pulse, `.notification` triple — neither is a "celebratory double". The on-wrist FEEL verdict is TASK-044's paired-hardware obligation (§25/§27 — no simulator feel claims were made anywhere).
+
+### Reduce Motion mechanism (R5)
+
+`reduceMotionOverlay(at:)` on the SAME `MomoDirectorState` — ADR-015's "existing reduced machinery", the render-only law of `MomoReduceMotion`. The sampler closure (`MomoWatchPat.reactionMotion()`) branches per-frame: `reduceMotion ? director.reduceMotionOverlay(at: time) : director.overlay(at: time)`. No Watch-side reduction logic exists.
+
+### Reaction sampler wiring (R5; ADR-015 D1)
+
+The rig's EXISTING `reactionMotion` sampler parameter is bound at the W1 call site (the one sanctioned MomoCharacter touch; zero MomoCharacter edits). Foreground branch binds `model.reactionMotion()`; the glyph/AOD branch binds NOTHING (the parameter's `.identity` default IS the stillness posture) — keeping TASK-041's exact glyph rig shape. `MomoDirectorState` is used as a NARROW CLIP RENDERER: no `.displayState`/touch/moment folds — the per-clip choreography is private/internal to MomoCharacter, so the type's public `overlay`/`reduceMotionOverlay` pair is the ONLY legal path to the authored `.tap`/`.stir` motion; ADR-015's rejected alternative was PORTING the director, which this does not do (rationale recorded on `reactionMotion()`). The director is seeded at init and re-seeded on every accepted steady receive — NOT folded per displayState (that would trigger wake/settle choreography, out of scope).
+
+### Seq formula verification (R3)
+
+`next = max(epochScopedJournalMax, epochMatchedWatermark) + 1` — pure in MomoKit (`WatchPatPlan.nextWatchSeq`), pinned by the named tests: fresh→1, journal-max floor, FULL-PRUNE MONOTONICITY (N+1, never 1), stale-epoch watermark inert, mixed-epoch journal never inflates, watermark-wins-when-larger. The derivation runs INSIDE the persister's mailbox with the journal read as its first statement; the watermark pair is read on the main actor immediately before submission (no suspension between) — together with the FIFO mailbox this makes every receive-interleaving safe (the ordering argument is recorded on `appendPat`). `appendPat` returns the journaled event or nil; the send happens ONLY on a landed append (a lost journal line is a lost pat, never a reused seq). `IntentJournal.append` gained `@discardableResult -> Bool` (the send's durability gate) — a MomoKit API delta, disclosed.
+
+### Prune placement (R2b)
+
+A SEPARATE mailbox job on every steady-shape receive, AFTER the snapshot persist (`pruneJournal`) — preserving TASK-041's `persister.persist(` census == 2 scanner leg. Epoch-matched only (a stale-epoch watermark prunes nothing, pinned in MomoKit).
+
+### F-1 log mechanism (R7 fold)
+
+The nil-character DEBUG-loud fires ONCE per `snapshotSeq` via an `@ObservationIgnored` memo — an unconditional trap would crash-loop DEBUG on every body render. The words-only render itself is unchanged TASK-041 behavior.
+
+### No-Watch-unit-target posture (accepted since TASK-040 F-6/D-7)
+
+Pure logic (event shape, seq formula, estimator, pending count, reaction map) lives in MomoKit and is headlessly tested (27 tests). Wiring is pinned structurally (WatchPatScan: 19 tests, fixture self-tests in both stub directions + real-tree standing tests). Flows (pill/canvas pat) run as MomoWatchUITests (5 total).
+
+### Disclosed deltas (each deliberate)
+
+1. **Heart backlog** — the pat reaction is motion-only; the heart burst is ADR-015's recorded backlog item, not silently dropped.
+2. **Mid-flight reaction cut** — a re-seed (steady receive) replaces the director wholesale, so a playing reaction may be cut by the returning snapshot's echo. Accepted: snapshot arrival is rare and the cut is a calm still frame; the alternative (reaction continuation state) is out of scope.
+3. **Tempo context is per-seed** — the director seeds from the snapshot's character alone; no tempo context rides the wire (04 §9.2's four-field mirror is binding).
+4. **Estimate double-fire window** — two hair-trigger pats can both read the same pre-append pending count (mailbox reads serialize, but both may precede both appends): a doubled celebration in the sub-second window is ADR-015 D2's disclosed benign false-positive shape; presentation-only, nothing stateful.
+5. **`IntentJournal.append` now returns Bool** (public MomoKit API change, `@discardableResult`) — the send's durability gate needs the append's outcome; existing callers unaffected.
+6. **consumeWipe's journal leg routed through the persister extension** (`wipeJournal`) instead of constructing `IntentJournal` inline — keeps the O1 census (`IntentJournal(` in exactly ONE Apps/MomoWatch file) true and the log message neutral.
+7. **Cross-file extension access levels** — `storeDirectory`/`transport`/`persister`/`wallClock`/`calendar`/`reactionDirector`/`debugLoud` are internal (annotated) so the pat seam's same-target extension can use them (Swift `private` is file-scoped; the `MomoAppModel+Canvas` precedent).
+8. **`/opt/extra/lib` ld warning** — machine-level `LIBRARY_PATH` environment noise, present on every build of this repo on this machine; NOT project-configured, not introduced by this task, no project change could remove it. The Watch/iPhone targets themselves compile warning-clean.
+
+### File inventory (lines)
+
+- MomoKit: `WatchPatPlan.swift` 150 (new), `WatchSessionEpochStore.swift` 153 (new), `IntentJournal.swift` 281 (append Bool + prune/wipe), `StoreRules.swift` 229 (journal file name).
+- Watch target: `MomoWatchPat.swift` 190 (new), `MomoWatchPersister+Journal.swift` 117 (new), `MomoWatchAppModel.swift` 465 (epoch/F-1/wipe/director/receive-prune), `GlanceView.swift` 258 (pat targets + sampler branch), `MomoWatchTransport.swift` 135 (sendUserInfo).
+- Tests: `WatchPatPlanTests.swift` 271, `WatchSessionEpochStoreTests.swift` 92, `IntentJournalWipeTests.swift` 92, `MomoWatchPatScanTests.swift` 303, `Support/WatchPatScan.swift` 225 (new), `MomoWatchUITests.swift` 217 (+2 flows).
+- pbxproj: 8 added lines (registration only, verified by diff; D-R3 re-verified post-edit — both app targets `dependencies = ()`).
+- Frozen surfaces: `Apps/Momo/**` diff-EMPTY (git status: 0 files); `Sources/MomoCore/`, `Sources/MomoCharacter/` untouched; no entitlements/Info.plist/capability changes; no catalog changes (R9 copy law).
 
 ## Reviewer Findings
 
-(reviewer fills)
+APPROVED_WITH_MINOR_NOTES — REVIEW-TASK-042: all gates green (swift test 1102/108, both xcodebuilds, UI 5/5); 3 reviewer probes bit precisely with sha256-verified restores; 1 Minor (F-R1 journaled-but-never-sent crash-window drain gap, contract-conformant, follow-up sweep recommended) + 4 Notes — full record in `.claude/tasks/reviews/REVIEW-TASK-042.md`.
 
 ## Completion Evidence
 
-(orchestrator fills: test counts, coverage, build verdicts, UI test results, probe hashes, commit + push records.)
+(Orchestrator, 2026-09-12. Every gate reproduced personally by the orchestrator AND independently re-run by the reviewer on the post-probe, sha256-restored tree.)
+
+- **Tests:** `swift test` **1102 tests / 108 suites PASSED** (pre-task baseline 1056/104; +46 = 27 pure-logic + 19 scan). MomoWatchUITests **5/5 TEST SUCCEEDED** (2 new pat flows + 3 existing).
+- **Coverage:** MomoKit **90.79 % lines** (1738 total / 160 missed) — floor ≥ 80 % held; new `WatchPatPlan` 100 % lines, `WatchSessionEpochStore` 77.6 %, `IntentJournal` 74.7 %.
+- **Builds:** MomoWatch + Momo **BUILD SUCCEEDED**, zero touched-file warnings (only the pre-existing machine-level `/opt/extra/lib` ld noise — delta 8).
+- **Mutations:** implementer 3 bites + reviewer 3 independent probes (P1 estimator Q7-guard removal → non-Q7-estimate red; P2 `journalMaxSeq` epoch-filter drop → mixed-epoch red, journalMax 99 vs 2; P3 `.waking`→`.stir` flip → reaction-kind red). Every bite red-then-green; **18-file sha256 sweep byte-identical after restore**.
+- **Frozen surfaces:** `Apps/Momo/**` diff-EMPTY; `Sources/MomoCore/` + `Sources/MomoCharacter/` untouched; pbxproj +8 registration-only lines (D-R3 re-verified at source — both app targets `dependencies = ()`); no entitlements/Info.plist/capability/catalog changes.
+- **Review:** APPROVED_WITH_MINOR_NOTES (§10) — commit permitted; findings routed as recorded under Reviewer Status.
+- **Commit:** ONE atomic task commit by the orchestrator — `feat(watch): TASK-042 watch pat — journaled intents, drain, micro-reaction + haptics` (implementation + tests + review record + ADR-014 wording + this task file moved to `completed/`), branch `feature/EPIC-008-watch-sync`; hash recorded in status.md Recent Commits.
+- **Push:** pushed to `origin` immediately after the commit (§13); result recorded in status.md Recent Pushes.
 
 ## Handoff
 
-(implementation agent completes at the end — per §28: Completed / Files Changed / Tests Run / Test Results / Known Issues / Decisions Made / Reviewer Status / Commit / Push / Recommended Next Step. End the section with a single line that begins exactly `HANDOFF-COMPLETE TASK-042` — write it ONLY when the handoff above is genuinely complete.)
+### Completed
+
+R1 epoch store + generation journal-wipe; R2 journal legs via the persister actor (+ `IntentJournal.append -> Bool` durability gate, `wipe()` wired into `consumeWipe` in F-3 order, steady-receive prune after persist); R3 pat flow (immediate reaction fold → deferred durable leg: estimate → haptic → append → send-only-if-journaled) + pinned seq formula + estimator; R4 `sendUserInfo` over `transferUserInfo`; R5 state-distinct micro-reaction via the rig's sampler seam + `reduceMotionOverlay`; R6 haptic seam (`tick→.click`, `celebration→.retry`) gated at pat time; R7 F-1 once-per-snapshot memo; R8 ADR-014 wording reconciled; R9 pill Button + canvas tap capture (composite a11y untouched); R10 three structural guards + three sha256-restored mutation bites + full gates.
+
+### Files Changed
+
+Modified: `Sources/MomoKit/IntentJournal.swift`, `Sources/MomoKit/StoreRules.swift`, `Apps/MomoWatch/MomoWatchAppModel.swift`, `Apps/MomoWatch/GlanceView.swift`, `Apps/MomoWatch/MomoWatchTransport.swift`, `MomoWatchUITests/MomoWatchUITests.swift`, `Momo.xcodeproj/project.pbxproj` (+8 registration lines only), `.claude/tasks/decisions/ADR-014-watch-character-read-model.md` (wording), this task file. New: `Sources/MomoKit/WatchPatPlan.swift`, `Sources/MomoKit/WatchSessionEpochStore.swift`, `Apps/MomoWatch/MomoWatchPat.swift`, `Apps/MomoWatch/MomoWatchPersister+Journal.swift`, `Tests/MomoKitTests/{WatchPatPlanTests,WatchSessionEpochStoreTests,IntentJournalWipeTests,MomoWatchPatScanTests}.swift`, `Tests/MomoKitTests/Support/WatchPatScan.swift`. **`Apps/Momo/**` diff-EMPTY; `Sources/MomoCore/` + `Sources/MomoCharacter/` untouched; no entitlements/Info.plist/capability/catalog changes.**
+
+### Tests Run
+
+1. `swift test` (full package): **1102 tests / 108 suites, PASSED** (pre-task baseline 1056/104; +46 = 27 pure-logic + 19 scan).
+2. MomoKit coverage (measured immediately after `swift test --enable-code-coverage`): **lines 90.79%** (1738 lines, 160 missed) — gate ≥ 80% MET. New files: `WatchPatPlan` 100%, `WatchSessionEpochStore` 77.6%, wipe tests 100% of their surfaces.
+3. `xcodebuild -scheme MomoWatch -destination 'id=8A854895-225C-411B-89C1-B03337BFE957' build`: **BUILD SUCCEEDED**, zero target warnings (only pre-existing machine-level `LIBRARY_PATH` noise — see Implementation Notes delta 8).
+4. `xcodebuild -scheme Momo -destination 'id=1F25E487-A78E-464C-95AF-0BD1A9B3E1BE' build`: **BUILD SUCCEEDED**.
+5. `xcodebuild ... -only-testing:MomoWatchUITests test`: **TEST SUCCEEDED — 5/5** (2 new pat flows + 3 existing).
+6. Mutation bites (each sha256-hashed before, restored, hash-verified identical after): (a) `nextWatchSeq` watermark term dropped → FULL-PRUNE MONOTONICITY red (next→1, expected 4) + watermark-wins red; (b) estimator `==`→`>=` → OVERSHOOT test red (2 assertions); (c) second `IntentJournal(` touch in `MomoWatchAppModel.swift` → real-tree journal-census guard red ("2 files"). All suites green after each restore.
+
+### Test Results
+
+All green. No skipped, no TODO debt, no disabled tests.
+
+### Known Issues
+
+- `/opt/extra/lib` ld warning: machine-level environment noise (disclosed delta 8) — pre-existing, not actionable in-repo.
+- Haptic FEEL (`.click`/`.retry` pulse shapes) is header+behavior reasoning, not on-wrist verified — TASK-044's paired-hardware obligation (§25).
+
+### Decisions Made
+
+Director-as-narrow-clip-renderer (rationale on `reactionMotion()`); prune as separate mailbox job after persist (preserves TASK-041 census); `appendPat` returns the journaled event or nil (send gate); F-1 once-per-snapshotSeq memo; consumeWipe routes its journal leg through the extension (O1 census); cross-file extension internals (the `+Canvas` pattern); heart stays backlog. Full list with reasons: Implementation Notes above.
+
+### Reviewer Status
+
+**APPROVED_WITH_MINOR_NOTES** — REVIEW-TASK-042 (fresh Jupiter, §33-unprimed; record `.claude/tasks/reviews/REVIEW-TASK-042.md`): 0 Critical / 0 Major / 1 Minor / 4 Notes. F-R1 Minor (journaled-but-never-sent crash window — no launch sweep; contract-conformant under R2/R3's three-leg scope) → routed to TASK-044 as an explicit sweep requirement. F-R2 Note (stale launch-read comments in `MomoWatchAppModel.swift`) → folded into TASK-043's incidental touch of that file. F-R3–F-R5 Notes: recorded, no action. All adversarial targets held; reviewer gates re-run green on the post-probe sha256-restored tree.
+
+### Commit
+
+NONE — implementation agent does not commit (§9). Orchestrator commits after review: `feat(watch): TASK-042 watch pat — journaled intents, drain, micro-reaction + haptics`.
+
+### Push
+
+NONE (follows the commit).
+
+### Recommended Next Step
+
+Spawn the fresh REVIEW-TASK-042 agent (task #134): read this task file + Implementation Notes, re-derive from ADR-015/ADR-014/05 §6.4/§6.6, review the working tree on `feature/EPIC-008-watch-sync`, re-run the gates, and record findings in `.claude/tasks/reviews/REVIEW-TASK-042.md`. Then the fix loop → atomic commit + push (#135).
+
+HANDOFF-COMPLETE TASK-042

@@ -191,6 +191,21 @@ public enum StoreRules {
     /// Same-volume rule; never read by anyone.
     public static let temporaryWatchConsumedMarkerFileName = "watch-consumed-marker.json.tmp"
 
+    /// The Watch's own `watchSessionEpoch` record (TASK-042 R1; 05 §6.2:
+    /// generated at Watch app first launch, persisted in the Watch store
+    /// §5.6, regenerated on reinstall/re-pair/new Watch). Watch-local
+    /// bookkeeping in the store directory: plain JSON, no envelope — a
+    /// future breaking change to its shape would add a version field
+    /// mirroring the DTOs. Generation is CALLER-side (the app model reads;
+    /// on a miss it mints the UUID, saves, and wipes the journal — the
+    /// TASK-040 F-3 self-defense); the store stays load-or-nil / save.
+    public static let watchSessionEpochFileName = "watch-session-epoch.json"
+
+    /// The session-epoch save's temp file (the commit-point discipline,
+    /// mirrored from the marker store). Same-volume rule; never read by
+    /// anyone.
+    public static let temporaryWatchSessionEpochFileName = "watch-session-epoch.json.tmp"
+
     /// The default store directory (05 §5.2): `Application Support/Momo/`,
     /// created if missing — so EPIC-007's wiring is one call. This is the ONE
     /// sanctioned ambient-path site in MomoKit (the discipline scan exempts

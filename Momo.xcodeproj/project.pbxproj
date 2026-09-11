@@ -35,6 +35,8 @@
 		8A4000000000000000000062 /* GlanceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000062 /* GlanceView.swift */; };
 		8A4000000000000000000063 /* WatchCopyKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000063 /* WatchCopyKeys.swift */; };
 		8A4000000000000000000064 /* MomoCopyText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000064 /* MomoCopyText.swift */; };
+		8A4000000000000000000065 /* MomoWatchPat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000065 /* MomoWatchPat.swift */; };
+		8A4000000000000000000066 /* MomoWatchPersister+Journal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000066 /* MomoWatchPersister+Journal.swift */; };
 		8A4000000000000000000021 /* MomoCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000001 /* MomoCore */; };
 		8A4000000000000000000022 /* MomoCharacter in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000002 /* MomoCharacter */; };
 		8A4000000000000000000023 /* MomoKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8A7000000000000000000003 /* MomoKit */; };
@@ -102,6 +104,8 @@
 		8A5000000000000000000062 /* GlanceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000063 /* WatchCopyKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCopyKeys.swift; sourceTree = "<group>"; };
 		8A5000000000000000000064 /* MomoCopyText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoCopyText.swift; sourceTree = "<group>"; };
+		8A5000000000000000000065 /* MomoWatchPat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoWatchPat.swift; sourceTree = "<group>"; };
+		8A5000000000000000000066 /* MomoWatchPersister+Journal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoWatchPersister+Journal.swift"; sourceTree = "<group>"; };
 		8A5000000000000000000021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000022 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8A5000000000000000000031 /* MomoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoUITests.swift; sourceTree = "<group>"; };
@@ -207,6 +211,8 @@
 				8A5000000000000000000062 /* GlanceView.swift */,
 				8A5000000000000000000063 /* WatchCopyKeys.swift */,
 				8A5000000000000000000064 /* MomoCopyText.swift */,
+				8A5000000000000000000065 /* MomoWatchPat.swift */,
+				8A5000000000000000000066 /* MomoWatchPersister+Journal.swift */,
 				8A5000000000000000000022 /* Info.plist */,
 			);
 			path = MomoWatch;
@@ -421,6 +427,8 @@
 				8A4000000000000000000062 /* GlanceView.swift in Sources */,
 				8A4000000000000000000063 /* WatchCopyKeys.swift in Sources */,
 				8A4000000000000000000064 /* MomoCopyText.swift in Sources */,
+				8A4000000000000000000065 /* MomoWatchPat.swift in Sources */,
+				8A4000000000000000000066 /* MomoWatchPersister+Journal.swift in Sources */,
 				8A4000000000000000000052 /* MomoCopy.xcstrings in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -7,12 +7,13 @@ import os
 
 /// The Watch-side transport seam (ADR-013's deliberate DUPLICATE of the
 /// iPhone `Apps/Momo/MomoWatchTransport.swift` pattern — per-target code,
-/// plain over DRY; the roles differ so nothing is shared). RECEIVE-only this
-/// task: activation and the latest-wins application-context receive sink —
-/// nothing else. NO send surface exists (the Watch → iPhone `transferUserInfo`
-/// intent path is TASK-042's; an unimplemented capability is not stubbed
-/// here), so push and receive logic stays headlessly simple and the executor
-/// never names `WCSession` (D-R5).
+/// plain over DRY; the roles differ so nothing is shared). Activation, the
+/// latest-wins application-context receive sink (§6.1's iPhone → Watch
+/// down-transport), and — since TASK-042 — the `transferUserInfo` send
+/// surface (§6.1's Watch → iPhone up-transport: the reliable queued FIFO
+/// behind the intent journal's drain). NO `sendMessage` exists here: the
+/// reachable-only optimization stays unshipped (§6.1 — correctness never
+/// depends on reachability). The executor never names `WCSession` (D-R5).
 ///
 /// **Queue contract.** `onContextData` may be invoked on a BACKGROUND queue —
 /// WCSession calls its delegate on a non-main serial queue (the TASK-040 R4
@@ -33,6 +34,19 @@ protocol MomoWatchTransporting: AnyObject {
     /// unwrapped from the property-list `Data` value (undecodable bytes are
     /// the RECEIVER's skip — the sink still gets them).
     var onContextData: (@Sendable (Data) -> Void)? { get set }
+
+    /// The up-transport send (§6.1's Watch → iPhone `transferUserInfo`; the
+    /// intent journal's drain, TASK-042): one `IntentEvent`'s canonical JSON
+    /// bytes under the `"payload"` key — the receive twin's unwrap, mirrored.
+    /// FIRE-AND-FORGET: delivery is WC's reliable-queue job (queued FIFO,
+    /// redelivered across retries; duplicates possible), and the iPhone's
+    /// idempotent guards (`WatchReceivePlan.decide`) own exactly-once — the
+    /// caller never inspects the transfer's progress, and a send while the
+    /// session is not yet activated is WC's to queue, not ours to preempt
+    /// (correctness never depends on activation). The journal line the bytes
+    /// came from is ALREADY durable when this runs (the append precedes the
+    /// send) — the transfer is the drain, the journal is the record.
+    func sendUserInfo(payload: Data)
 }
 
 /// The live WCSession conformance — deliberately THIN (the iPhone twin's
@@ -82,6 +96,15 @@ final class LiveWatchTransport: NSObject, WCSessionDelegate, MomoWatchTransporti
         // The Swift overlay renames the header's `activateSession` to
         // `activate` (WCSession.h:180's C spelling, obsoleted in Swift 3).
         session.activate()
+    }
+
+    func sendUserInfo(payload: Data) {
+        // The Swift overlay renames the header's `transferUserInfoCompletion:`
+        // to `transferUserInfo(_:)` (WCSession.h:326's C spelling); the
+        // completion handler is OPTIONAL and we pass none — fire-and-forget,
+        // per the protocol method's contract (the journal is the record; the
+        // iPhone's guards own exactly-once).
+        session.transferUserInfo(["payload": payload])
     }
 
     // MARK: WCSessionDelegate (the watchOS surface; WC's non-main serial
