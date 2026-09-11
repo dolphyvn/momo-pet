@@ -937,6 +937,30 @@
         }
       }
     },
+    "momo.line.room.01" : {
+      "comment" : "The Room scene's VoiceOver label template (TASK-037 R4; UX §10 row 435's \"{name}'s cozy room\"). A FIXED lookup — never a seeded draw (the moment.01 precedent). Positional placeholder: %1$@ = pet name, so a localized reordering stays locale-correct. The possessive apostrophe is U+2019 per the catalog convention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@’s cozy room"
+          }
+        }
+      }
+    },
+    "momo.line.room.02" : {
+      "comment" : "The Room scene's caption (TASK-037 R4) — the one calm line beneath the static scene. A FIXED lookup, like .01. Rendered in the Room tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Somewhere soft to come home to."
+          }
+        }
+      }
+    },
     "momo.line.status.energy.drowsy" : {
       "comment" : "PRD §3.2 band name as the status row's energy word (TASK-033's status class).",
       "extractionState" : "manual",
@@ -1173,6 +1197,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quietly inseparable."
+          }
+        }
+      }
+    },
+    "momo.tab.home" : {
+      "comment" : "The Home tab's label (TASK-037 R4(c); UX-1's three flat tabs). The catalog's chrome class — one-word labels, never body copy. A FIXED lookup.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home"
+          }
+        }
+      }
+    },
+    "momo.tab.room" : {
+      "comment" : "The Room tab's label (TASK-037 R4(c); UX-1). A FIXED lookup, like momo.tab.home.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Room"
+          }
+        }
+      }
+    },
+    "momo.tab.settings" : {
+      "comment" : "The Settings tab's label (TASK-037 R4(c); UX-1). A FIXED lookup, like momo.tab.home.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
           }
         }
       }

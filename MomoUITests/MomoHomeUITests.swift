@@ -551,6 +551,60 @@ final class MomoHomeUITests: XCTestCase {
         XCTAssertFalse(homeElement(app, "home.questRow.q6").exists, "Q6's window is silently shut at 09:00")
     }
 
+    // MARK: TASK-037 — the Room tab at the glass (R2/R3/R6; FR-3; UX §1.2 S5)
+
+    /// The Room tab renders one static scene as ONE a11y element: the tab
+    /// switch lands on the room surface, the scene speaks "{name}’s cozy
+    /// room" (the catalog template with the pet name in its `%1$@` slot),
+    /// the caption reads beneath it verbatim, and the room carries ZERO
+    /// interactive elements — the tab bar's three buttons prove the button
+    /// query is live on this screen, so the zero is non-vacuous. (The
+    /// fixture store only serves a fast onboarding-complete landing; a
+    /// static scene reads no care-loop state.)
+    func testRoomTabShowsTheStaticSceneWithZeroInteractivity() {
+        let app = fixtureHomeApp(kind: "stage-crossing")
+        let roomTab = app.tabBars.buttons["Room"]
+        XCTAssertTrue(roomTab.waitForExistence(timeout: 10), "the Room tab is the middle flat tab (UX-1)")
+        roomTab.tap()
+
+        // The scene: exactly ONE accessibility element, speaking the
+        // composed label.
+        let scene = homeElement(app, "room.scene")
+        XCTAssertTrue(scene.waitForExistence(timeout: 10), "the room scene renders")
+        XCTAssertEqual(
+            app.descendants(matching: .any).matching(identifier: "room.scene").count,
+            1,
+            "the scene exposes exactly ONE accessibility element"
+        )
+        XCTAssertEqual(
+            scene.label,
+            "Momo\u{2019}s cozy room",
+            "the scene speaks the catalog template with the pet name in the %1$@ slot"
+        )
+
+        // The caption beneath it: room.02's fixed line, its own element.
+        let caption = homeElement(app, "room.caption")
+        XCTAssertTrue(caption.waitForExistence(timeout: 5), "the caption renders beneath the scene")
+        XCTAssertEqual(
+            caption.label,
+            "Somewhere soft to come home to.",
+            "the caption is room.02's fixed line verbatim"
+        )
+
+        // Static means static (FR-3 AC-2): no interactive element carries
+        // the room namespace, the three tab buttons bound the query's
+        // liveness, and the room never presents anything.
+        XCTAssertTrue(homeElement(app, "room").exists, "the room region is one queryable container")
+        XCTAssertEqual(
+            app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "room.")).count,
+            0,
+            "the room surface carries zero interactive elements"
+        )
+        XCTAssertEqual(app.tabBars.buttons.count, 3, "the shell's three tabs prove the button query is live")
+        XCTAssertEqual(app.alerts.count, 0, "the room never presents anything")
+    }
+
     // MARK: Helpers
 
     /// A fixture launch (the R10 enabler): a THROWAWAY store (the fixture

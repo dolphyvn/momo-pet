@@ -238,6 +238,39 @@ enum RigDiscipline {
         source.contains("appModel.dismissCelebration()")
     }
 
+    // MARK: - TASK-037 R5: the room scene's static-scene discipline
+    // (the F-1 rule again: headless suites cannot see a view's construction)
+
+    /// Substrings that would mean the room scene carries an interactive
+    /// surface (FR-3 AC-2: zero interactivity — no actions, no gestures, no
+    /// hit-testing). Over-matching is the safe direction for a defense
+    /// scan: any hit fails.
+    static let roomInteractiveTokens: [String] = [
+        "Button(",
+        ".onTapGesture",
+        ".gesture(",
+        ".highPriorityGesture(",
+        ".simultaneousGesture(",
+        "allowsHitTesting(",
+        "LongPressGesture",
+        "DragGesture",
+    ]
+
+    static func roomInteractiveViolations(in source: String) -> [String] {
+        roomInteractiveTokens.filter { source.contains($0) }
+    }
+
+    /// Presence check that the room scene is ONE accessibility element
+    /// carrying the image trait and a composed label (FR-3 AC-3 / UX §10
+    /// row 435): the region flattened with `.ignore`, announced as an
+    /// image, carrying the label. Absent any leg the scene reads as bare
+    /// canvas or as traversable children.
+    static func mentionsRoomSceneAccessibility(in source: String) -> Bool {
+        source.contains(".accessibilityElement(children: .ignore)") &&
+        source.contains(".accessibilityAddTraits(.isImage)") &&
+        source.contains(".accessibilityLabel(")
+    }
+
     // MARK: - File access
 
     static func readRigFile(_ name: String) throws -> String {
@@ -548,6 +581,36 @@ struct RigDisciplineTests {
         #expect(!RigDiscipline.mentionsCelebrationAutoFade(in: """
             activeCelebrationStage = stage
             DispatchQueue.main.asyncAfter(deadline: .now() + 4) { bannerVisible = false }
+            """))
+    }
+
+    // MARK: - TASK-037 R5: the room scene's static-scene discipline
+
+    @Test("The Room tab is interaction-free and ONE labeled image element (R5)")
+    func roomSceneIsStaticAndSingleElement() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/RoomView.swift")
+        #expect(RigDiscipline.roomInteractiveViolations(in: source).isEmpty,
+                "RoomView carries an interactive surface (FR-3 AC-2: static means static)")
+        #expect(RigDiscipline.mentionsRoomSceneAccessibility(in: source),
+                "RoomView's scene must be ONE image element with a composed label (FR-3 AC-3)")
+
+        // Non-vacuity, both directions — a fixture with SOME legs but not
+        // all must fail. (a) The one-element construction wrapped around a
+        // Button: the a11y shape is right, the interactivity is not, so the
+        // interaction scan fires.
+        #expect(!RigDiscipline.roomInteractiveViolations(in: """
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isImage)
+            .accessibilityLabel("room")
+            Button("Decorate") { }
+            """).isEmpty)
+        // (b) An interaction-free canvas flattened only as a container —
+        // no `.ignore`, no image trait, no label: the scene would read as
+        // traversable chrome, so the presence check fails.
+        #expect(!RigDiscipline.mentionsRoomSceneAccessibility(in: """
+            Canvas { context, size in context.fill(path, with: .color(token)) }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("room.scene")
             """))
     }
 

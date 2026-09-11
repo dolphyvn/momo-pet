@@ -5,19 +5,22 @@ import MomoCore
 
 /// Standing tests over the shipped String Catalog (TASK-011 Requirements 2
 /// and 4; TASK-033 Requirement 5's catalog-era split; TASK-034's touch
-/// pool). These run against the real file in the repo tree — they assert
+/// pool; TASK-037's room + tab classes). These run against the real file
+/// in the repo tree — they assert
 /// the catalog exists (never vacuous), parses, exposes the `momo.line.*`
 /// namespaces, keeps every key inside the law (the frozen validator's
 /// grammar OR one of the enumerated fixed-lookup grammars), carries the
-/// per-class counts the TASK-033/TASK-034/TASK-035/TASK-036 landings
+/// per-class counts the TASK-033/TASK-034/TASK-035/TASK-036/TASK-037
+/// landings
 /// committed to, and pins the contract copy VERBATIM (the touch pool's
-/// AC-5 pattern, extended to TASK-035's care loop and TASK-036's moment
-/// lines). The catalog carries NO placeholder entries since TASK-036
+/// AC-5 pattern, extended to TASK-035's care loop, TASK-036's moment
+/// lines, and TASK-037's room lines and tab labels). The catalog carries
+/// NO placeholder entries since TASK-036
 /// replaced the last one — a future placeholder must re-land its
 /// `.00`-convention pin with itself. (Tone over VALUES is the TASK-010
 /// banned-vocabulary scan's job, with the 12-word rule pinned in
 /// `CatalogCopyLawTests`; not duplicated here.)
-@Suite("String Catalog scaffolding (momo.line.*)")
+@Suite("String Catalog scaffolding (momo.line.*, momo.tab.*)")
 struct MomoCatalogScaffoldingTests {
 
     /// The approved-namespace law (INV-11), TASK-033-era shape:
@@ -25,7 +28,8 @@ struct MomoCatalogScaffoldingTests {
     ///    react families, moment — any two-digit index);
     /// 2. the ENUMERATED fixed-lookup grammars the validator deliberately
     ///    does not know (they are lookups, not selections): the OBS-1
-    ///    vocabulary, the TASK-033 status words, and the quest wishes —
+    ///    vocabulary, the TASK-033 status words, the quest wishes,
+    ///    TASK-037's room lines, and TASK-037's `momo.tab.*` chrome class —
     ///    their case lists are spelled out here so an out-of-catalog band
     ///    name or quest id fails LOUDLY here instead of shipping.
     private static func isInApprovedNamespaceOrFixedLookup(_ key: String) -> Bool {
@@ -35,6 +39,8 @@ struct MomoCatalogScaffoldingTests {
             "^momo\\.line\\.vocab\\.(mood|energy|stage)\\.(\(bandCases))$",
             "^momo\\.line\\.status\\.(energy|stage)\\.(\(bandCases))$",
             "^momo\\.line\\.quest\\.q[1-7]$",
+            "^momo\\.line\\.room\\.\\d{2}$",
+            "^momo\\.tab\\.(home|room|settings)$",
         ]
         return fixedPatterns.contains { key.range(of: $0, options: .regularExpression) != nil }
     }
@@ -74,15 +80,18 @@ struct MomoCatalogScaffoldingTests {
         }
     }
 
-    /// The per-class counts the TASK-033/TASK-034/TASK-035/TASK-036
-    /// landings committed to (04 §10.3's ten lines per time slot; the OBS-1
+    /// The per-class counts the TASK-033/TASK-034/TASK-035/TASK-036/
+    /// TASK-037 landings committed to (04 §10.3's ten lines per time slot;
+    /// the OBS-1
     /// vocabulary's 12; the status words' 8; the PRD §5.2 wishes' 7; the
     /// three return greetings; TASK-034's five spoken touch lines;
     /// TASK-035's six spoken lines per feed/play/care and the three
-    /// care-moment visuals; TASK-036's two moment lines, FIXED lookups) —
-    /// 98 keys in all. A new class or count lands only with its own task,
+    /// care-moment visuals; TASK-036's two moment lines, FIXED lookups;
+    /// TASK-037's two room lines, FIXED lookups, and the three tab
+    /// labels) — 103 keys in all. A new class or count lands only with its
+    /// own task,
     /// its own epoch bump when variational (§4.10), and this pin's update.
-    @Test("the per-class key counts match the TASK-033 + TASK-034 + TASK-035 + TASK-036 landings: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 23 react, 3 care-moment, 2 moment")
+    @Test("the per-class key counts match the TASK-033 + TASK-034 + TASK-035 + TASK-036 + TASK-037 landings: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 23 react, 3 care-moment, 2 moment, 2 room, 3 tab")
     func perClassCountsPinned() throws {
         let keys = try Self.catalogKeys()
         func count(matching pattern: String) -> Int {
@@ -105,7 +114,9 @@ struct MomoCatalogScaffoldingTests {
         #expect(count(matching: "^momo\\.line\\.react\\.play\\.\\d{2}$") == 6, "the play pool is exactly six lines")
         #expect(count(matching: "^momo\\.line\\.react\\.care\\.\\d{2}$") == 6, "the care pool is exactly six lines")
         #expect(count(matching: "^momo\\.line\\.care-moment\\.\\d{2}$") == 3, "the care-moment class is the fixed 01–03 lookup")
-        #expect(keys.count == 98, "the whole catalog is exactly the classes above")
+        #expect(count(matching: "^momo\\.line\\.room\\.\\d{2}$") == 2, "the room class is the fixed 01–02 lookup (TASK-037)")
+        #expect(count(matching: "^momo\\.tab\\.(home|room|settings)$") == 3, "the tab chrome class is the fixed three labels (TASK-037)")
+        #expect(keys.count == 103, "the whole catalog is exactly the classes above")
     }
 
     // MARK: The touch pool's verbatim lines (TASK-034 AC-5)
@@ -208,6 +219,40 @@ struct MomoCatalogScaffoldingTests {
                 "the moment class is exactly the two FIXED lookups")
         let strings = try Self.stringsDictionary()
         for (key, text) in Self.momentVerbatim {
+            let entry = try #require(
+                strings[key] as? [String: Any],
+                "'\(key)' is missing from the shipped catalog")
+            let localizations = try #require(entry["localizations"] as? [String: Any], "'\(key)' has no localizations")
+            let en = try #require(localizations["en"] as? [String: Any], "'\(key)' has no en localization")
+            let unit = try #require(en["stringUnit"] as? [String: Any], "'\(key)' has no stringUnit")
+            #expect(unit["value"] as? String == text, "'\(key)' must read verbatim: '\(text)'")
+        }
+    }
+
+    // MARK: The room lines + tab labels (TASK-037 R4)
+
+    /// TASK-037 landed the Room tab's copy as FIXED lookups (the `moment.01`
+    /// precedent: a named line, never a seeded draw) plus the shell's
+    /// `momo.tab.*` chrome class. The five entries are the contract's
+    /// verbatim copy: `.01` is the scene label's %1$@ TEMPLATE (one
+    /// positional placeholder for the pet name so a localized reordering
+    /// stays locale-correct), `.02` the caption beneath the scene, and the
+    /// three one-word tab labels the shell's D12 render rides. The
+    /// apostrophe is U+2019, per the catalog convention.
+    private static let roomVerbatim: [(key: String, text: String)] = [
+        ("momo.line.room.01", "%1$@’s cozy room"),
+        ("momo.line.room.02", "Somewhere soft to come home to."),
+        ("momo.tab.home", "Home"),
+        ("momo.tab.room", "Room"),
+        ("momo.tab.settings", "Settings"),
+    ]
+
+    @Test("the shipped catalog carries the room lines and tab labels verbatim (TASK-037 R4)")
+    func catalogCarriesTheRoomLinesVerbatim() throws {
+        #expect(Self.roomVerbatim.count == 5,
+                "2 room lines + 3 tab labels")
+        let strings = try Self.stringsDictionary()
+        for (key, text) in Self.roomVerbatim {
             let entry = try #require(
                 strings[key] as? [String: Any],
                 "'\(key)' is missing from the shipped catalog")

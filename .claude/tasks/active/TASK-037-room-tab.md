@@ -74,11 +74,20 @@ Orchestrator commits after review approval: `feat(home): TASK-037 room tab — s
 
 ## Status
 
-READY (2026-09-11, orchestrator-authored on the pre-read evidence above; all pins verified in-source this session).
+IN_REVIEW (2026-09-11, implementation complete; all six gates green — see Handoff; awaiting the independent §10/§33 review).
 
 ## Implementation Notes
 
-(implementation agent fills)
+- **R1 adjudication recorded in the view header** (`Apps/Momo/RoomView.swift`): Momo (the rig) is NOT rendered — Home owns the live rig; duplicating it would add composition + motion surfaces for zero product value; the pom string/puff decor is the room's companion presence. The header also records "static means static" (no Reduce Motion substitution owed — a static scene has no loop to pause) and the no-state/no-customization law.
+- **R4 key names + namespace disclosure:** the scene label + caption landed as `momo.line.room.01`/`.02` FIXED lookups (the `moment.01` numbered-fixed-lookup precedent; 00-index stays reserved for placeholders). The three tab labels warranted their OWN chrome namespace, `momo.tab.home|room|settings` (R4's sanctioned option) — one-word chrome labels, distinct in class from body copy; the copy law's 12-word scanner deliberately does NOT scan them (they are not body copy). `room.01` is a `%1$@` positional TEMPLATE (one placeholder, name-interpolated — locale-correct reordering). HomeCopyKeys gained `roomSceneLabelTemplateKey`, `roomCaptionKey`, a `Tab` enum (CaseIterable), and `tabLabelKey(for:)` (exhaustive switch, no default — a new tab must name its key to compile), plus the header bullet documenting the keyspace. NO epoch bump; `CopyRules`/`LineSelection` untouched; epoch-4 residue pins untouched and green.
+- **Token mapping** (no new hex — hex stays confined to the palette files): floor → `MomoUIColors.surface`, rug → `MomoCharacterPalette.blanket`, window frame → `MomoUIColors.accent`, pom string → `furShade`, pom puff → `furBase`. Rendered via the `Canvas` + `context.fill(path, with: .color(token.resolve(colorScheme)))` idiom (MomoRigView precedent), aspect-preserving `min(w,h)/gridSide` scale in the 1000×1000 design space (the `RigCanvas.gridSide` convention). The window's counter-wound opening stays a hole under the nonzero fill rule.
+- **R3 construction:** the scene Canvas region is flattened `.accessibilityElement(children: .ignore)` + `.accessibilityAddTraits(.isImage)` + the composed label + identifier `room.scene`; the caption is its own `Text` element (`room.caption`); the whole tab surface is one `.accessibilityElement(children: .contain)` container (`room`) — the HomeView region pattern, queryable in XCUITest. SwiftUI type scaling handles the caption's Dynamic Type; the scene scales with its region.
+- **R5 guard:** `RigDiscipline.roomInteractiveTokens` (8 tokens: Button(, .onTapGesture, .gesture(, .highPriorityGesture(, .simultaneousGesture(, allowsHitTesting(, LongPressGesture, DragGesture) + `roomInteractiveViolations(in:)`, and `mentionsRoomSceneAccessibility(in:)` (requires all three legs: `.ignore` + `.isImage` + `.accessibilityLabel(`). One @Test reads `Apps/Momo/RoomView.swift` via the family's `readRigFile` and pins BOTH directions with SOME-legs fixtures: one-element construction wrapping a Button (a11y right, interactivity not — the interaction scan fires), and an interaction-free canvas flattened only as a container (no ignore/trait/label — the presence check fails).
+- **DISCLOSED small addition (R7's "if R4's key access warrants it"):** new `Tests/MomoKitTests/RoomCopyKeyTests.swift` (4 tests) — the KIT-side half of the copy gluing: the accessor constants pinned verbatim, the `Tab` domain pinned exhaustive, and the composition pin resolving `roomSceneLabelTemplateKey` against the SHIPPED catalog file (via the target's existing `KitRepo.repoRoot` anchor — the headless target cannot reach the app bundle's compiled copy) and proving `String(format: template, "Momo") == "Momo’s cozy room"`. SwiftPM test targets are path-based — no pbxproj registration needed.
+- **UI-test zero adaptation (disclosed):** the contract's `app.buttons.count == 0` cannot hold screen-wide — the tab bar always carries 3 buttons. The zero is scoped to the room namespace (`app.buttons.matching(identifier BEGINSWITH "room.").count == 0`) with non-vacuity proven alongside (`app.tabBars.buttons.count == 3` on the same screen). Also asserted: one `room.scene` element, label exactly "Momo’s cozy room" (U+2019), caption verbatim, no alerts. Uses the `stage-crossing` fixture store only for its fast onboarding-complete landing — a static scene reads no care-loop state.
+- **One compile fix during Gate 2 (§20 root-caused, not blind-patched):** `RoomSceneLayout.Layer` was declared `private struct`, narrower than the `layers(colorScheme:)` function returning `[Layer]` ("method must be declared private because its result uses a private type"). Fix: drop the redundant `private` — the enclosing enum's `private` caps both to file scope. Comment added in place.
+- **Banned vocabulary + 12-word law:** the standing scans auto-cover the new values (they walk all stringUnit values); the caption "Somewhere soft to come home to." passes both. Copy-law scanned count pinned 71 → 73 (the two room lines are visual-class lines; the tab labels are chrome, not scanned); catalog total pinned 98 → 103 with the room/tab classes enumerated in the fixed-lookup grammar list and the five entries pinned VERBATIM (new `catalogCarriesTheRoomLinesVerbatim`).
+- **pbxproj:** deterministic-ID scheme maintained — RoomView.swift registered as `8A4000000000000000000054`/`8A5000000000000000000054` (IDs verified free) in all four sections; the four `…0004` PlaceholderRoomView lines removed in place (same list slots).
 
 ## Reviewer Findings
 
@@ -90,4 +99,66 @@ READY (2026-09-11, orchestrator-authored on the pre-read evidence above; all pin
 
 ## Handoff
 
-§28 format; end with the marker `HANDOFF-COMPLETE TASK-037`.
+### Completed
+
+All seven requirements R1–R7 implemented; all six acceptance criteria satisfied and gate-proven. Room tab is the real static scene; placeholder deleted; D12 tab labels catalogized; copy law + scaffolding + discipline + kit + UI pins extended.
+
+### Files Changed
+
+- NEW `Apps/Momo/RoomView.swift` (static scene, one a11y image element, R1 adjudication header)
+- DELETED `Apps/Momo/PlaceholderRoomView.swift`
+- `Apps/Momo/RootTabView.swift` (hosts RoomView; three tab labels via `HomeCopyKeys.tabLabelKey`; header updated)
+- `Apps/Shared/MomoCopy.xcstrings` (+5 entries: room.01/.02, tab.home/room/settings; sorted; Xcode JSON format preserved)
+- `Sources/MomoKit/HomeCopyKeys.swift` (room/tab keyspace: 2 fixed keys, `Tab` enum, `tabLabelKey(for:)`, header bullet)
+- `Momo.xcodeproj/project.pbxproj` (register RoomView `…0054`, remove PlaceholderRoomView `…0004`, 4 sections)
+- `Tests/MomoCharacterTests/RigDisciplineTests.swift` (R5 room guard + two-direction fixtures)
+- `Tests/MomoCharacterTests/CatalogCopyLawTests.swift` (room class in scan; 71 → 73)
+- `Tests/MomoCharacterTests/MomoCatalogScaffoldingTests.swift` (room/tab grammars; counts 2/3/total 103; 5-entry verbatim pin)
+- NEW `Tests/MomoKitTests/RoomCopyKeyTests.swift` (4 kit-side key/composition pins)
+- `MomoUITests/MomoHomeUITests.swift` (TASK-037 room test)
+
+### Tests Run
+
+1. `swift test` (full package)
+2. `xcodebuild test -project Momo.xcodeproj -scheme Momo -destination 'platform=iOS Simulator,id=1F25E487-A78E-464C-95AF-0BD1A9B3E1BE'`
+3. `xcodebuild build -project Momo.xcodeproj -scheme MomoWatch -destination 'platform=watchOS Simulator,id=8A854895-225C-411B-89C1-B03337BFE957'`
+4. Warning scan over the app build + SwiftPM build, scoped to touched files
+5. `git status --porcelain` + diffstat; TODO/FIXME/HACK/TEMP marker scan over touched files
+
+### Test Results
+
+1. **PASS — 931 tests in 95 suites** (baseline 925/94: +6 tests = 4 RoomCopyKeyTests + 1 R5 room guard + 1 scaffolding room-verbatim; +1 suite). One intermediate RED during development, root-caused and fixed before gates (the composition pin initially formatted the raw KEY; fixed to resolve the TEMPLATE from the shipped catalog — see Implementation Notes).
+2. **TEST SUCCEEDED — 22/22** (16 prior Home + new `testRoomTabShowsTheStaticSceneWithZeroInteractivity` + 4 onboarding + 1 launch; the room test passed in 10.6 s).
+3. **BUILD SUCCEEDED** (MomoWatch; only the pre-existing environment warnings).
+4. **Zero warnings from touched files** (only pre-existing environment noise: `ld: search path '/opt/extra/lib' not found`, appintents metadata note — present on every build).
+5. **Working tree = exactly the task surface** (9 tracked modifications/deletions + 2 new files above; nothing stray). Marker scan clean ("TEMPLATE" prose matches only).
+
+### Known Issues
+
+None. No TODO/FIXME/HACK/TEMP debt added. No state, no animation, no clock, no director touch in the room.
+
+### Decisions Made
+
+- `momo.tab.*` chrome namespace for the tab labels (R4's sanctioned own-namespace option; disclosed above).
+- Scene label = `momo.line.room.01` positional `%1$@` TEMPLATE; caption = `momo.line.room.02` (U+2019 apostrophe per catalog convention).
+- Token mapping disclosed above (surface/blanket/accent/furShade/furBase — no new hex).
+- Zero-buttons assertion scoped to the room namespace with tab-bar non-vacuity (disclosed above).
+- Momo not rendered in the room (the contract's own disclosed adjudication, recorded in the view header).
+
+### Reviewer Status
+
+PENDING — fresh independent §10/§33 review owed; record at `.claude/tasks/reviews/REVIEW-TASK-037.md`. Reviewer note: the R5 guard bites (two-direction SOME-legs fixtures); epoch-4 residue pins untouched (no CopyRules/LineSelection edits in the diff); the wall files (MomoCharacter/MomoCore/MomoKit-engine/Watch) are diff-absent.
+
+### Commit
+
+NONE — orchestrator commits after review (per dispatch order). Suggested message in Git Requirements holds.
+
+### Push
+
+NONE — nothing committed; nothing to push.
+
+### Recommended Next Step
+
+Spawn the fresh review agent for TASK-037 (requirements R1–R7, no-touch walls, epoch pins verbatim, guard-bites check, catalog interpolation/banned-vocab audit, a11y construction, §25 disclosure audit); on APPROVED, commit `feat(home): TASK-037 room tab — static scene, single a11y element, D12 tab labels` and push per §13.
+
+HANDOFF-COMPLETE TASK-037
