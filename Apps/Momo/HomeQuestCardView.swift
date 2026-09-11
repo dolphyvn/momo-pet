@@ -1,6 +1,7 @@
 import SwiftUI
 import MomoCharacter
 import MomoKit
+import MomoCore
 
 /// The Home quest card (TASK-033 Requirement 6; UX §5.1's quest sketch,
 /// §5.5's rendering law): "Today's little wishes" — one row per of-today's
@@ -8,6 +9,13 @@ import MomoKit
 /// windows — never a disabled ghost, §5.4/§11.2.4). Each row is
 /// `glyph · wish · soft mark` with the per-wish mark only (○ pending /
 /// ● done) — no aggregate progress bar (§5.5).
+///
+/// TASK-036's two moment surfaces live here: M1 — a just-completed row's
+/// mark swells once (the app model's `celebratingQuests` memory, cleared
+/// after the authored 0.6 s; skipped under Reduce Motion, where the fill
+/// itself is the emphasis, D16); M3 — when the §4.8 cascade reads
+/// `.allDone`, the card grows the one warm note (`momo.line.moment.02`)
+/// with a gentle opacity entrance, nothing gated or demanded (§5.5).
 ///
 /// The header and the glyphs/marks are DISCLOSED view chrome; the wish text
 /// is catalog copy (`momo.line.quest.q<n>`). Rows are ≥44 pt (UX §10) and
@@ -17,9 +25,14 @@ import MomoKit
 struct HomeQuestCardView: View {
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The Home read-model slice this card renders (TASK-033 R1/R2).
     let model: HomeReadModel
+
+    /// The quests whose completion is still flourishing (TASK-036 R3) —
+    /// the app model's latest-wins memory, cleared by its authored task.
+    let celebratingQuests: [QuestID]
 
     /// The visible rows: the day's quests with an open window, in record
     /// (catalog) order.
@@ -36,6 +49,14 @@ struct HomeQuestCardView: View {
             ForEach(visibleRows) { row in
                 questRow(row)
             }
+            if model.isAllDone, !model.questRows.isEmpty {
+                Text(MomoCopyText.render(HomeCopyKeys.allDoneLineKey))
+                    .font(MomoTypography.caption)
+                    .foregroundStyle(MomoUIColors.textSecondary.resolve(colorScheme))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("home.questAllDoneLine")
+                    .transition(.opacity)
+            }
         }
         .padding(MomoSpacing.small)
         .frame(maxWidth: .infinity)
@@ -47,14 +68,20 @@ struct HomeQuestCardView: View {
             RoundedRectangle(cornerRadius: MomoRadius.medium)
                 .strokeBorder(MomoUIColors.border.resolve(colorScheme))
         )
+        .animation(.easeInOut(duration: HomeQuestCardLayout.gentleEntranceSeconds), value: model.isAllDone)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("home.questCard")
     }
 
     /// One wish row: family glyph, wish text, soft mark. The glyph and the
-    /// mark are decorative — the label carries the state in words.
+    /// mark are decorative — the label carries the state in words. The
+    /// just-flipped row's mark swells once and settles (M1's tiny
+    /// flourish): the app model holds the flip for its authored 0.6 s, so
+    /// the swell is the ease OUT (0.3 s) and the settle back the ease IN —
+    /// never a spring, no firework (§5.5).
     private func questRow(_ row: HomeQuestRow) -> some View {
-        HStack(spacing: MomoSpacing.small) {
+        let isCelebrating = celebratingQuests.contains(row.questID)
+        return HStack(spacing: MomoSpacing.small) {
             Image(systemName: Self.glyph(forWishIn: row))
                 .foregroundStyle(MomoUIColors.accent.resolve(colorScheme))
                 .accessibilityHidden(true)
@@ -66,6 +93,11 @@ struct HomeQuestCardView: View {
             Spacer(minLength: 0)
             Image(systemName: row.isCompleted ? "circle.fill" : "circle")
                 .foregroundStyle(MomoUIColors.textSecondary.resolve(colorScheme))
+                .scaleEffect(isCelebrating && !reduceMotion ? Self.flipSwellScale : 1)
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: HomeQuestCardLayout.flipSwellSeconds),
+                    value: isCelebrating
+                )
                 .accessibilityHidden(true)
         }
         .frame(minHeight: OnboardingLayout.minimumTapTarget)
@@ -86,4 +118,17 @@ struct HomeQuestCardView: View {
         case .q7: "heart"           // pet
         }
     }
+
+    /// The M1 flip swell's peak (TASK-036 R3, disclosed): a 35% mark
+    /// swell — legible, tiny, no firework.
+    private static let flipSwellScale: CGFloat = 1.35
+}
+
+/// The quest card's authored motion constants (TASK-036, disclosed): the
+/// swell's HALF-length — the app model holds the flip for 0.6 s, so the
+/// mark eases out to peak and back — and the M3 warm note's gentle
+/// opacity entrance.
+private enum HomeQuestCardLayout {
+    static let flipSwellSeconds: Double = 0.3
+    static let gentleEntranceSeconds: Double = 0.3
 }

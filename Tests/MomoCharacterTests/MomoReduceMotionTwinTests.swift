@@ -171,6 +171,20 @@ struct MomoReduceMotionTwinTests {
         .displayState(ReactionFixtures.content, at: 10),
     ]
 
+    /// TASK-036 R8: the event-born moments door — a quest sparkle and a
+    /// stage celebration play FIFO, an empty batch is a no-op, a batch
+    /// folded while hidden accumulates, and the show replays the paused
+    /// moment before releasing the queue (the twin law must hold across
+    /// the whole new event kind).
+    private static let eventMoments: [MomoCharacterEvent] = [
+        .moments([.questCompleted, .bondStageReached(.gettingClose)], at: 1.0),
+        .moments([], at: 1.2),
+        .appHidden(at: 2.0),
+        .moments([.questCompleted], at: 2.1),
+        .appShown(at: 3.0),
+        .displayState(ReactionFixtures.content, at: 20),
+    ]
+
     /// Long-press holds swept across the input-length band: the end pose
     /// (and thus the RM render) tracks the resolved hold.
     private static func holdSweep(_ hold: Double) -> [MomoCharacterEvent] {
@@ -195,6 +209,7 @@ struct MomoReduceMotionTwinTests {
         case .displayState(_, let at): at
         case .plan(_, let at): at
         case .playStopped(let at): at
+        case .moments(_, let at): at
         }
     }
 
@@ -284,6 +299,11 @@ struct MomoReduceMotionTwinTests {
     func playStopTwins() {
         twinCheck(Self.playStop, visibility: .mustDiffer)
         twinCheck(Self.playStopNoRound, visibility: .mustDiffer)
+    }
+
+    @Test("Twin law: the event-born moments stream folds identically and renders RM-visibly")
+    func eventMomentTwins() {
+        twinCheck(Self.eventMoments, visibility: .mustDiffer)
     }
 
     @Test("Twin law: a press-only stream is flag-INVARIANT (R4's static glance)")

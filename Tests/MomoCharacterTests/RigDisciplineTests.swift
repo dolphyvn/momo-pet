@@ -197,6 +197,47 @@ enum RigDiscipline {
         source.contains("playTickerTask = Task { await runPlayTicker() }")
     }
 
+    // MARK: - TASK-036 R9: the quest moments' structural wires
+    // (the F-1 rule again: headless suites cannot see a view wire)
+
+    /// (e) The `.deliverMoments` arm: the greeting EXCLUDED from the event
+    /// fold (the state-born `.displayState` door keeps it — folding it here
+    /// too would double-render through both doors), the remainder folded
+    /// through the director's `.moments` event, and the haptic kinds gated
+    /// on the user's setting read AT DELIVERY. Absent any leg the fan-out
+    /// degrades silently — the greeting double-fires, moments drop on the
+    /// floor, or haptics play past the setting.
+    static func mentionsMomentFanOut(in source: String) -> Bool {
+        source.contains("case .deliverMoments(let moments):") &&
+        source.contains("QuestMomentSupport.eventBornMoments(moments)") &&
+        source.contains("foldDirector(.moments(eventBorn") &&
+        source.contains("hapticsEnabled: state.settings.hapticsEnabled")
+    }
+
+    /// (f) The director's completion advance: the L4 completion block must
+    /// release the queue at the completion instant — the vacated-slot site
+    /// of the three advance sites. (The FIFO behavior is also pinned in
+    /// `MomoMomentQueueTests`; this is the F-1 defense-in-depth — a deleted
+    /// advance leg is a silent stall no other suite's SHAPE can name.)
+    static func mentionsMomentQueueAdvance(in source: String) -> Bool {
+        source.contains(
+            "advanceMomentQueue(at: moment.start + MomoMoments.duration(for: moment.moment))")
+    }
+
+    /// (g) The banner's two wires: the auto-fade TASK starts when a
+    /// celebration shows (the authored ~4 s fade — not a detached timer),
+    /// and the banner view's tap routes through the app model's
+    /// `dismissCelebration()` — never a UI-only dismissal.
+    static func mentionsCelebrationAutoFade(in source: String) -> Bool {
+        source.contains("activeCelebrationStage = stage") &&
+        source.contains("celebrationTask = Task { await autoFadeCelebration() }")
+    }
+
+    static func mentionsBannerDismissWire(in source: String) -> Bool {
+        source.contains("home.celebrationBanner") &&
+        source.contains("appModel.dismissCelebration()")
+    }
+
     // MARK: - File access
 
     static func readRigFile(_ name: String) throws -> String {
@@ -447,6 +488,66 @@ struct RigDisciplineTests {
                     lastPlayFingertipOffset = nil
                 }
             }
+            """))
+    }
+
+    // MARK: - TASK-036 R9: the quest moments' structural wires
+
+    @Test("The .deliverMoments arm excludes the greeting, folds the rest, gates the haptics (R9e)")
+    func deliverMomentsArmWiring() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        #expect(RigDiscipline.mentionsMomentFanOut(in: source))
+
+        // Non-vacuity: an arm that folds the WHOLE batch (the greeting
+        // would double-render through both doors) and fires the haptics
+        // ungated fails every leg but the fold.
+        #expect(!RigDiscipline.mentionsMomentFanOut(in: """
+            case .deliverMoments(let moments):
+                foldDirector(.moments(moments, at: 0))
+                for kind in MomentHapticKind.deliveryKinds(for: moments, hapticsEnabled: true) {
+                    momentHapticSink(kind)
+                }
+            """))
+    }
+
+    @Test("The L4 completion block releases the moment queue (R9f)")
+    func completionAdvancesQueue() throws {
+        let source = try RigDiscipline.readRigFile(
+            "Sources/MomoCharacter/MomoReactionDirector.swift")
+        #expect(RigDiscipline.mentionsMomentQueueAdvance(in: source))
+
+        // Non-vacuity: a completion block that reports and nils the slot
+        // but never advances (the silent stall — the queue waits forever)
+        // fails the shape.
+        #expect(!RigDiscipline.mentionsMomentQueueAdvance(in: """
+            if var moment, t >= moment.start + MomoMoments.duration(for: moment.moment) {
+                if !moment.reported {
+                    report(.momentFinished(moment.moment), at: moment.start)
+                    moment.reported = true
+                }
+                self.moment = nil
+            }
+            """))
+    }
+
+    @Test("The banner's fade task and tap-dismiss route through the app model (R9g)")
+    func celebrationWires() throws {
+        let appModel = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let view = try RigDiscipline.readRigFile("Apps/Momo/HomeView.swift")
+        #expect(RigDiscipline.mentionsCelebrationAutoFade(in: appModel))
+        #expect(RigDiscipline.mentionsBannerDismissWire(in: view))
+
+        // Non-vacuity, both directions: a banner that dismisses through
+        // local view state (a UI-only dismissal) fails the wire, and a
+        // celebration shown with a detached timer instead of the fade
+        // task fails the model half.
+        #expect(!RigDiscipline.mentionsBannerDismissWire(in: """
+            Button { bannerVisible = false } label: { Text(line) }
+                .accessibilityIdentifier("home.celebrationBanner")
+            """))
+        #expect(!RigDiscipline.mentionsCelebrationAutoFade(in: """
+            activeCelebrationStage = stage
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { bannerVisible = false }
             """))
     }
 

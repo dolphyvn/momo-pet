@@ -9,22 +9,16 @@ import MomoCore
 /// the catalog exists (never vacuous), parses, exposes the `momo.line.*`
 /// namespaces, keeps every key inside the law (the frozen validator's
 /// grammar OR one of the enumerated fixed-lookup grammars), carries the
-/// per-class counts the TASK-033/TASK-034 landings committed to, pins the
-/// touch pool's five lines VERBATIM (the `catalogCarriesTheVocabularyVerbatim`
-/// pattern — AC-5), and marks the remaining placeholder entry per the
-/// documented convention. (Tone over VALUES is the TASK-010
+/// per-class counts the TASK-033/TASK-034/TASK-035/TASK-036 landings
+/// committed to, and pins the contract copy VERBATIM (the touch pool's
+/// AC-5 pattern, extended to TASK-035's care loop and TASK-036's moment
+/// lines). The catalog carries NO placeholder entries since TASK-036
+/// replaced the last one — a future placeholder must re-land its
+/// `.00`-convention pin with itself. (Tone over VALUES is the TASK-010
 /// banned-vocabulary scan's job, with the 12-word rule pinned in
 /// `CatalogCopyLawTests`; not duplicated here.)
 @Suite("String Catalog scaffolding (momo.line.*)")
 struct MomoCatalogScaffoldingTests {
-
-    /// The remaining placeholder entries — `momo.line.day.00` became REAL
-    /// copy in TASK-033's catalog landing, `momo.line.react.touch.00` in
-    /// TASK-034's; the moment namespace stays placeholder-seeded until its
-    /// surface lands (FR-10 AC-4).
-    private static let placeholderKeys = [
-        "momo.line.moment.00",
-    ]
 
     /// The approved-namespace law (INV-11), TASK-033-era shape:
     /// 1. the FROZEN validator's grammar (variational classes: time slots,
@@ -80,15 +74,15 @@ struct MomoCatalogScaffoldingTests {
         }
     }
 
-    /// The per-class counts the TASK-033/TASK-034/TASK-035 landings
-    /// committed to (04 §10.3's ten lines per time slot; the OBS-1
+    /// The per-class counts the TASK-033/TASK-034/TASK-035/TASK-036
+    /// landings committed to (04 §10.3's ten lines per time slot; the OBS-1
     /// vocabulary's 12; the status words' 8; the PRD §5.2 wishes' 7; the
     /// three return greetings; TASK-034's five spoken touch lines;
     /// TASK-035's six spoken lines per feed/play/care and the three
-    /// care-moment visuals; the one placeholder seed) — 97 keys in all. A
-    /// new class or count lands only with its own task, its own epoch bump
-    /// when variational (§4.10), and this pin's update.
-    @Test("the per-class key counts match the TASK-033 + TASK-034 + TASK-035 landings: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 23 react, 3 care-moment, 1 placeholder")
+    /// care-moment visuals; TASK-036's two moment lines, FIXED lookups) —
+    /// 98 keys in all. A new class or count lands only with its own task,
+    /// its own epoch bump when variational (§4.10), and this pin's update.
+    @Test("the per-class key counts match the TASK-033 + TASK-034 + TASK-035 + TASK-036 landings: 40 slot lines, 3 greetings, 12 vocab, 8 status, 7 quest, 23 react, 3 care-moment, 2 moment")
     func perClassCountsPinned() throws {
         let keys = try Self.catalogKeys()
         func count(matching pattern: String) -> Int {
@@ -104,14 +98,14 @@ struct MomoCatalogScaffoldingTests {
         #expect(count(matching: "^momo\\.line\\.vocab\\.") == 12, "the OBS-1 vocabulary: 4 mood + 4 energy + 4 stage")
         #expect(count(matching: "^momo\\.line\\.status\\.") == 8, "the status words: 4 energy + 4 stage")
         #expect(count(matching: "^momo\\.line\\.quest\\.q[1-7]$") == 7, "PRD §5.2's seven wishes")
-        #expect(count(matching: "^momo\\.line\\.moment\\.") == 1, "the moment namespace stays at its placeholder seed")
+        #expect(count(matching: "^momo\\.line\\.moment\\.\\d{2}$") == 2, "the moment class is the fixed 01–02 lookup (TASK-036)")
         #expect(count(matching: "^momo\\.line\\.react\\.") == 23, "the react namespace is touch's 5 + TASK-035's 6+6+6")
         #expect(count(matching: "^momo\\.line\\.react\\.touch\\.\\d{2}$") == 5, "the touch pool is exactly five lines")
         #expect(count(matching: "^momo\\.line\\.react\\.feed\\.\\d{2}$") == 6, "the feed pool is exactly six lines")
         #expect(count(matching: "^momo\\.line\\.react\\.play\\.\\d{2}$") == 6, "the play pool is exactly six lines")
         #expect(count(matching: "^momo\\.line\\.react\\.care\\.\\d{2}$") == 6, "the care pool is exactly six lines")
         #expect(count(matching: "^momo\\.line\\.care-moment\\.\\d{2}$") == 3, "the care-moment class is the fixed 01–03 lookup")
-        #expect(keys.count == 97, "the whole catalog is exactly the classes above")
+        #expect(keys.count == 98, "the whole catalog is exactly the classes above")
     }
 
     // MARK: The touch pool's verbatim lines (TASK-034 AC-5)
@@ -194,20 +188,33 @@ struct MomoCatalogScaffoldingTests {
         }
     }
 
-    @Test("placeholder entries are present and marked per the convention")
-    func placeholdersAreMarked() throws {
+    // MARK: The moment lines (TASK-036 R6; UX §5.5–§5.6's celebration class)
+
+    /// TASK-036 landed the celebration class as FIXED lookups (the OBS-D
+    /// adjudication: a celebration line must say THE celebration — zero
+    /// variation, never a seeded draw). The two entries are the contract's
+    /// verbatim copy: `.01` is the M2 banner's %1$@/%2$@ TEMPLATE (positional
+    /// placeholders so a localized reordering stays locale-correct), `.02`
+    /// the M3 all-done warm note. The composer appends the bond-descriptor
+    /// sentence to `.01` — the catalog entry itself stays the template.
+    private static let momentVerbatim: [(key: String, text: String)] = [
+        ("momo.line.moment.01", "%1$@ and you are now %2$@."),
+        ("momo.line.moment.02", "Momo had a lovely day."),
+    ]
+
+    @Test("the shipped catalog carries the moment lines verbatim (TASK-036 R6)")
+    func catalogCarriesTheMomentLinesVerbatim() throws {
+        #expect(Self.momentVerbatim.count == 2,
+                "the moment class is exactly the two FIXED lookups")
         let strings = try Self.stringsDictionary()
-        for key in Self.placeholderKeys {
-            guard let entry = strings[key] as? [String: Any] else {
-                Issue.record("placeholder key '\(key)' missing from the shipped catalog")
-                continue
-            }
-            #expect(key.hasSuffix(".00"), "'\(key)': placeholder index must be 00 (the 0-based picker never mints a placeholder outside a pool of 1)")
-            #expect(entry["extractionState"] as? String == "manual",
-                    "'\(key)': hand-authored entries are extractionState manual")
-            let comment = entry["comment"] as? String
-            #expect(comment?.hasPrefix("PLACEHOLDER") == true,
-                    "'\(key)': placeholder entries carry a PLACEHOLDER comment")
+        for (key, text) in Self.momentVerbatim {
+            let entry = try #require(
+                strings[key] as? [String: Any],
+                "'\(key)' is missing from the shipped catalog")
+            let localizations = try #require(entry["localizations"] as? [String: Any], "'\(key)' has no localizations")
+            let en = try #require(localizations["en"] as? [String: Any], "'\(key)' has no en localization")
+            let unit = try #require(en["stringUnit"] as? [String: Any], "'\(key)' has no stringUnit")
+            #expect(unit["value"] as? String == text, "'\(key)' must read verbatim: '\(text)'")
         }
     }
 

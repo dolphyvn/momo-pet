@@ -158,8 +158,9 @@ final class MomoAppModel {
     /// The folded reaction director state (04 §4.1's choreography layer):
     /// every `MomoCharacterEvent` the presentation observes — the engine's
     /// plans, the read-model updates, the canvas touch boundaries, the app
-    /// hide/show gates, the play round's early-exit stop (TASK-035 R6) —
-    /// folds HERE, and the Home rig samples the projection through
+    /// hide/show gates, the play round's early-exit stop (TASK-035 R6), the
+    /// engine's event-born quest/bond moments (TASK-036 R1) — folds HERE,
+    /// and the Home rig samples the projection through
     /// `reactionMotion(at:reduceMotion:)`. The app model is the ONE
     /// app-target owner of the fold (D-R5: the view never touches the
     /// director; MomoKit never imports MomoCharacter). Value-typed and
@@ -222,16 +223,73 @@ final class MomoAppModel {
     /// ambient (UX-12's priority verbatim).
     private(set) var latestCareMoment: CareMomentKind?
 
+    // MARK: The quest moments + celebrations (TASK-036; UX §5.5–§5.6)
+
+    /// Authored auto-fade of the M2 stage banner (TASK-036 R4, disclosed):
+    /// 03 §5.6's "auto-fades ~4 s" — the banner dismisses itself at 4.0 s.
+    static let celebrationAutoFadeSeconds: Double = 4.0
+
+    /// Authored length of the M1 flip flourish on the quest card
+    /// (TASK-036 R3, disclosed): the just-completed row's mark swells for
+    /// 0.6 s — 03 §5.5's "tiny in-scene flourish" scale, no spring
+    /// firework. Under Reduce Motion the swell is skipped (D16: the fill
+    /// itself is the emphasis).
+    static let questFlipFlourishSeconds: Double = 0.6
+
+    /// The M2 banner's visible stage — nil while hidden (UX §5.6's calm
+    /// in-scene banner over Home; never a modal, never chrome). The
+    /// celebration's ONE-TIME-NESS is the ENGINE's (UX-10's
+    /// `highestCelebratedStage` guard advances with the emission and is
+    /// persisted) — this presentation state is deliberately stateless
+    /// about once-per-stage. Disclosed: the banner does not defer across
+    /// backgrounding — a celebration arriving in a backgrounded apply
+    /// auto-fades on the wall clock; the engine's once-guard means the
+    /// moment itself is never re-minted.
+    private(set) var activeCelebrationStage: BondStage?
+
+    /// The banner's live auto-fade task (nil while no banner shows).
+    private var celebrationTask: Task<Void, Never>?
+
+    /// The quests whose completion the card is still flourishes (M1's
+    /// mark swell) — memory only, latest-wins exactly like
+    /// `latestCareMoment`: never persisted, cleared by the authored
+    /// flourish task or superseded by the next application.
+    private(set) var celebratingQuests: [QuestID] = []
+
+    /// The flip flourish's live auto-clear task.
+    private var questFlipTask: Task<Void, Never>?
+
+    /// The moment-haptic sink (TASK-036 R7): the kinds
+    /// `MomentHapticKind.deliveryKinds` decides fire here — gated on
+    /// `state.settings.hapticsEnabled` AT DELIVERY (the arm's argument),
+    /// independent of Reduce Motion (D16 fades motion, never touch). The
+    /// default is the UIKit implementation — M1 a light impact (UX §5.5's
+    /// "optional light haptic"), M2 a single warm success notification
+    /// (§5.6's crossing beat); an injectable closure keeps the seam
+    /// observable. The engine's `ResponsePlan.haptic` stays nil everywhere
+    /// — this is presentation-owned, decided at delivery.
+    var momentHapticSink: (MomentHapticKind) -> Void = { kind in
+        switch kind {
+        case .questCompleted:
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case .stageCelebration:
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+    }
+
     /// Whether a canvas touch is currently open (the `touchEnded`
     /// idempotence guard — the FIX1-NOTE-1 cancel seam closes the press
     /// EXACTLY once per opened touch, whichever path ends it).
     private var isTouchOpen = false
 
-    /// The UI-facing delivery seam (§4.1's fixed order, steps 2–3): the
-    /// shell hosts these closures; the character layer's full wiring is
-    /// TASK-032/033. Exactly-once invocation is the plan-loop's guarantee.
+    /// The UI-facing response seam (§4.1's fixed order, step 2): the shell
+    /// may host this closure to observe the delivery; exactly-once
+    /// invocation is the plan-loop's guarantee. (TASK-036 R1: the moments
+    /// half of this seam was REMOVED — it was declared and called but
+    /// never hosted, the delivery gap this task fixes; the `.deliverMoments`
+    /// arm folds the event into the director itself, which IS the
+    /// delivery.)
     var deliverResponse: ((ResponsePlan) -> Void)?
-    var deliverMoments: (([CharacterMoment]) -> Void)?
 
     /// The ONE live boundary schedule — cancelled and re-derived after every
     /// application (re-schedule, never replay).
@@ -483,10 +541,90 @@ final class MomoAppModel {
     /// slots/greetings/vocab/moment classes, and plans without a line
     /// announce nothing.
     private func announceSpokenLine(for response: ResponsePlan) {
-        guard UIAccessibility.isVoiceOverRunning,
-              let key = SpokenReaction.announcementKey(for: response.lineKey)
+        guard let key = SpokenReaction.announcementKey(for: response.lineKey)
         else { return }
-        UIAccessibility.post(notification: .announcement, argument: MomoCopyText.render(key))
+        announceText(MomoCopyText.render(key))
+    }
+
+    /// The VoiceOver announcement primitive (the UX-8 pattern all
+    /// announcements share): a rendered line posted as an `.announcement`,
+    /// silent when VoiceOver is off. TASK-036 uses it for the M1
+    /// done-state lines and the M2 banner's full line (§5.6: the stage
+    /// moment is never visual-only).
+    private func announceText(_ text: String) {
+        guard UIAccessibility.isVoiceOverRunning else { return }
+        UIAccessibility.post(notification: .announcement, argument: text)
+    }
+
+    // MARK: The quest moments + celebrations (TASK-036)
+
+    /// The M1 flip half (R3): record the quests this application flipped
+    /// to done — the card's flourish memory, latest-wins, cleared by the
+    /// authored 0.6 s task — and speak each completion through the quest
+    /// card's done-state line ("{wish}, done" — the row label's own
+    /// shape, UX §10's words-never-symbols rule).
+    private func recordQuestFlips(_ flips: [QuestID]) {
+        guard !flips.isEmpty else { return }
+        celebratingQuests = flips
+        questFlipTask?.cancel()
+        questFlipTask = Task { await clearQuestFlips() }
+        for questID in flips {
+            announceText("\(MomoCopyText.render(HomeCopyKeys.questWishKey(for: questID))), done")
+        }
+    }
+
+    /// The flip flourish's auto-clear (the authored
+    /// `questFlipFlourishSeconds`); real-time sleep, so it runs under any
+    /// clock. A superseding application cancelled this task before its
+    /// sleep ends — the guard keeps a stale clear from erasing a NEWER
+    /// flip set.
+    private func clearQuestFlips() async {
+        try? await Task.sleep(for: .seconds(Self.questFlipFlourishSeconds))
+        guard !Task.isCancelled else { return }
+        celebratingQuests = []
+    }
+
+    /// The M2 celebration (R4): the banner stage goes visible, its
+    /// authored ~4 s auto-fade is scheduled, and the FULL line
+    /// ("{name} and you are now {Stage}. {descriptor line}.") is announced
+    /// so the stage moment is never visual-only (UX §5.6). A new
+    /// celebration replaces a showing one (the old fade task is
+    /// cancelled first).
+    private func showStageCelebration(_ stage: BondStage) {
+        celebrationTask?.cancel()
+        activeCelebrationStage = stage
+        celebrationTask = Task { await autoFadeCelebration() }
+        announceText(celebrationLine(for: stage))
+    }
+
+    /// The banner's auto-fade: nil the stage after the authored 4.0 s —
+    /// a REAL-TIME sleep (works under any clock; the banner is
+    /// presentation time, not canvas time).
+    private func autoFadeCelebration() async {
+        try? await Task.sleep(for: .seconds(Self.celebrationAutoFadeSeconds))
+        guard !Task.isCancelled else { return }
+        activeCelebrationStage = nil
+    }
+
+    /// UX §5.6: the banner dismisses on tap — the view's one banner
+    /// action, routed here like every other intent (D-R5; never a
+    /// UI-only dismissal).
+    public func dismissCelebration() {
+        celebrationTask?.cancel()
+        celebrationTask = nil
+        activeCelebrationStage = nil
+    }
+
+    /// The M2 banner's full line (UX §5.6's "{name} and you are now
+    /// {Stage}. {descriptor line}."): the FIXED `moment.01` template —
+    /// positional `%1$@`/`%2$@` placeholders keep a localized reordering
+    /// locale-correct — over the pet's name and the catalog stage word,
+    /// then the vocabulary descriptor sentence.
+    public func celebrationLine(for stage: BondStage) -> String {
+        let template = MomoCopyText.render(HomeCopyKeys.celebrationBannerTemplateKey)
+        let stageWord = MomoCopyText.render(HomeCopyKeys.stageNameKey(for: stage))
+        let descriptor = MomoCopyText.render(VocabularyKeys.bondDescriptorKey(for: stage))
+        return String(format: template, state.pet.name, stageWord) + " " + descriptor
     }
 
     /// The onboarding completion tap (TASK-032 R5; FR-1 AC-2, FR-13 AC-1):
@@ -520,7 +658,16 @@ final class MomoAppModel {
             calendar: calendar
         )
         // Step 0 — apply the new state.
+        let previousState = state
         state = plan.appliedState
+        // TASK-036 R3: the M1 flips — the day-record diff of THIS
+        // application (completion never reverses — FR-16/TR5 — so the
+        // one-way diff is total). `CharacterMoment.questCompleted` carries
+        // no payload, so the card's per-row flourish and the done-state
+        // announcements derive WHICH quest flipped from the state itself.
+        // Memory only, latest-wins; a no-op on every flip-less trigger.
+        recordQuestFlips(QuestMomentSupport.flippedQuests(
+            before: previousState.days, after: state.days))
         // TASK-034 R4: the read-model feed. A display-state CHANGE (the
         // wakefulness transitions and L4 moment-request transitions §9.3
         // routes through this door) folds into the director on the canvas
@@ -562,7 +709,32 @@ final class MomoAppModel {
                 }
                 deliverResponse?(response)
             case .deliverMoments(let moments):
-                deliverMoments?(moments)
+                // TASK-036 R1: the event-born door — the greeting stays on
+                // the state-born `.displayState` `momentRequest` door (the
+                // TASK-019 state-alone pin; this fold runs AFTER step 0's
+                // displayState fold, so a fold-carried greeting starts
+                // first and the event moments queue behind it). Everything
+                // else folds FIFO into the director's L4 slot on the
+                // canvas timeline; an empty remainder is a no-op.
+                let eventBorn = QuestMomentSupport.eventBornMoments(moments)
+                if !eventBorn.isEmpty {
+                    foldDirector(.moments(eventBorn, at: canvasClock.elapsed()))
+                }
+                // R4: the M2 stage celebration — the banner state and its
+                // VoiceOver full-line announcement (§5.6: the stage moment
+                // is never visual-only).
+                if let stage = QuestMomentSupport.celebrationStage(in: moments) {
+                    showStageCelebration(stage)
+                }
+                // R7: the authored haptics — decided from the RAW batch
+                // (the greeting on it fires nothing) and gated on the
+                // user's setting read at delivery.
+                for kind in MomentHapticKind.deliveryKinds(
+                    for: moments,
+                    hapticsEnabled: state.settings.hapticsEnabled
+                ) {
+                    momentHapticSink(kind)
+                }
             case .pushWatchSnapshot:
                 // RESERVED SEAM (EPIC-008): the Watch push is a documented
                 // no-op this task — no WatchConnectivity code exists; the

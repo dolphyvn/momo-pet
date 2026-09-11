@@ -25,6 +25,9 @@ import MomoCore
 ///   catalog entries; TASK-033 Requirement 3).
 /// - **The quest wishes** (PRD §5.2's wish lines, TASK-033 Requirement 3):
 ///   `momo.line.quest.q<n>` per `QuestID`.
+/// - **The moment lines** (TASK-036; UX §5.6's celebration class): the M2
+///   banner template and the M3 all-done warm line — `momo.line.moment.01`
+///   and `.02`, FIXED lookups (the OBS-D precedent), never seeded draws.
 ///
 /// Pure and total: every function is an exhaustive `switch` or a delegation
 /// to the frozen selection surface. No string here is user-facing text — all
@@ -45,10 +48,11 @@ public enum HomeCopyKeys {
     }
 
     /// The greeting line key for the in-effect greeting kind (04 §10.3's
-    /// return-greeting pool, catalog order 01–03). `nightGlance` has NO pool
-    /// yet — its "Shhh…" class is the canvas/moment surface, landing with the
-    /// reaction/care tasks (TASK-034/035) — so the contextual resolver falls
-    /// through to the ambient slot line for it.
+    /// return-greeting pool, catalog order 01–03). `nightGlance` still has
+    /// NO pool — its "Shhh…" class belongs to the night canvas surface
+    /// (Phase 2's absence/night work; the TASK-036 moment class landing is
+    /// the stage celebration, not a nightGlance pool) — so the contextual
+    /// resolver falls through to the ambient slot line for it.
     public static func greetingLineKey(for kind: GreetingKind) -> String? {
         switch kind {
         case .welcomeBack: return "momo.line.greeting.01"
@@ -134,6 +138,23 @@ public enum HomeCopyKeys {
         case .q7: return "momo.line.quest.q7"
         }
     }
+
+    // MARK: The moments (TASK-036 R6; UX §5.6's celebration lines)
+
+    /// The M2 stage-banner template — `momo.line.moment.01`, UX §5.6's
+    /// "{name} and you are now {Stage}." half. A FIXED lookup at a single
+    /// catalog key, never a seeded draw (the OBS-D adjudication's
+    /// precedent: a celebration line must say THE celebration; a
+    /// day-stable draw cannot serve that). The template carries positional
+    /// `%1$@`/`%2$@` placeholders (name, stage word) so a localized
+    /// reordering stays locale-correct; the descriptor sentence
+    /// (`VocabularyKeys.bondDescriptorKey`) is appended by the composer.
+    public static let celebrationBannerTemplateKey = "momo.line.moment.01"
+
+    /// The M3 all-done warm line — `momo.line.moment.02`, UX §5.5's
+    /// one-line warm note the card grows when the §4.8 cascade reads
+    /// `.allDone`. Fixed, like `01`.
+    public static let allDoneLineKey = "momo.line.moment.02"
 }
 
 // MARK: - The care moments (TASK-035 R5; 04 §10.1 rule 7's "few care

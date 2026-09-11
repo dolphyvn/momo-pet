@@ -13,18 +13,20 @@ import Testing
 /// on Home. TASK-035's disclosure extends the law to the care-moment
 /// visuals (`momo.line.care-moment.01–03` — the contextual line's top
 /// tier) and to the SPOKEN react pools (UX-8: announced under VoiceOver —
-/// the ear deserves the same length law as the eye). A line longer than 12
-/// whitespace-separated words fails with the key attributed. The word
-/// COUNT is measured strictly (whitespace tokens — punctuation and the
-/// ellipsis are not words), so the pin cannot be gamed by joining with
-/// commas.
-@Suite("Catalog copy law — 12-word max over the visual and spoken line classes (TASK-033 + TASK-035)")
+/// the ear deserves the same length law as the eye). TASK-036's moment
+/// lines are REAL copy (the placeholder seed is gone): the scanned count
+/// includes both, the banner template's `%1$@`/`%2$@` placeholders not
+/// being words. A line longer than 12 whitespace-separated words fails
+/// with the key attributed. The word COUNT is measured strictly
+/// (whitespace tokens — punctuation and the ellipsis are not words), so
+/// the pin cannot be gamed by joining with commas.
+@Suite("Catalog copy law — 12-word max over the visual and spoken line classes (TASK-033 + TASK-035 + TASK-036)")
 struct CatalogCopyLawTests {
 
-    /// The scanned classes: the four time slots (ten lines each), the moment
-    /// placeholder (same visual class), the greetings (disclosed
-    /// strict — see the header), the care-moment visuals, and the four
-    /// spoken react pools.
+    /// The scanned classes: the four time slots (ten lines each), the two
+    /// moment lines (TASK-036's fixed lookups — same visual class), the
+    /// greetings (disclosed strict — see the header), the care-moment
+    /// visuals, and the four spoken react pools.
     private static let scannedPattern =
         "^momo\\.line\\.(morning|day|evening|night|moment|care-moment)\\.\\d{2}$"
     private static let greetingPattern =
@@ -52,11 +54,11 @@ struct CatalogCopyLawTests {
                 violations.append("\(key): \(words) words — '\(value)'")
             }
         }
-        // Never vacuous: the TASK-033 landing's 40 slot lines + the moment
-        // placeholder + the 3 greetings, TASK-035's 3 care-moment visuals,
-        // and the 23 react lines (TASK-034's 5 touch + TASK-035's 18) are
-        // all in scope.
-        #expect(scanned == 70, "expected 70 scanned lines (40 slots + 1 moment + 3 greetings + 3 care-moments + 23 react); found \(scanned) — a new visual or spoken class needs this law's scope review")
+        // Never vacuous: the TASK-033 landing's 40 slot lines + the 3
+        // greetings, TASK-035's 3 care-moment visuals, the 23 react lines
+        // (TASK-034's 5 touch + TASK-035's 18), and TASK-036's 2 moment
+        // lines are all in scope.
+        #expect(scanned == 71, "expected 71 scanned lines (40 slots + 2 moment + 3 greetings + 3 care-moments + 23 react); found \(scanned) — a new visual or spoken class needs this law's scope review")
         if !violations.isEmpty {
             Issue.record(
                 CopyLawViolations(descriptions: violations),
@@ -69,11 +71,10 @@ struct CatalogCopyLawTests {
     @Test("every scanned PRODUCT line carries actual copy, not a template remnant")
     func scannedLinesAreRealCopy() throws {
         for (key, value) in try Self.scannedEntries() {
-            // The moment namespace's placeholder seed is exempt — its
-            // PLACEHOLDER marking is the scaffolding suite's pin; this law
-            // governs length, and the seed must stay scannable until the
-            // moment surfaces land.
-            guard !key.hasPrefix("momo.line.moment.") else { continue }
+            // No exemptions: TASK-036 replaced the last placeholder seed,
+            // so every scanned class carries real copy (the banner
+            // template's %1$@/%2$@ slots are placeholders in the FORMATTING
+            // sense, not template remnants — the line reads as copy).
             #expect(!value.lowercased().contains("placeholder"), "'\(key)' still reads as a placeholder")
             #expect(value.contains(" "), "'\(key)' is suspiciously terse for a body-copy line: '\(value)'")
         }

@@ -279,4 +279,52 @@ struct HomeReadModelTests {
         #expect(napping.actionPills.count == 3)
         if case .tuckIn = napping.actionPills[2] {} else { Issue.record("mid-nap keeps tuckIn (blanket adjust counts)") }
     }
+
+    // MARK: TASK-036 R5 — the M3 all-done truth
+
+    /// The M3 warm note's gate is the §4.8 CASCADE's `.allDone` reading —
+    /// hour-aware, not "every in-set quest completed". A fully complete
+    /// in-set reads true; a visible incomplete row always reads false (a
+    /// visible wish is an owed wish). The hour-aware legs: an incomplete
+    /// quest whose window is SHUT never blocks — the morning's Q1+Q2 done
+    /// with the evening Q6 still unopenable reads all-done at 09:00, and
+    /// the day's missed Q1 (its window closed at noon) reads all-done at
+    /// 20:30 once Q2+Q6 are done. The ABSENT record reads true (the empty
+    /// set's cascade IS the all-done state — the engine's own reading)
+    /// with no rows to show it on.
+    @Test("all-done: the cascade's hour-aware reading")
+    func allDoneTruth() {
+        #expect(!makeModel().isAllDone) // [Q1, Q2, Q6], all incomplete
+
+        func day(_ entries: (QuestID, Bool)...) -> DayRecord {
+            DayRecord(
+                dayKey: "2026-09-10",
+                feedCount: 1, playCount: 0, careCount: 1, patCount: 3,
+                questSet: entries.map { id, done in
+                    QuestProgress(questID: id, progress: done ? 1 : 0, completed: done)!
+                },
+                helloAwarded: true,
+                familiesUsed: [.feed, .care],
+                bondAwarded: 12,
+                questGenEpoch: 1
+            )!
+        }
+        let allComplete = day((.q1, true), (.q2, true), (.q6, true))
+        #expect(makeModel(state(days: [allComplete])).isAllDone)
+
+        // The hour-aware legs: the invisible incomplete quests don't block.
+        let eveningPending = day((.q1, true), (.q2, true), (.q6, false))
+        let morning = makeModel(state(days: [eveningPending]))
+        #expect(!morning.questRows.contains { $0.questID == .q6 && $0.isWindowVisible })
+        #expect(morning.isAllDone)
+        let morningMissed = day((.q1, false), (.q2, true), (.q6, true))
+        let evening = makeModel(state(days: [morningMissed]), at: "2026-09-10T20:30:00Z")
+        #expect(!evening.questRows.contains { $0.questID == .q1 && $0.isWindowVisible })
+        #expect(evening.isAllDone)
+
+        // The absent record: the cascade's empty-set reading, and the
+        // card's own gate — no rows, no note.
+        #expect(makeModel(state(days: [])).isAllDone)
+        #expect(makeModel(state(days: [])).questRows.isEmpty)
+    }
 }

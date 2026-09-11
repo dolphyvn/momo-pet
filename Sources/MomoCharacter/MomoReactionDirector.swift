@@ -59,6 +59,14 @@ public struct MomoDirectorState: Equatable, Sendable {
     var moment: MomoMomentInstance?
     var pendingMomentRequest: CharacterMoment?
     var deferredMoment: CharacterMoment?
+
+    /// The event-born moment queue (TASK-036 R2): batches folded through
+    /// `.moments` wait here FIFO while the L4 slot is busy or the app is
+    /// hidden — nothing drops, and nothing plays twice. Per-fold the engine
+    /// mints at most three moments (≤ 2 quest + ≤ 1 bond, TASK-018's cap),
+    /// so the queue's cross-fold growth is bounded in practice; it is
+    /// drained by the same three advance sites that feed the slot.
+    var pendingMoments: [CharacterMoment]
     public private(set) var reports: [MomoReportEntry]
     var hidden: Bool
 
@@ -78,6 +86,7 @@ public struct MomoDirectorState: Equatable, Sendable {
         self.moment = nil
         self.pendingMomentRequest = nil
         self.deferredMoment = nil
+        self.pendingMoments = []
         self.reports = []
         self.hidden = false
     }
@@ -103,6 +112,8 @@ public struct MomoDirectorState: Equatable, Sendable {
             applyShown(at: at)
         case .playStopped(let at):
             applyPlayStopped(at: at)
+        case .moments(let moments, let at):
+            applyMoments(moments, at: at)
         }
         pruneCompleteLayers(around: eventTime(of: event))
     }
@@ -533,6 +544,29 @@ public struct MomoDirectorState: Equatable, Sendable {
         self.moment = MomoMomentInstance(moment: moment, start: t, reported: false)
     }
 
+    // MARK: Event-born moments (TASK-036 R2; FR-16)
+
+    /// Folds an event-born moment batch: enqueued FIFO, then the queue
+    /// advances if the L4 slot happens to be idle and the app is visible.
+    /// An empty batch is a no-op (no enqueue, no advance).
+    private mutating func applyMoments(_ moments: [CharacterMoment], at t: Double) {
+        guard !moments.isEmpty else { return }
+        pendingMoments.append(contentsOf: moments)
+        advanceMomentQueue(at: t)
+    }
+
+    /// Starts the next queued moment when the slot is idle AND the app is
+    /// visible; otherwise a no-op — the queue waits, nothing drops. The
+    /// THREE advance sites: a fold arriving to an idle slot (end of
+    /// `applyMoments`), the L4 completion (the slot vacates), and `appShown`
+    /// (hidden moments release in order, behind a deferred state-born
+    /// greeting, which re-takes the slot first and makes this a no-op).
+    private mutating func advanceMomentQueue(at t: Double) {
+        guard !hidden, moment == nil, let next = pendingMoments.first else { return }
+        pendingMoments.removeFirst()
+        startMoment(next, at: t)
+    }
+
     // MARK: Touch boundaries (§6.1 press-length; strokes end whole)
 
     private mutating func applyTouchEnded(at t: Double) {
@@ -660,6 +694,10 @@ public struct MomoDirectorState: Equatable, Sendable {
         } else if moment != nil {
             moment?.start = t // replay the interrupted moment from 0
         }
+        // TASK-036 R2: hidden event-born moments release now, in FIFO
+        // order — a no-op while the deferred greeting (or a replaying
+        // moment) holds the slot.
+        advanceMomentQueue(at: t)
         switch displayState.wakefulness {
         case .waking:
             stateLayer = .wake(start: t)
@@ -778,6 +816,9 @@ public struct MomoDirectorState: Equatable, Sendable {
                 moment.reported = true
             }
             self.moment = nil
+            // TASK-036 R2: the vacated slot releases the next queued
+            // event-born moment at the completion instant.
+            advanceMomentQueue(at: moment.start + MomoMoments.duration(for: moment.moment))
         }
         // L3 completions: every resolved slot reports once at its own end.
         for index in reactionSlots.indices {

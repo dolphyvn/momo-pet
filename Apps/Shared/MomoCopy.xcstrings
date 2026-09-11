@@ -313,14 +313,26 @@
         }
       }
     },
-    "momo.line.moment.00" : {
-      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.moment namespace (M2 stage banner / M3 all-done). Replaced by the engine tasks (FR-10 AC-4); not product copy.",
+    "momo.line.moment.01" : {
+      "comment" : "The M2 stage-banner template (TASK-036 R6; UX §5.6's celebration class, verbatim shape: \"{name} and you are now {Stage}.\"). A FIXED lookup — never a seeded draw (the TASK-035 OBS-D adjudication's precedent). Positional placeholders: %1$@ = pet name, %2$@ = stage word, so a localized reordering stays locale-correct (FR-10 AC-4). The bond-descriptor sentence is appended by the composer (VocabularyKeys.bondDescriptorKey).",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Placeholder moment line."
+            "value" : "%1$@ and you are now %2$@."
+          }
+        }
+      }
+    },
+    "momo.line.moment.02" : {
+      "comment" : "The M3 all-done warm line (TASK-036 R6; UX §5.5's named example, \"Momo had a lovely day.\"). A FIXED lookup — never a seeded draw (the TASK-035 OBS-D adjudication's precedent). The card grows this one warm note when the §4.8 cascade reads allDone; ≤12 words, nothing gated or demanded (04 §10.1 rule 7).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo had a lovely day."
           }
         }
       }

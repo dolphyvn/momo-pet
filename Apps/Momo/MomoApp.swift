@@ -30,7 +30,8 @@ struct MomoApp: App {
         return MomoAppModel(
             storeDirectory: MomoApp.testStoreDirectory(),
             clock: time.clock,
-            calendar: time.calendar
+            calendar: time.calendar,
+            freshDefault: MomoApp.fixtureDefaultState(clock: time.clock, calendar: time.calendar)
         )
     }()
 
@@ -108,6 +109,116 @@ struct MomoApp: App {
         assertionFailure("MomoApp: -momo-fixed-clock value '\(raw)' is not ISO-8601 UTC — falling back to the system clock")
         #endif
         return (SystemEngineClock(), .current)
+    }
+
+    // MARK: The UI-test fixture enabler (TASK-036 R10, disclosed)
+
+    /// The R10 verify-before-trust enabler: a `-momo-fixture <kind>` launch
+    /// argument serves a FIXTURE engine state as the store's fresh default
+    /// FOR THAT LAUNCH, so MomoUITests can drive the bond/quest surfaces no
+    /// fixed-clock interaction sequence can reach (bond crossing 150 in one
+    /// tap needs ~139 banked bond; the day's wishes all done needs three
+    /// interactions across mutually exclusive windows — Q1 closes at 12:00
+    /// before Q6's 20:00 onset). Production launches never pass the
+    /// argument and get the onboarding carrier as before. DEBUG-only.
+    ///
+    /// **Why a fixture STATE, not a fixture STORE (the honest adaptation
+    /// the task contract anticipated):** the store-file handoff is
+    /// infeasible — the runner and the app-under-test live in different
+    /// sandboxes (`testStoreDirectory`'s own doc), so the runner cannot
+    /// place a pre-seeded store file the app will read. The fixture rides
+    /// the EXISTING injected-fresh-default parameter (05 §5.3 — "the
+    /// caller's to inject") on a THROWAWAY store: a fresh store serves the
+    /// fixture as the load fallback, exactly the §5.3 fresh path.
+    ///
+    /// Kinds: `stage-crossing` — bond 149, the day's fresh [Q1, Q2, Q6]
+    /// set, hello NOT yet awarded: one pat awards the hello (+8), crosses
+    /// 150, completes Q1, and mints `.bondStageReached` + `.questCompleted`
+    /// in ONE interaction (the full M1+M2 fan-out). `all-done` — the day's
+    /// wishes all complete, so the §4.8 cascade reads `.allDone` and the
+    /// card carries the M3 warm note from the first frame.
+    private static func fixtureDefaultState(
+        clock: any EngineClock,
+        calendar: Calendar
+    ) -> EngineState? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-momo-fixture"),
+            index + 1 < arguments.count
+        else { return nil }
+        let now = clock.now()
+        let dayKey = DayKey.make(from: now, calendar: calendar)
+        func quest(_ id: QuestID, progress: Int, completed: Bool) -> QuestProgress {
+            // Unreachable with catalog targets: every fixture below stays
+            // within a target's 0...target band (INV-6).
+            QuestProgress(questID: id, progress: progress, completed: completed)!
+        }
+        switch arguments[index + 1] {
+        case "stage-crossing":
+            return EngineState(
+                pet: Pet(id: UUID(), name: "Momo", createdAt: now)!,
+                state: PetState(
+                    mood: 70, energy: 80, bond: 149,
+                    wakefulness: .awake, activity: nil,
+                    lastFedAt: nil, satietyPhase: .hungry
+                )!,
+                days: [DayRecord(
+                    dayKey: dayKey,
+                    feedCount: 0, playCount: 0, careCount: 0, patCount: 0,
+                    questSet: [
+                        quest(.q1, progress: 0, completed: false),
+                        quest(.q2, progress: 0, completed: false),
+                        quest(.q6, progress: 0, completed: false),
+                    ],
+                    helloAwarded: false,
+                    familiesUsed: [],
+                    bondAwarded: 0,
+                    questGenEpoch: QuestGeneration.currentEpoch
+                )!],
+                settings: SettingsState(onboardingComplete: true, hapticsEnabled: true),
+                pendingHandshake: nil,
+                processedIntents: [],
+                highestCelebratedStage: .newFriends,
+                lastOpenedAt: now,
+                lastEvaluatedAt: now,
+                lastGreeting: nil
+            )
+        case "all-done":
+            return EngineState(
+                pet: Pet(id: UUID(), name: "Momo", createdAt: now)!,
+                state: PetState(
+                    mood: 80, energy: 70, bond: 40,
+                    wakefulness: .awake, activity: nil,
+                    lastFedAt: nil, satietyPhase: .hungry
+                )!,
+                days: [DayRecord(
+                    dayKey: dayKey,
+                    feedCount: 1, playCount: 0, careCount: 1, patCount: 3,
+                    questSet: [
+                        quest(.q1, progress: 1, completed: true),
+                        quest(.q2, progress: 1, completed: true),
+                        quest(.q6, progress: 1, completed: true),
+                    ],
+                    helloAwarded: true,
+                    familiesUsed: [.feed, .care],
+                    bondAwarded: 12,
+                    questGenEpoch: QuestGeneration.currentEpoch
+                )!],
+                settings: SettingsState(onboardingComplete: true, hapticsEnabled: true),
+                pendingHandshake: nil,
+                processedIntents: [],
+                highestCelebratedStage: .newFriends,
+                lastOpenedAt: now,
+                lastEvaluatedAt: now,
+                lastGreeting: nil
+            )
+        default:
+            assertionFailure("MomoApp: unknown -momo-fixture kind '\(arguments[index + 1])'")
+            return nil
+        }
+        #else
+        return nil
+        #endif
     }
 
     // MARK: The UI-test store enabler (TASK-032 R13, disclosed)

@@ -426,7 +426,147 @@ final class MomoHomeUITests: XCTestCase {
         )
     }
 
+    // MARK: TASK-036 — the quest moments at the glass (R3/R4/R5; UX §5.5–§5.6)
+
+    /// M1 at the glass: the day's first pat completes Q1 (the greet family's
+    /// target-1 wish — the onboarding walk never routes a pat) and the row's
+    /// soft mark flips, the label carrying the flip in words. The flourish's
+    /// 0.6 s swell and the light haptic are the un-assertable halves at the
+    /// glass; the flip itself is the visible face. The prepared launch (the
+    /// R13 restart pattern) mints the day record a single frozen launch can
+    /// never create, so the row exists and reads pending before the tap.
+    func testFirstPatCompletesTheMorningWish() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let row = homeElement(app, "home.questRow.q1")
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            row.label.hasSuffix(", pending"),
+            "the morning wish starts pending — got '\(row.label)'"
+        )
+
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -40)).tap()
+
+        let flipped = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "Morning hello — say hello to Momo, done"),
+            object: row
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [flipped], timeout: 5),
+            .completed,
+            "the first pat completes Q1 — the row speaks the flip in words"
+        )
+        XCTAssertTrue(homeElement(app, "home.canvas").exists, "the completion stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "a quest completion is quiet copy and a flourish, never a presentation")
+    }
+
+    /// M2 at the glass, dismissal face: the `stage-crossing` fixture banks
+    /// bond 149 with the hello unspent, so ONE pat awards the hello (+8),
+    /// crosses 150, and completes Q1 in a single interaction — the full
+    /// M1+M2 fan-out. The calm in-scene banner rises with the composed
+    /// moment line (the fixed template over the stage word + descriptor)
+    /// and a tap dismisses it (UX §5.6's never-a-modal fade). The banner
+    /// auto-fade and VoiceOver announcement are REAL-TIME and separate —
+    /// the auto-fade half is the next test's pin.
+    func testStageBannerRisesAndDismissesOnTap() {
+        let app = fixtureHomeApp(kind: "stage-crossing")
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10), "the fixture store lands straight on Home")
+
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -40)).tap()
+
+        let banner = homeElement(app, "home.celebrationBanner")
+        XCTAssertTrue(
+            banner.waitForExistence(timeout: 10),
+            "the crossing raises the in-scene banner"
+        )
+        XCTAssertEqual(
+            banner.label,
+            "Momo and you are now Getting Close. Momo perks up when you arrive.",
+            "the banner speaks the composed moment line verbatim"
+        )
+
+        banner.tap()
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: banner
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 5), .completed, "the tap dismisses the banner")
+        XCTAssertTrue(homeElement(app, "home.canvas").exists, "the dismissal stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "a celebration is an in-scene banner, never a presentation")
+    }
+
+    /// M2 at the glass, the one-time face: the same crossing's banner fades
+    /// ITSELF after the authored 4.0 s (a real-time Task sleep — the fixed
+    /// clock cannot freeze presentation time), so a hands-off launch ends
+    /// with the banner gone. No second banner rises afterwards (the stage
+    /// is celebrated once — `highestCelebratedStage` moved).
+    func testStageBannerAutoFades() {
+        let app = fixtureHomeApp(kind: "stage-crossing")
+        let canvas = homeElement(app, "home.canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10), "the fixture store lands straight on Home")
+
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .withOffset(CGVector(dx: 0, dy: -40)).tap()
+
+        let banner = homeElement(app, "home.celebrationBanner")
+        XCTAssertTrue(banner.waitForExistence(timeout: 10), "the crossing raises the banner")
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: banner
+        )
+        // 4.0 s authored delay + the 0.3 s fade + CI margin.
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 10), .completed, "the banner fades itself")
+        XCTAssertTrue(homeElement(app, "home.canvas").exists, "the fade stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "the fade is silent, never a presentation")
+    }
+
+    /// M3 at the glass: the `all-done` fixture serves the day's wishes all
+    /// complete, so the §4.8 cascade reads all-done from the first frame
+    /// and the quest card grows the one warm note (`moment.02`'s fixed
+    /// line) beneath the done-marked rows.
+    func testAllDoneCardCarriesTheWarmNote() {
+        let app = fixtureHomeApp(kind: "all-done")
+        let card = homeElement(app, "home.questCard")
+        XCTAssertTrue(card.waitForExistence(timeout: 10), "the fixture store lands straight on Home")
+
+        let note = homeElement(app, "home.questAllDoneLine")
+        XCTAssertTrue(note.waitForExistence(timeout: 10), "the all-done day grows the warm note")
+        XCTAssertEqual(note.label, "Momo had a lovely day.", "the note is moment.02's fixed line verbatim")
+        XCTAssertEqual(app.alerts.count, 0, "the warm note is card copy, never a presentation")
+
+        // Every VISIBLE row reads done in words (at 09:00 the evening Q6's
+        // window is shut — its row is silently absent, and the cascade's
+        // hour-aware reading still calls the day complete).
+        let rows = questRowQuery(app)
+        for index in 0..<rows.count {
+            XCTAssertTrue(
+                rows.element(boundBy: index).label.hasSuffix(", done"),
+                "a visible wish on an all-done day reads done — got '\(rows.element(boundBy: index).label)'"
+            )
+        }
+        XCTAssertFalse(homeElement(app, "home.questRow.q6").exists, "Q6's window is silently shut at 09:00")
+    }
+
     // MARK: Helpers
+
+    /// A fixture launch (the R10 enabler): a THROWAWAY store (the fixture
+    /// rides the fresh-default fallback, so the store must never pre-exist)
+    /// + the frozen morning clock + the `-momo-fixture <kind>` argument.
+    /// The fixture's onboarding-complete state lands straight on Home.
+    private func fixtureHomeApp(kind: String) -> XCUIApplication {
+        let app = homeApp(store: "momo-home-uitest-fixture-\(UUID().uuidString)", clock: Self.morning)
+        app.launchArguments += ["-momo-fixture", kind]
+        app.launch()
+        XCTAssertTrue(
+            app.tabBars.firstMatch.waitForExistence(timeout: 10),
+            "the fixture's onboarding-complete state skips the walk"
+        )
+        return app
+    }
 
     private static let setup = "2026-09-10T08:59:00Z"
     private static let morning = "2026-09-10T09:00:00Z"

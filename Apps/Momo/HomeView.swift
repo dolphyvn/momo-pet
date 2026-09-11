@@ -63,7 +63,7 @@ struct HomeView: View {
             canvas(model: model, height: canvasHeight, minHeight: canvasMinHeight)
             HomeContextualLineView(model: model)
             HomeActionRowView(appModel: appModel, model: model)
-            HomeQuestCardView(model: model)
+            HomeQuestCardView(model: model, celebratingQuests: appModel.celebratingQuests)
         }
         .padding(.top, MomoSpacing.small)
     }
@@ -98,6 +98,7 @@ struct HomeView: View {
         .accessibilityIdentifier("home.canvas")
         .accessibilityActions { canvasCustomActions }
         .overlay { playDonePill }
+        .overlay { celebrationBanner }
     }
 
     /// TASK-035 R2: the play round's quiet "Done" pill. It opens with the
@@ -125,6 +126,43 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .padding(.bottom, MomoSpacing.medium)
         }
+    }
+
+    /// TASK-036 R4: the M2 stage celebration — the calm in-scene banner
+    /// over the canvas REGION (UX §5.6: never a modal, never chrome). It
+    /// renders the app model's composed one-time stage line, dismisses on
+    /// tap, and auto-fades after the app model's authored ~4 s; entrance
+    /// and exit are an opacity crossfade (D16: under Reduce Motion the
+    /// celebration is exactly this crossfade + haptic — no movement ever).
+    /// The VISUAL is accessibility-hidden on purpose (disclosed): VoiceOver
+    /// received the full line as an announcement at the show instant, so
+    /// the moment is never visual-only, and the banner's one action —
+    /// dismiss — is redundant to a non-visual reader (the fade ends it).
+    /// Like the Done pill, the overlay sits OUTSIDE the canvas's flattened
+    /// accessibility element.
+    @ViewBuilder
+    private var celebrationBanner: some View {
+        ZStack {
+            if let stage = appModel.activeCelebrationStage {
+                Button {
+                    appModel.dismissCelebration()
+                } label: {
+                    Text(appModel.celebrationLine(for: stage))
+                        .font(.subheadline.weight(.medium))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
+                        .padding(.horizontal, MomoSpacing.medium)
+                        .padding(.vertical, MomoSpacing.small)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: MomoRadius.medium))
+                }
+                .padding(.horizontal, MomoSpacing.medium)
+                .accessibilityHidden(true)
+                .accessibilityIdentifier("home.celebrationBanner")
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: HomeLayout.bannerFadeSeconds), value: appModel.activeCelebrationStage)
     }
 
     /// TASK-034 R6: the canvas's VoiceOver custom actions — the touch
@@ -176,4 +214,8 @@ private enum HomeLayout {
     /// The canvas minimum as a fraction of the content height (default-type
     /// branch) — scales the floor proportionally up from the SE.
     static let canvasMinimumFraction: CGFloat = 0.46
+    /// The celebration banner's crossfade half-length, seconds (TASK-036
+    /// R4, disclosed): an authored 0.3 s ease — calm, inside the D16
+    /// crossfade reading, no spring anywhere.
+    static let bannerFadeSeconds: Double = 0.3
 }
