@@ -16,7 +16,7 @@
 		8A4000000000000000000010 /* HomeQuestCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000010 /* HomeQuestCardView.swift */; };
 		8A4000000000000000000013 /* MomoCopyText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000013 /* MomoCopyText.swift */; };
 		8A4000000000000000000053 /* HomeCanvasTouchLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */; };
-		8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000004 /* PlaceholderRoomView.swift */; };
+		8A4000000000000000000054 /* RoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000054 /* RoomView.swift */; };
 		8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000005 /* PlaceholderSettingsView.swift */; };
 		8A4000000000000000000006 /* MomoAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000006 /* MomoAppModel.swift */; };
 		8A4000000000000000000007 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000007 /* OnboardingFlow.swift */; };
@@ -71,7 +71,7 @@
 		8A5000000000000000000010 /* HomeQuestCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeQuestCardView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000013 /* MomoCopyText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoCopyText.swift; sourceTree = "<group>"; };
 		8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCanvasTouchLayer.swift; sourceTree = "<group>"; };
-		8A5000000000000000000004 /* PlaceholderRoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderRoomView.swift; sourceTree = "<group>"; };
+		8A5000000000000000000054 /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000005 /* PlaceholderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderSettingsView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000006 /* MomoAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MomoAppModel.swift; sourceTree = "<group>"; };
 		8A5000000000000000000007 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
@@ -156,7 +156,7 @@
 				8A5000000000000000000010 /* HomeQuestCardView.swift */,
 				8A5000000000000000000013 /* MomoCopyText.swift */,
 				8A5000000000000000000053 /* HomeCanvasTouchLayer.swift */,
-				8A5000000000000000000004 /* PlaceholderRoomView.swift */,
+				8A5000000000000000000054 /* RoomView.swift */,
 				8A5000000000000000000005 /* PlaceholderSettingsView.swift */,
 				8A5000000000000000000006 /* MomoAppModel.swift */,
 				8A5000000000000000000007 /* OnboardingFlow.swift */,
@@ -358,7 +358,7 @@
 				8A4000000000000000000010 /* HomeQuestCardView.swift in Sources */,
 				8A4000000000000000000013 /* MomoCopyText.swift in Sources */,
 				8A4000000000000000000053 /* HomeCanvasTouchLayer.swift in Sources */,
-				8A4000000000000000000004 /* PlaceholderRoomView.swift in Sources */,
+				8A4000000000000000000054 /* RoomView.swift in Sources */,
 				8A4000000000000000000005 /* PlaceholderSettingsView.swift in Sources */,
 				8A4000000000000000000006 /* MomoAppModel.swift in Sources */,
 				8A4000000000000000000007 /* OnboardingFlow.swift in Sources */,

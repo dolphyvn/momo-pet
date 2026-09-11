@@ -92,7 +92,7 @@ Branch `feature/EPIC-007-iphone-home`. One atomic commit: `feat(home): TASK-036 
 
 ## Status
 
-IN_REVIEW (implementation complete, all R10 gates green, handoff written 2026-09-11 by the implementation agent; awaiting the §10/§33 independent review agent — no commit, no push, per the cycle).
+DONE (2026-09-11 — review APPROVED_WITH_MINOR_NOTES, dispositions applied, §19 gates re-verified by the orchestrator, committed and pushed).
 
 ## Implementation Notes
 
@@ -209,15 +209,22 @@ Total 857 insertions / 75 deletions. Untouched by rule: `MomoMoments.swift`, `Mo
 
 ### Reviewer Status
 
-PENDING — no review agent has run (per §10/§33 the orchestrator spawns the fresh independent reviewer; review record belongs at `.claude/tasks/reviews/REVIEW-TASK-036.md`). Suggested reviewer focus: greeting double-play (the filter + two-doors ordering), queue leak on hide→shown races, the `applyShown` deferred-greeting ordering, haptic gating reading, catalog diff (text-level, 15+/3−), epoch-pin drift, and the R9e-g guards' non-vacuity.
+**APPROVED_WITH_MINOR_NOTES** — `REVIEW-TASK-036` (fresh independent agent, §33 unprimed; 6 findings: 2 MINOR / 2 NITPICK / 2 OBS, no MAJOR). All three R9e-g guards bite with exactly their own test; negative probe (bite 4) proved F-2's R9e blindness. 925/94 green pre- and post-bite; both bitten files restored sha256-identical. F-1 (undisclosed vestigial-closure removal) dispositioned as Known deviation §4 above; F-2 (R9e 5th leg + fixture) routed to TASK-039 as a Follow-up above.
 
 ### Commit
 
-NONE (hard rule: the implementation agent does not commit; the orchestrator commits after review approval).
+`3861c7b` — `feat(home): TASK-036 wire quest moments + celebrations — event door, FIFO, banner, M1/M3 surfaces` (20 files, +1543/−81; includes this file's dispositions and the review record).
 
 ### Push
 
-NONE (follows the commit).
+`94bf69b..3861c7b` → origin — success (recorded in `.claude/tasks/status.md` Recent Pushes).
+
+### §19 gate evidence (orchestrator re-verification, 2026-09-11)
+
+- `swift test`: **925 tests / 94 suites passed** (matches implementer + reviewer counts).
+- UI suite (pinned SE 3rd gen `1F25E487`): **21/21 passed** (TEST SUCCEEDED; 16 Home + 4 new glass + 1 legacy).
+- `MomoWatch` build (Watch SE 3 44mm `8A854895`, watchOS 26.5): **BUILD SUCCEEDED**, zero warning lines.
+- Package suite re-run AFTER the disposition edits (doc-only, source untouched) — the 925/94 run above post-dates them.
 
 ### Recommended Next Step
 

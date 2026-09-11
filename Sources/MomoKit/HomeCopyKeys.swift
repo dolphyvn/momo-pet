@@ -28,6 +28,10 @@ import MomoCore
 /// - **The moment lines** (TASK-036; UX §5.6's celebration class): the M2
 ///   banner template and the M3 all-done warm line — `momo.line.moment.01`
 ///   and `.02`, FIXED lookups (the OBS-D precedent), never seeded draws.
+/// - **The Room tab** (TASK-037; UX §1.2 S5): the scene's label template
+///   and caption — `momo.line.room.01`/`.02`, FIXED lookups — plus the
+///   three tab labels `momo.tab.<tab>` (the chrome class the shell's D12
+///   labels ride).
 ///
 /// Pure and total: every function is an exhaustive `switch` or a delegation
 /// to the frozen selection surface. No string here is user-facing text — all
@@ -155,6 +159,38 @@ public enum HomeCopyKeys {
     /// one-line warm note the card grows when the §4.8 cascade reads
     /// `.allDone`. Fixed, like `01`.
     public static let allDoneLineKey = "momo.line.moment.02"
+
+    // MARK: The Room tab (TASK-037 R4; FR-3; UX §1.2 S5)
+
+    /// The Room scene's VoiceOver label — `momo.line.room.01`, the
+    /// "{name}’s cozy room" TEMPLATE. A FIXED lookup (the `moment.01`
+    /// precedent — a named line, never a seeded draw), with ONE positional
+    /// `%1$@` placeholder for the pet name so a localized reordering stays
+    /// locale-correct. Announced through the scene's single image element.
+    public static let roomSceneLabelTemplateKey = "momo.line.room.01"
+
+    /// The Room scene's caption — `momo.line.room.02`, the one calm line
+    /// beneath the scene. Fixed, like `.01`.
+    public static let roomCaptionKey = "momo.line.room.02"
+
+    /// The three flat tabs (UX-1: Home · Room · Settings) — the label-key
+    /// domain for the shell's chrome. The labels ride the `momo.tab.*`
+    /// namespace (the catalog's chrome class: one-word labels, never body
+    /// copy), so the shell's visible words stay catalog-sourced (D12).
+    public enum Tab: String, Sendable, CaseIterable {
+        case home, room, settings
+    }
+
+    /// The tab-bar label key for a tab — `momo.tab.<tab>`. A FIXED lookup
+    /// per tab, mirroring the `energyWordKey` shape (exhaustive switch, no
+    /// default: a new tab must name its key to compile).
+    public static func tabLabelKey(for tab: Tab) -> String {
+        switch tab {
+        case .home: return "momo.tab.home"
+        case .room: return "momo.tab.room"
+        case .settings: return "momo.tab.settings"
+        }
+    }
 }
 
 // MARK: - The care moments (TASK-035 R5; 04 §10.1 rule 7's "few care
