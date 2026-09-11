@@ -22,6 +22,8 @@
 		8A4000000000000000000055 /* MomoAppModel+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000055 /* MomoAppModel+Settings.swift */; };
 		8A4000000000000000000056 /* MomoAppModel+Canvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000056 /* MomoAppModel+Canvas.swift */; };
 		8A4000000000000000000057 /* MomoAppModel+Celebrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000057 /* MomoAppModel+Celebrations.swift */; };
+		8A400000000000000000005A /* MomoWatchTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A500000000000000000005A /* MomoWatchTransport.swift */; };
+		8A400000000000000000005B /* MomoAppModel+Watch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A500000000000000000005B /* MomoAppModel+Watch.swift */; };
 		8A4000000000000000000007 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000007 /* OnboardingFlow.swift */; };
 		8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000008 /* OnboardingCanvasView.swift */; };
 		8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5000000000000000000009 /* OnboardingMeetView.swift */; };
@@ -83,6 +85,8 @@
 		8A5000000000000000000055 /* MomoAppModel+Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoAppModel+Settings.swift"; sourceTree = "<group>"; };
 		8A5000000000000000000056 /* MomoAppModel+Canvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoAppModel+Canvas.swift"; sourceTree = "<group>"; };
 		8A5000000000000000000057 /* MomoAppModel+Celebrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoAppModel+Celebrations.swift"; sourceTree = "<group>"; };
+		8A500000000000000000005A /* MomoWatchTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoWatchTransport.swift"; sourceTree = "<group>"; };
+		8A500000000000000000005B /* MomoAppModel+Watch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MomoAppModel+Watch.swift"; sourceTree = "<group>"; };
 		8A5000000000000000000007 /* OnboardingFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlow.swift; sourceTree = "<group>"; };
 		8A5000000000000000000008 /* OnboardingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingCanvasView.swift; sourceTree = "<group>"; };
 		8A5000000000000000000009 /* OnboardingMeetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingMeetView.swift; sourceTree = "<group>"; };
@@ -174,6 +178,8 @@
 				8A5000000000000000000055 /* MomoAppModel+Settings.swift */,
 				8A5000000000000000000056 /* MomoAppModel+Canvas.swift */,
 				8A5000000000000000000057 /* MomoAppModel+Celebrations.swift */,
+				8A500000000000000000005A /* MomoWatchTransport.swift */,
+				8A500000000000000000005B /* MomoAppModel+Watch.swift */,
 				8A5000000000000000000007 /* OnboardingFlow.swift */,
 				8A5000000000000000000008 /* OnboardingCanvasView.swift */,
 				8A5000000000000000000009 /* OnboardingMeetView.swift */,
@@ -382,6 +388,8 @@
 				8A4000000000000000000055 /* MomoAppModel+Settings.swift in Sources */,
 				8A4000000000000000000056 /* MomoAppModel+Canvas.swift in Sources */,
 				8A4000000000000000000057 /* MomoAppModel+Celebrations.swift in Sources */,
+				8A400000000000000000005A /* MomoWatchTransport.swift in Sources */,
+				8A400000000000000000005B /* MomoAppModel+Watch.swift in Sources */,
 				8A4000000000000000000007 /* OnboardingFlow.swift in Sources */,
 				8A4000000000000000000008 /* OnboardingCanvasView.swift in Sources */,
 				8A4000000000000000000009 /* OnboardingMeetView.swift in Sources */,

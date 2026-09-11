@@ -35,12 +35,20 @@ import MomoCore
 ///   returned `nextSync` has the seq spent, so successive builds through
 ///   the threaded state are strictly monotonic by construction (never a
 ///   reused seq from forgetting to advance).
+/// - `resetMarkerEraseCount` ← the caller's marker count, passed through
+///   verbatim (TASK-040 R3): the builder owns no marker state — the erase
+///   executor mints the count, the wiring reads it, the builder carries it
+///   onto the payload. Default `nil` (no erase pending); while a marker is
+///   live the wiring passes it on EVERY build, because the context
+///   coalesces latest-wins (only the newest value is guaranteed observed)
+///   and the count is the Watch's one-shot consumption key.
 public func makeWatchSnapshot(
     state: EngineState,
     display: DisplayState,
     questInputs: [QuestProgress],
     watermarkEpoch: UUID,
-    sync: SyncState
+    sync: SyncState,
+    resetMarkerEraseCount: Int? = nil
 ) -> (snapshot: WatchSnapshot, nextSync: SyncState) {
     let (advancedSync, assignedSeq) = sync.consumingSnapshotSeq()
     let snapshot = WatchSnapshot(
@@ -49,7 +57,8 @@ public func makeWatchSnapshot(
         questInputs: questInputs,
         hapticsEnabled: state.settings.hapticsEnabled,
         lastAppliedIntentSeq: sync.watermark(for: watermarkEpoch),
-        lastAppliedEpoch: watermarkEpoch
+        lastAppliedEpoch: watermarkEpoch,
+        resetMarkerEraseCount: resetMarkerEraseCount
     )
     return (snapshot, advancedSync)
 }

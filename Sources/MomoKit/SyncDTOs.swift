@@ -73,6 +73,18 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
     /// differs ignores it (prunes nothing — §6.4 step 4).
     public let lastAppliedEpoch: UUID
 
+    /// The §6.6 erase reset marker's count (TASK-040 R3), ADDITIVE OPTIONAL —
+    /// the schema adjudication of record: `decodeIfPresent`/`encodeIfPresent`
+    /// (nil → the key is OMITTED) evolves the wire shape with NO
+    /// `schemaVersion` bump. A strict-version bump would make every
+    /// pre-bump decoder DROP the whole payload (the DTOs' ignore-semantics)
+    /// and fire the OBS-3 parity-fixture obligation; the additive optional
+    /// needs neither — old payloads decode with `nil`, old decoders ignore
+    /// the unknown key. Nil means "no erase is pending"; from an erase until
+    /// Watch-side consumption the count rides EVERY context (the one-shot
+    /// consumption key is `WatchResetMarker`'s).
+    public let resetMarkerEraseCount: Int?
+
     /// - Parameters:
     ///   - schemaVersion: defaults to `StoreRules.watchSnapshotSchemaVersion`
     ///     (the production shape); tests pass explicit versions to pin the
@@ -84,7 +96,8 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         questInputs: [QuestProgress],
         hapticsEnabled: Bool,
         lastAppliedIntentSeq: Int,
-        lastAppliedEpoch: UUID
+        lastAppliedEpoch: UUID,
+        resetMarkerEraseCount: Int? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.snapshotSeq = snapshotSeq
@@ -93,6 +106,7 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         self.hapticsEnabled = hapticsEnabled
         self.lastAppliedIntentSeq = lastAppliedIntentSeq
         self.lastAppliedEpoch = lastAppliedEpoch
+        self.resetMarkerEraseCount = resetMarkerEraseCount
     }
 
     // MARK: Codec (canonical recipe; see the type header)
@@ -123,6 +137,7 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, snapshotSeq, display, questInputs
         case hapticsEnabled, lastAppliedIntentSeq, lastAppliedEpoch
+        case resetMarkerEraseCount
     }
 
     private enum DisplayKeys: String, CodingKey {
@@ -170,6 +185,9 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         hapticsEnabled = try container.decode(Bool.self, forKey: .hapticsEnabled)
         lastAppliedIntentSeq = try container.decode(Int.self, forKey: .lastAppliedIntentSeq)
         lastAppliedEpoch = try container.decode(UUID.self, forKey: .lastAppliedEpoch)
+        // Additive OPTIONAL (see the property's adjudication): absent key →
+        // nil, so every pre-marker payload decodes unchanged.
+        resetMarkerEraseCount = try container.decodeIfPresent(Int.self, forKey: .resetMarkerEraseCount)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -201,6 +219,10 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
         try container.encode(lastAppliedIntentSeq, forKey: .lastAppliedIntentSeq)
         try container.encode(lastAppliedEpoch, forKey: .lastAppliedEpoch)
+        // encodeIfPresent: nil → the key is OMITTED — a no-marker context is
+        // byte-identical to the pre-marker wire shape (the pinned canonical
+        // bytes of TASK-023 are untouched by this field's absence).
+        try container.encodeIfPresent(resetMarkerEraseCount, forKey: .resetMarkerEraseCount)
     }
 }
 
