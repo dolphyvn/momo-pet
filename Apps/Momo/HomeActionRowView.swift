@@ -11,7 +11,9 @@ import MomoKit
 ///
 /// The pill labels and glyphs are DISCLOSED view chrome (button text is not
 /// engine copy); each pill is ≥44 pt tall (UX §10) and carries its own
-/// accessibility identifier (`home.actionPill.<kind>`).
+/// accessibility identifier (`home.actionPill.<kind>`) and — TASK-035 R8 —
+/// a spoken accessibility label that never abbreviates ("Feed Momo", not
+/// the visible "Feed").
 struct HomeActionRowView: View {
 
     @Environment(\.colorScheme) private var colorScheme
@@ -82,9 +84,19 @@ struct HomeActionRowView: View {
         }
     }
 
-    /// The spoken label never abbreviates ("Tuck in" stays two words).
+    /// The spoken label never abbreviates: each is the visible label's
+    /// COMPLETE sentence-able form — TASK-035 R8's verbatim pins ("Feed
+    /// Momo", "Play with Momo", "Tuck Momo in", "Nap time"; "Pat" keeps
+    /// its TASK-034 form), while the visible capsule text stays the short
+    /// word ("Feed"/"Play"/"Tuck in"/"Nap").
     private static func accessibilityLabel(for kind: HomeActionPillKind) -> String {
-        label(for: kind)
+        switch kind {
+        case .pat: "Pat"
+        case .feed: "Feed Momo"
+        case .play: "Play with Momo"
+        case .tuckIn: "Tuck Momo in"
+        case .nap: "Nap time"
+        }
     }
 
     /// The identifier fragment (`home.actionPill.<name>`).

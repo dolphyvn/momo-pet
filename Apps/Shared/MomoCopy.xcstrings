@@ -1,6 +1,42 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "momo.line.care-moment.01" : {
+      "comment" : "The visual care-moment class (04 §10.1 rule 7's \"few care moments\"; TASK-035's FIXED lookup, never a seeded draw). Rendered in the Home contextual line.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo snuggles down under the blanket."
+          }
+        }
+      }
+    },
+    "momo.line.care-moment.02" : {
+      "comment" : "The visual care-moment class (04 §10.1 rule 7's \"few care moments\"; TASK-035's FIXED lookup, never a seeded draw). Rendered in the Home contextual line.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is full and thanks you with a nod."
+          }
+        }
+      }
+    },
+    "momo.line.care-moment.03" : {
+      "comment" : "The visual care-moment class (04 §10.1 rule 7's \"few care moments\"; TASK-035's FIXED lookup, never a seeded draw). Rendered in the Home contextual line.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo shifts sleepily under the blanket."
+          }
+        }
+      }
+    },
     "momo.line.day.00" : {
       "comment" : "04 §10.3 day pool, line 1 of 10 (0-based index 00 — TASK-033's catalog landing replaces the placeholder). Slot-line class: ≤12 words, third-person, soft ending.",
       "extractionState" : "manual",
@@ -613,14 +649,278 @@
         }
       }
     },
-    "momo.line.react.touch.00" : {
-      "comment" : "PLACEHOLDER (index 00 is reserved for placeholders) — proves the momo.line.react namespace; wired as the VoiceOver accessibility label of the watch glance's pat capsule (UX-8: announced, never rendered). Replaced by the §6 reaction pools in engine tasks; not product copy.",
+    "momo.line.react.care.00" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Placeholder reaction line for VoiceOver."
+            "value" : "Momo snuggles under the blanket."
+          }
+        }
+      }
+    },
+    "momo.line.react.care.01" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo’s breathing slows, soft and even."
+          }
+        }
+      }
+    },
+    "momo.line.react.care.02" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo curls into a round little ball."
+          }
+        }
+      }
+    },
+    "momo.line.react.care.03" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo yawns a tiny yawn."
+          }
+        }
+      }
+    },
+    "momo.line.react.care.04" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo tucks its paws in close."
+          }
+        }
+      }
+    },
+    "momo.line.react.care.05" : {
+      "comment" : "§5.4 spoken care line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo drifts off, warm and safe."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.00" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo’s ears perk up at the meal."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.01" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo circles the tray, delighted."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.02" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo takes a tiny, polite bite."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.03" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo munches with quiet little sounds."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.04" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo settles back, warmly full."
+          }
+        }
+      }
+    },
+    "momo.line.react.feed.05" : {
+      "comment" : "§5.2 spoken feed line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo looks up as if to say thanks."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.00" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo perks up, ready to play."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.01" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo bounces once on the spot."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.02" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo’s tail wiggles with excitement."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.03" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo spins in a small happy circle."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.04" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo crouches low, ready to pounce."
+          }
+        }
+      }
+    },
+    "momo.line.react.play.05" : {
+      "comment" : "§5.3/§6.3 spoken play line, verbatim (TASK-035's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo glances at you, eyes bright."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.00" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool; the 03 §5.1 example line). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo nuzzles into your hand."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.01" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo leans into the touch."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.02" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo blinks slowly, content."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.03" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo’s tail curls happily."
+          }
+        }
+      }
+    },
+    "momo.line.react.touch.04" : {
+      "comment" : "§6.1 spoken touch line, verbatim (TASK-034's pool). Accessibility-only — announced under VoiceOver, never rendered as body copy (UX-8).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo presses closer for a moment."
           }
         }
       }

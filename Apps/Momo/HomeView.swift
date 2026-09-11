@@ -19,7 +19,7 @@ import MomoKit
 /// functional inside the scroll.
 ///
 /// **VoiceOver (UX §10).** The canvas is ONE element labeled with the pet's
-/// name (its touch/gesture vocabulary is TASK-034's custom actions); the
+/// name, carrying TASK-034's "Pat"/"Cuddle" custom actions; the
 /// rows expose their own labels (`HomeStatusRowView`'s formula,
 /// `HomeQuestCardView`'s per-wish lines).
 struct HomeView: View {
@@ -92,9 +92,55 @@ struct HomeView: View {
             }
         }
         .overlay { canvasBody }
+        .overlay { HomeCanvasTouchSurface(stageSide: HomeLayout.standardStageSide) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(model.petName)
         .accessibilityIdentifier("home.canvas")
+        .accessibilityActions { canvasCustomActions }
+        .overlay { playDonePill }
+    }
+
+    /// TASK-035 R2: the play round's quiet "Done" pill. It opens with the
+    /// app model's done-pill window (~5 s after the round starts — the
+    /// authored delay) and ANY round end closes it (the visibility is
+    /// derived from the round being in flight, so a pacer-resolved round
+    /// never leaves a stale pill). The tap routes the R6 `playStopped`
+    /// event through the app model — never a UI-only dismissal, never an
+    /// `.appHidden` stand-in. The overlay sits OUTSIDE the canvas's
+    /// flattened accessibility element so VoiceOver keeps a separate,
+    /// tappable "Done" button over the canvas.
+    @ViewBuilder
+    private var playDonePill: some View {
+        if appModel.isPlayDonePillVisible {
+            Button {
+                appModel.stopPlayRound()
+            } label: {
+                Text("Done")
+                    .font(.subheadline.weight(.medium))
+            }
+            .padding(.horizontal, MomoSpacing.medium)
+            .padding(.vertical, MomoSpacing.small)
+            .background(.thinMaterial, in: Capsule())
+            .accessibilityIdentifier("home.playDonePill")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, MomoSpacing.medium)
+        }
+    }
+
+    /// TASK-034 R6: the canvas's VoiceOver custom actions — the touch
+    /// vocabulary's gesture ANALOGS, assembled from MomoKit's ONE pinned
+    /// `CanvasCustomAction` name list (the doc's "Pat"/"Cuddle" labels, 03
+    /// §5.1) and routed through the app model as the zone-less intents (no
+    /// rotor geometry; feed/play/care stay the labeled action row, 04 §10's
+    /// no-duplication resolution). SwiftUI surfaces them as the element's
+    /// named actions (the rotor's "actions" row).
+    @ViewBuilder
+    private var canvasCustomActions: some View {
+        ForEach(CanvasCustomAction.allCases, id: \.self) { action in
+            Button(action.rawValue) {
+                appModel.interact(action.intent)
+            }
+        }
     }
 
     private var canvasBody: some View {
@@ -102,7 +148,8 @@ struct HomeView: View {
             displayState: appModel.characterDisplayState,
             tier: .full,
             clock: appModel.canvasClock,
-            stageSide: HomeLayout.standardStageSide
+            stageSide: HomeLayout.standardStageSide,
+            reactionMotion: appModel.reactionMotion()
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

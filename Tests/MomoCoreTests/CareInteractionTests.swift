@@ -27,14 +27,14 @@ struct CareInteractionTests {
         let acceptedStart = fixture.state(dayKey: day, lastEvaluatedAt: atOpen)
 
         let declined = fixture.send(declinedStart, .tuckIn, at: before, dayKey: day)
-        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.01", haptic: nil))
         #expect(declined.newState.state.wakefulness == .awake) // no settle
         #expect(declined.newState.pendingHandshake == nil) // no token
         #expect(declined.newState.days.first?.careCount == 0) // no count
         #expect(declined.newState.state.mood == declinedStart.state.mood) // no effect
 
         let accepted = fixture.send(acceptedStart, .tuckIn, at: atOpen, dayKey: day)
-        #expect(accepted.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(accepted.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.01", haptic: nil))
         #expect(accepted.newState.state.wakefulness == .settling)
         #expect(accepted.newState.pendingHandshake?.kind == .settle)
         #expect(accepted.newState.state.mood == acceptedStart.state.mood + InteractionRules.tuckInMoodDelta)
@@ -48,12 +48,15 @@ struct CareInteractionTests {
         let morning = fixture.instant("2026-09-09T07:00:00Z")
         let start = fixture.state(dayKey: "2026-09-09", lastEvaluatedAt: lateNight)
 
+        // The lineKey pins are this fixture's epoch-4 draw over
+        // ("2026-09-09") — index 04, distinct from the 2026-09-08 day's
+        // index 01 above (the draw is day-stable, not epoch-day-global).
         let accepted = fixture.send(start, .tuckIn, at: lateNight, dayKey: "2026-09-09")
-        #expect(accepted.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(accepted.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.04", haptic: nil))
         #expect(accepted.newState.state.wakefulness == .settling)
 
         let declined = fixture.send(start, .tuckIn, at: morning, dayKey: "2026-09-09")
-        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.04", haptic: nil))
         #expect(declined.newState.pendingHandshake == nil)
     }
 
@@ -125,7 +128,7 @@ struct CareInteractionTests {
             lastEvaluatedAt: at
         )
         let declined = fixture.send(start, .tuckIn, at: at, dayKey: day)
-        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(declined.response == ResponsePlan(reaction: ReactionKeys.decline, lineKey: "momo.line.react.care.01", haptic: nil))
         #expect(declined.newState.state.activity == .playing) // the round is intact
         #expect(declined.newState.pendingHandshake?.kind == .play) // the slot still holds the round
         #expect(declined.newState.days.first?.careCount == 0)
@@ -138,7 +141,7 @@ struct CareInteractionTests {
         let at = fixture.instant("2026-09-08T23:00:00Z")
         let start = fixture.state(dayKey: day, wakefulness: .asleep, lastEvaluatedAt: at)
         let outcome = fixture.send(start, .tuckIn, at: at, dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.01", haptic: nil))
         #expect(outcome.newState.state.wakefulness == .asleep) // no wakefulness change
         #expect(outcome.newState.pendingHandshake == nil) // no new token
         #expect(outcome.newState.state.mood == start.state.mood + InteractionRules.tuckInMoodDelta)
@@ -154,7 +157,9 @@ struct CareInteractionTests {
         let inWindow = fixture.instant("2026-09-09T02:00:00Z")
         let napping = fixture.state(dayKey: "2026-09-09", wakefulness: .awake, activity: .napping, lastEvaluatedAt: inWindow)
         let outcome = fixture.send(napping, .tuckIn, at: inWindow, dayKey: "2026-09-09")
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.00", haptic: nil))
+        // The 2026-09-09 day's epoch-4 draw (index 04 — see
+        // windowThroughTheNight).
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.04", haptic: nil))
         #expect(outcome.newState.state.activity == .napping) // the nap is untouched
         #expect(outcome.newState.state.wakefulness == .awake)
         #expect(outcome.newState.days.first?.careCount == 1)
@@ -175,7 +180,7 @@ struct CareInteractionTests {
             lastEvaluatedAt: at
         )
         let outcome = fixture.send(start, .tuckIn, at: at, dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.blanketAdjust, lineKey: "momo.line.react.care.01", haptic: nil))
         #expect(outcome.newState.pendingHandshake == Handshake(kind: .settle, token: token)) // the single token, not a second
         #expect(outcome.newState.state == start.state) // pet EXACTLY unchanged (no effects, no transition)
         #expect(outcome.newState.days.first?.careCount == 0) // the settle's care was counted at authorization
@@ -193,7 +198,7 @@ struct CareInteractionTests {
             let at = fixture.instant("2026-09-08T14:00:00Z")
             let start = fixture.state(dayKey: day, energy: energy, lastEvaluatedAt: at)
             let outcome = fixture.send(start, .nap, at: at, dayKey: day)
-            #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.00", haptic: nil))
+            #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.settling, lineKey: "momo.line.react.care.01", haptic: nil))
             #expect(outcome.newState.state.activity == .napping)
             #expect(outcome.newState.state.wakefulness == .awake) // the nap is an activity, not a wakefulness
             #expect(outcome.newState.pendingHandshake == nil) // no token: the fold owns the completion

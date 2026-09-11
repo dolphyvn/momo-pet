@@ -25,7 +25,8 @@ struct HomeReadModelTests {
         mood: Double = 70,
         energy: Double = 80,
         bond: Int = 10,
-        wakefulness: Wakefulness = .awake
+        wakefulness: Wakefulness = .awake,
+        activity: Activity? = nil
     ) -> EngineState {
         EngineState(
             pet: Pet(id: AppModelFixture.petID, name: "Momo", createdAt: AppModelFixture.instant("2026-01-01T00:00:00Z"))!,
@@ -34,7 +35,7 @@ struct HomeReadModelTests {
                 energy: energy,
                 bond: bond,
                 wakefulness: wakefulness,
-                activity: nil,
+                activity: activity,
                 lastFedAt: nil,
                 satietyPhase: .hungry
             )!,
@@ -51,9 +52,15 @@ struct HomeReadModelTests {
 
     private func makeModel(
         _ built: EngineState? = nil,
-        at iso: String = "2026-09-10T09:00:00Z"
+        at iso: String = "2026-09-10T09:00:00Z",
+        careMoment: CareMomentKind? = nil
     ) -> HomeReadModel {
-        makeHomeReadModel(built ?? state(), at: AppModelFixture.instant(iso), calendar: calendar)
+        makeHomeReadModel(
+            built ?? state(),
+            at: AppModelFixture.instant(iso),
+            calendar: calendar,
+            latestCareMoment: careMoment
+        )
     }
 
     // MARK: Required Test 1 — the status row's keys
@@ -120,6 +127,22 @@ struct HomeReadModelTests {
         #expect(stamped(.nightGlance).contextualLineKey.hasPrefix("momo.line.morning."))
         #expect(stamped(.nightGlance).contextualLineKey.dropFirst("momo.line.morning.".count).count == 2)
         #expect(stamped(.nightGlance).contextualLineKey == makeModel().contextualLineKey)
+    }
+
+    /// UX-12's priority at the care-moment tier (TASK-035 R5): the latest
+    /// care moment's FIXED line tops the greeting AND the ambient draw;
+    /// nil falls through exactly as before.
+    @Test("contextual line: the care moment tops greeting and ambient (fixed lookup)")
+    func contextualLineCareMomentPriority() {
+        #expect(makeModel(careMoment: .tuckIn).contextualLineKey == "momo.line.care-moment.01")
+        #expect(makeModel(careMoment: .refusal).contextualLineKey == "momo.line.care-moment.02")
+        #expect(makeModel(careMoment: .blanketAdjust).contextualLineKey == "momo.line.care-moment.03")
+        // Over a stamped greeting: the care moment still wins.
+        let greeted = state(lastGreeting: GreetingStamp(kind: .welcomeBack, at: AppModelFixture.instant("2026-09-10T09:00:00Z")))
+        #expect(makeModel(greeted, careMoment: .refusal).contextualLineKey == "momo.line.care-moment.02")
+        // nil keeps the old cascade (the greeting here, being 09:00 morning).
+        let stamped = GreetingStamp(kind: .missedYou, at: AppModelFixture.instant("2026-09-10T09:00:00Z"))
+        #expect(makeModel(state(lastGreeting: stamped), careMoment: nil).contextualLineKey == "momo.line.greeting.02")
     }
 
     /// The ambient draw is day-stable (identical inputs ⇒ identical key) and
@@ -201,10 +224,14 @@ struct HomeReadModelTests {
         #expect(makeModel(state(days: [])).questRows.isEmpty)
     }
 
-    /// UX §5.4's action row: feed+play always; tuck-in appears with the Q6
-    /// window's evening onset (20:00, from `Thresholds` — never restated);
-    /// nap only in the WAKING hours of a drowsy/exhausted pet.
-    @Test("action pills: windows and bands gate tuck-in and nap")
+    /// UX §5.4's action row: feed+play always; tuck-in and nap gates are —
+    /// TASK-035 R4's parity — the ENGINE's own acceptance rules, so a chip
+    /// is visible exactly when the engine would accept or warmly reaffirm:
+    /// tuck-in wherever `InteractionRules.isTuckInWindow` holds (evening
+    /// onset through the night half) outside the waking and
+    /// round-in-flight declines; nap on a drowsy/exhausted pet that is
+    /// neither sleeping, settling, nor mid-round.
+    @Test("action pills: the gates read the engine's acceptance rules (R4 parity)")
     func actionPillsGates() {
         // 09:00, energetic, awake: just feed and play (no nap on a fresh pet).
         #expect(makeModel().actionPills.count == 2)
@@ -216,14 +243,40 @@ struct HomeReadModelTests {
         if case .play = full.actionPills[1] {} else { Issue.record("second pill should be play") }
         if case .tuckIn = full.actionPills[2] {} else { Issue.record("third pill should be tuckIn") }
         if case .nap = full.actionPills[3] {} else { Issue.record("fourth pill should be nap") }
-        // Asleep at 20:30: tuck-in yes, nap no (nap is a waking-hours chip).
+        // Asleep at 20:30: tuck-in yes (the engine accepts the blanket
+        // adjust), nap no (nap is a waking-hours chip).
         #expect(makeModel(state(energy: 10, wakefulness: .asleep), at: "2026-09-10T20:30:00Z").actionPills.count == 3)
         // Drowsy and awake at 09:00: nap without tuck-in.
         let drowsy = makeModel(state(energy: 30))
         #expect(drowsy.actionPills.count == 3)
         if case .nap = drowsy.actionPills[2] {} else { Issue.record("third pill should be nap") }
-        // The early-morning tail of the care window (06:30): still no
-        // tuck-in pill — the pill's gate is the evening onset only.
-        #expect(makeModel(at: "2026-09-10T06:30:00Z").actionPills.count == 2)
+        // The early-morning tail of the care window (06:30): tuck-in IS
+        // visible — R4's parity moved the gate onto the engine's own window
+        // (evening onset THROUGH the night half; the engine accepts a
+        // tuck-in at 06:30, so the chip shows).
+        #expect(makeModel(at: "2026-09-10T06:30:00Z").actionPills.count == 3)
+        if case .tuckIn = makeModel(at: "2026-09-10T06:30:00Z").actionPills[2] {}
+        else { Issue.record("third pill should be tuckIn in the window's night half") }
+        // Mid-day (13:00) the tuck-in window is shut — no chip even awake.
+        #expect(makeModel(at: "2026-09-10T13:00:00Z").actionPills.count == 2)
+        // The waking decline (the never-cancelled .wake token holds the
+        // slot): no tuck-in chip even inside the window.
+        #expect(makeModel(state(wakefulness: .waking), at: "2026-09-10T20:30:00Z").actionPills.count == 2)
+        // A round in flight declines both conditional chips (the engine
+        // would decline tuck-in AND nap mid-round).
+        let midRound = makeModel(state(activity: .playing), at: "2026-09-10T20:30:00Z")
+        #expect(midRound.actionPills.count == 2)
+        let midRoundDrowsy = makeModel(state(energy: 30, activity: .playing))
+        #expect(midRoundDrowsy.actionPills.count == 2)
+        // Settling hides nap (warm reaffirm only — the engine would not
+        // accept a second settle) but keeps tuck-in inside the window.
+        let settling = makeModel(state(energy: 30, wakefulness: .settling), at: "2026-09-10T20:30:00Z")
+        #expect(settling.actionPills.count == 3)
+        if case .tuckIn = settling.actionPills[2] {} else { Issue.record("settling keeps tuckIn") }
+        // Mid-nap (asleep ∨ .napping) hides nap even exhausted, asleep
+        // outside the window keeps it hidden.
+        let napping = makeModel(state(energy: 10, activity: .napping), at: "2026-09-10T20:30:00Z")
+        #expect(napping.actionPills.count == 3)
+        if case .tuckIn = napping.actionPills[2] {} else { Issue.record("mid-nap keeps tuckIn (blanket adjust counts)") }
     }
 }

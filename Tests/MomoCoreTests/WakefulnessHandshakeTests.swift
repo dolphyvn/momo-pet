@@ -258,7 +258,7 @@ struct WakefulnessHandshakeTests {
         // TASK-016 supersession (in place, per the contract — "extends
         // TASK-015's pin"): the warm-decline plan now EXISTS — the settling
         // soft-stir (touch is never refused; it just never queues).
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.02", haptic: nil))
         #expect(outcome.moments.isEmpty)
         #expect(outcome.newState.state.wakefulness == .settling)
         // And the settle choreography still completes normally afterwards.

@@ -88,8 +88,10 @@ public struct HomeReadModel: Sendable {
 
     // MARK: Contextual line (UX-12's single rotating slot)
 
-    /// The contextual line's key: greeting in effect, else the day-stable
-    /// ambient slot draw (`HomeCopyKeys.contextualLineKey`).
+    /// The contextual line's key: the latest care-moment line when one is
+    /// in effect, else the greeting, else the day-stable ambient slot draw
+    /// (`HomeCopyKeys.contextualLineKey` — UX-12's priority verbatim:
+    /// interaction reaction > greeting > ambient).
     public let contextualLineKey: String
 
     // MARK: Quest card (UX §5.5: "Today's little wishes")
@@ -143,15 +145,21 @@ public struct HomeReadModel: Sendable {
 // MARK: - The derivation (the `makeDisplayState` pattern, TASK-033 R2)
 
 /// §4.11's Home read-model derivation — mirrors `makeDisplayState`'s inputs
-/// exactly (state + `now` + the INJECTED calendar; no ambient reads, D20).
+/// exactly (state + `now` + the INJECTED calendar; no ambient reads, D20),
+/// plus TASK-035 R5's presentation-side `latestCareMoment` (the app model's
+/// in-memory memory of the latest visual care moment — never persisted).
 /// Every decision delegates to the frozen surfaces: bands via `Bands`, the
 /// line via `HomeCopyKeys.contextualLineKey`, quest windows via
-/// `QuestCatalog`/`QuestWindow`, the pill gates via the `Thresholds.Quest`
-/// constants (never restated hours).
+/// `QuestCatalog`/`QuestWindow`, and — TASK-035 R4 — the pill gates via the
+/// ENGINE's own acceptance rules (`InteractionRules.isTuckInWindow` and the
+/// `applyTuckIn`/`applyNap` guard structure), so a chip is visible exactly
+/// when the engine would accept or warmly reaffirm the action: a tap can
+/// never route into a guaranteed-declined state.
 public func makeHomeReadModel(
     _ state: EngineState,
     at now: Instant,
-    calendar: Calendar
+    calendar: Calendar,
+    latestCareMoment: CareMomentKind? = nil
 ) -> HomeReadModel {
     let petState = state.state
     let dayKey = DayKey.make(from: now, calendar: calendar)
@@ -173,23 +181,39 @@ public func makeHomeReadModel(
         )
     }
 
-    // The action row (UX §5.4): feed and play are always present; tuck-in
-    // appears with the tuck-in window (the Q6 window's evening onset — its
-    // hour constants, not a restated 20:00); nap only in the WAKING hours of
-    // a drowsy or exhausted pet. Exhaustive default-free switches over both
-    // enums.
+    // The action row (UX §5.4): feed and play are always present. TASK-035
+    // R4 pins the conditional chips to the ENGINE's exact acceptance rules —
+    // chip visible ⟺ the engine would accept (count) or warmly reaffirm:
+    //
+    // - Tuck-in (InteractionSemantics.applyTuckIn's guards): the tuck-in
+    //   window (`InteractionRules.isTuckInWindow` — the engine's own
+    //   predicate, evening onset through the night half), and neither the
+    //   waking decline (the never-cancelled .wake token holds the slot) nor
+    //   the round-in-flight decline. Asleep (blanket-adjust, counts) and
+    //   settling (warm reaffirm) both stay visible.
+    //
+    // - Nap (InteractionSemantics.applyNap's guards): the offered bands
+    //   (drowsy/exhausted), and none of the decline cells — not already
+    //   sleeping (night-asleep OR mid-nap), not settling, not a round in
+    //   flight. The engine accepts a nap in `.waking` (band-gated
+    //   interactions apply during waking), so `.waking` stays visible.
+    //
+    // `isSleeping` is InteractionSemantics' private two-clause predicate
+    // (night-asleep ∨ mid-nap); the two clauses here mirror it exactly and
+    // the parity is pinned by tests against the engine's own outcomes.
     var pills: [InteractionIntent.Kind] = [.feed, .play]
-    if localHour >= Thresholds.Quest.q6WindowStartHour {
+    let isRoundInFlight = petState.activity == .playing
+    if InteractionRules.isTuckInWindow(now, calendar: calendar),
+        petState.wakefulness != .waking,
+        !isRoundInFlight {
         pills.append(.tuckIn)
     }
-    switch (energyBand, petState.wakefulness) {
-    case (.drowsy, .awake), (.exhausted, .awake):
+    let isSleeping = petState.wakefulness == .asleep || petState.activity == .napping
+    if (energyBand == .drowsy || energyBand == .exhausted),
+        !isSleeping,
+        petState.wakefulness != .settling,
+        !isRoundInFlight {
         pills.append(.nap)
-    case (.drowsy, .settling), (.drowsy, .asleep), (.drowsy, .waking),
-         (.exhausted, .settling), (.exhausted, .asleep), (.exhausted, .waking),
-         (.energetic, .awake), (.energetic, .settling), (.energetic, .asleep), (.energetic, .waking),
-         (.relaxed, .awake), (.relaxed, .settling), (.relaxed, .asleep), (.relaxed, .waking):
-        break
     }
 
     return HomeReadModel(
@@ -207,7 +231,8 @@ public func makeHomeReadModel(
             greeting: state.lastGreeting?.kind,
             petID: state.pet.id,
             dayKey: dayKey,
-            slot: slot
+            slot: slot,
+            careMoment: latestCareMoment
         ),
         questRows: questRows,
         actionPills: pills

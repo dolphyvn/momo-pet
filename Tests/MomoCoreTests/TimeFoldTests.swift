@@ -624,6 +624,6 @@ struct TimeFoldTests {
         // it is the asleep-stir (not the tap-head touch beat) is extra
         // evidence the semantics evaluated the FOLDED state at the intent's
         // instant.
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.stir, lineKey: "momo.line.react.touch.02", haptic: nil))
     }
 }

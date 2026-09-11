@@ -252,6 +252,88 @@ struct AppModelPlanTests {
         #expect(plan.steps == [.persist, .pushWatchSnapshot])
     }
 
+    // MARK: The play round's ledger path (TASK-035 R1; 04 §9.6 item 4's
+    // unified cease — the count lands at the REPORT, never the auth)
+
+    /// The `.play` interaction authorizes the round (activity + pending
+    /// handshake) but touches NO counter; the round's cease report is what
+    /// lands `playCount` — exactly once.
+    @Test("play counts at the report, not the authorization")
+    func playCountsAtTheReportNotTheAuth() {
+        let state = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T10:00:00Z")
+        )
+        let authorizing = AppModelPlanCore.plan(
+            state: state,
+            trigger: .interaction(AppModelFixture.intent(
+                id: AppModelFixture.intentID1,
+                dayKey: "2026-03-03",
+                timestamp: AppModelFixture.instant("2026-03-03T10:00:00Z"),
+                kind: .play
+            )),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T10:00:00Z")),
+            calendar: calendar
+        )
+        // The authorization: round in flight, handshake pending, counter
+        // untouched.
+        #expect(authorizing.appliedState.state.activity == .playing)
+        #expect(authorizing.appliedState.pendingHandshake?.kind == .play)
+        #expect(authorizing.appliedState.days.first { $0.dayKey == "2026-03-03" }?.playCount == 0)
+
+        // The cease report lands the count and clears the round.
+        let cease = AppModelPlanCore.plan(
+            state: authorizing.appliedState,
+            trigger: .characterReport(.playRoundFinished),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T10:05:00Z")),
+            calendar: calendar
+        )
+        #expect(cease.appliedState.days.first { $0.dayKey == "2026-03-03" }?.playCount == 1)
+        #expect(cease.appliedState.state.activity == nil)
+        #expect(cease.appliedState.pendingHandshake == nil)
+
+        // A duplicate cease (the drained-report belt's whole point) is the
+        // engine's tolerated no-op — no re-count.
+        let duplicate = AppModelPlanCore.plan(
+            state: cease.appliedState,
+            trigger: .characterReport(.playRoundFinished),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T10:06:00Z")),
+            calendar: calendar
+        )
+        #expect(duplicate.appliedState.days.first { $0.dayKey == "2026-03-03" }?.playCount == 1)
+    }
+
+    /// The Done-tap path: a cancelled round counts ONCE, exactly like a
+    /// finished one (the unified cease — `handshakeCancelled(.play)` rides
+    /// the same `completePlayRound`).
+    @Test("the cancelled round counts once, exactly like a finished one")
+    func cancelledRoundCountsOnce() {
+        let state = AppModelFixture.state(
+            dayKey: "2026-03-03",
+            lastEvaluatedAt: AppModelFixture.instant("2026-03-03T10:00:00Z")
+        )
+        let authorizing = AppModelPlanCore.plan(
+            state: state,
+            trigger: .interaction(AppModelFixture.intent(
+                id: AppModelFixture.intentID1,
+                dayKey: "2026-03-03",
+                timestamp: AppModelFixture.instant("2026-03-03T10:00:00Z"),
+                kind: .play
+            )),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T10:00:00Z")),
+            calendar: calendar
+        )
+        let cancel = AppModelPlanCore.plan(
+            state: authorizing.appliedState,
+            trigger: .characterReport(.handshakeCancelled(.play)),
+            clock: ManualEngineClock(at: AppModelFixture.instant("2026-03-03T10:02:00Z")),
+            calendar: calendar
+        )
+        #expect(cancel.appliedState.days.first { $0.dayKey == "2026-03-03" }?.playCount == 1)
+        #expect(cancel.appliedState.state.activity == nil)
+        #expect(cancel.appliedState.pendingHandshake == nil)
+    }
+
     /// The §4.2 composition pin: the facade's foreground-then-interaction
     /// session equals the manual evaluate-then-interact composition — every
     /// application's outcome, step for step and seed for seed.

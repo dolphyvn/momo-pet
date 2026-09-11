@@ -101,8 +101,22 @@ public struct MomoDirectorState: Equatable, Sendable {
             applyHidden(at: at)
         case .appShown(let at):
             applyShown(at: at)
+        case .playStopped(let at):
+            applyPlayStopped(at: at)
         }
         pruneCompleteLayers(around: eventTime(of: event))
+    }
+
+    /// TASK-035 R1: the app model's exactly-once report drain. The log is
+    /// append-only (each emission site is guarded by its instance's
+    /// `reported` flag), so draining hands the caller the entries AND clears
+    /// them — a drained report can never be re-delivered, and entries
+    /// emitted after the drain simply accumulate for the next one. Order is
+    /// emission order (the causal fold order).
+    public mutating func drainReports() -> [MomoReportEntry] {
+        let drained = reports
+        reports = []
+        return drained
     }
 
     // MARK: Plans (§9.2)
@@ -611,6 +625,23 @@ public struct MomoDirectorState: Equatable, Sendable {
             stateFading = nil
         case .wake, .none:
             break // paused, replayed from 0 on return
+        }
+    }
+
+    /// TASK-035 R6: the early-exit stop event (UX-3's "Done" pill). An
+    /// in-flight round cancels through the SAME displacement-cancel
+    /// machinery `applyHidden`'s play branch uses — the exactly-once
+    /// `handshakeCancelled(.play)`, the layer cleared, the underlying state
+    /// showing through — and a no-round fold is a tolerated no-op (the
+    /// event is never a lie: no hide semantics fire, no L3 is disturbed).
+    private mutating func applyPlayStopped(at t: Double) {
+        if case .play(var play) = stateLayer {
+            if !play.reported {
+                report(.handshakeCancelled(.play), at: t)
+                play.reported = true
+            }
+            stateLayer = nil
+            stateFading = nil
         }
     }
 

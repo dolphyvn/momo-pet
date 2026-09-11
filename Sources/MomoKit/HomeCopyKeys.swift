@@ -9,12 +9,14 @@ import MomoCore
 /// catalog KEYS, never composed prose — the view resolves them through
 /// `MomoCopy`). Three keyspaces meet here:
 ///
-/// - **The contextual line** (UX-12's single rotating slot): the greeting in
-///   effect, else the day-stable ambient slot draw (`LineSelection.slotLineKey`
-///   — same (pet, day, slot) ⇒ same line all day, 04 §10.1 rule 7). Reaction
-///   lines outrank greetings in UX-12's priority; they arrive with the
-///   reaction/care surfaces (TASK-034/035) and extend `contextualLineKey` —
-///   this task's resolver is the greeting/ambient half of that priority.
+/// - **The contextual line** (UX-12's single rotating slot): the latest
+///   care-moment line (TASK-035's visual reaction class — tuck-in settle,
+///   refusal, blanket-adjust), else the greeting in effect, else the
+///   day-stable ambient slot draw (`LineSelection.slotLineKey` — same (pet,
+///   day, slot) ⇒ same line all day, 04 §10.1 rule 7). That is UX-12's
+///   priority VERBATIM — interaction reaction > greeting > ambient. The
+///   feed/play/touch spoken lines stay accessibility-only and never enter
+///   the visual slot (04 §10.1 rule 7's restraint).
 /// - **The status-row words** (UX §5.1's `{mood word} · {energy word} ·
 ///   {stage}` row): the mood WORD comes from the OBS-1 vocabulary
 ///   (`VocabularyKeys.moodWordKey`); the energy word and stage NAME are the
@@ -56,18 +58,39 @@ public enum HomeCopyKeys {
         }
     }
 
+    /// The care-moment line key for a care-moment kind — the VISUAL reaction
+    /// class (TASK-035; 04 §10.1 rule 7's "few care moments"). A FIXED
+    /// lookup at catalog order 01–03, never a seeded draw (contract
+    /// adjudication, OBS-D precedent): a refusal line must say refusal, and
+    /// a day-stable draw cannot serve both tuck-in and refusal. The mirrors
+    /// `greetingLineKey`'s shape exactly.
+    public static func careMomentLineKey(for kind: CareMomentKind) -> String {
+        switch kind {
+        case .tuckIn: return "momo.line.care-moment.01"
+        case .refusal: return "momo.line.care-moment.02"
+        case .blanketAdjust: return "momo.line.care-moment.03"
+        }
+    }
+
     /// The contextual line key for the current open (UX-12's single rotating
-    /// slot): the greeting in effect — including the fresh-day greeting drawn
+    /// slot, priority verbatim): the latest care-moment line when one is in
+    /// effect, else the greeting — including the fresh-day greeting drawn
     /// at the first open — else the ambient slot draw. A nil greeting (the
     /// sub-floor re-evaluations of `Greeting.select`) is the ambient case by
-    /// definition, so the fallthrough needs no extra state.
+    /// definition, so the fallthrough needs no extra state. The care-moment
+    /// input is the app model's presentation-side memory of the latest
+    /// visual care moment (TASK-035 R5 — never persisted).
     public static func contextualLineKey(
         greeting: GreetingKind?,
         petID: UUID,
         dayKey: String,
-        slot: CopyRules.LineSlot
+        slot: CopyRules.LineSlot,
+        careMoment: CareMomentKind? = nil
     ) -> String {
-        greeting.flatMap(greetingLineKey) ?? ambientLineKey(petID: petID, dayKey: dayKey, slot: slot)
+        if let careMoment {
+            return careMomentLineKey(for: careMoment)
+        }
+        return greeting.flatMap(greetingLineKey) ?? ambientLineKey(petID: petID, dayKey: dayKey, slot: slot)
     }
 
     // MARK: Status-row words (UX §5.1's status row; PRD §3.2–§3.3)
@@ -109,6 +132,56 @@ public enum HomeCopyKeys {
         case .q5: return "momo.line.quest.q5"
         case .q6: return "momo.line.quest.q6"
         case .q7: return "momo.line.quest.q7"
+        }
+    }
+}
+
+// MARK: - The care moments (TASK-035 R5; 04 §10.1 rule 7's "few care
+// moments"; UX-12's "interaction reaction" visual half)
+
+/// The three VISUAL care-moment classes (the only reaction lines that enter
+/// the contextual line's visual slot): the tuck-in settle (01), the
+/// politely-full refusal (02), and the already-asleep blanket-adjust (03).
+/// Nap and the settling-reaffirm have NO visual line — animation only
+/// (rule 7's restraint).
+public enum CareMomentKind: Equatable, Sendable {
+    /// Tuck-in authorization — the pet settles ("Momo snuggles down under
+    /// the blanket.").
+    case tuckIn
+    /// The politely-full feed refusal — warm, zero penalty ("Momo is full
+    /// and thanks you with a nod.").
+    case refusal
+    /// The blanket-adjust on an already-sleeping pet — counts, stays asleep
+    /// ("Momo shifts sleepily under the blanket.").
+    case blanketAdjust
+}
+
+/// The pure care-moment classifier (TASK-035 R5): which VISUAL care moment
+/// — if any — an interaction's response raised, read from the response's
+/// reaction and the POST-application engine state. Disambiguations the
+/// state half carries: a nap mints the same `settling` reaction as a
+/// tuck-in authorization but NO `.settle` handshake token (the nap touches
+/// no slot), and the tuck-in reaffirm on an already-settling pet mints
+/// `blanketAdjust` WITHOUT the pet being asleep — so the token and the
+/// wakefulness/activity split the tuck-in (01) from the reaffirm (no line)
+/// and the blanket-adjust (03) from both. Pure: value-in/value-out.
+public enum CareMoment {
+
+    /// The care moment the response raised, or nil — every non-care
+    /// reaction, the feed-enjoys/nibble family, declined paths, nap
+    /// acceptance, and the settling-reaffirm classify nil (animation only).
+    public static func classify(response: ResponsePlan, state: EngineState) -> CareMomentKind? {
+        let pet = state.state
+        switch response.reaction {
+        case ReactionKeys.politelyFull:
+            return .refusal
+        case ReactionKeys.settling where state.pendingHandshake?.kind == .settle:
+            return .tuckIn
+        case ReactionKeys.blanketAdjust
+            where pet.wakefulness == .asleep || pet.activity == .napping:
+            return .blanketAdjust
+        default:
+            return nil
         }
     }
 }
