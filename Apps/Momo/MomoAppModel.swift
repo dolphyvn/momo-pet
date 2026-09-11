@@ -87,9 +87,22 @@ final class MomoAppModel {
     /// the 800-line budget) reads it — target-scoped only.
     let storeDirectory: URL
 
-    /// The production time source (05 §4.10) — every engine time read
-    /// in the executor flows through it.
-    private let clock: any EngineClock
+    /// The §6.6 reset marker's count, held in memory (TASK-040 R3): loaded
+    /// at launch, minted +1 by the erase path, read by the context push
+    /// (`MomoAppModel+Watch.swift`) so the count rides EVERY snapshot until
+    /// Watch-side consumption. Internal: the settings extension's erase is
+    /// the writer. Zero = no erase ever — no marker rides the context.
+    var watchResetMarkerEraseCount = 0
+
+    // TASK-040's Watch-session state — docs in `MomoAppModel+Watch.swift`.
+    // `watchTransport` is internal (not private): that extension reads it.
+    var watchSyncState = SyncState()
+    var watchSyncEpoch: UUID?
+    let watchTransport: (any MomoWatchTransporting)?
+
+    /// The production time source (05 §4.10) — every engine read flows through
+    /// it. Internal: the same-target Watch extension reads it (target-scoped).
+    let clock: any EngineClock
 
     /// The presentation-owned character clock (TASK-032 R12; EPIC-006's
     /// view API): ONE clock for the whole session, fed by the same injected
@@ -322,11 +335,15 @@ final class MomoAppModel {
     ///   - freshDefault: the store's injected fresh default (05 §5.3 — the
     ///     caller's to inject; MomoCore owns no initial-state factory by
     ///     design). Defaults to `MomoAppModel.freshDefaultState`.
+    ///   - watchTransport: the Watch transport seam (TASK-040 R1). Nil
+    ///     (the default) disables the session — previews and any headless
+    ///     construction; production passes `LiveWatchTransport()`.
     init(
         storeDirectory: URL? = nil,
         clock: any EngineClock = SystemEngineClock(),
         calendar: Calendar = .current,
-        freshDefault: EngineState? = nil
+        freshDefault: EngineState? = nil,
+        watchTransport: (any MomoWatchTransporting)? = nil
     ) {
         let directory: URL
         if let storeDirectory {
@@ -361,6 +378,13 @@ final class MomoAppModel {
             : .freshStore
         let loadedState = store.load(fallback: freshDefault ?? Self.freshDefaultState(clock: clock))
         self.state = loadedState
+        // TASK-040 R3 (review F-1): the reset marker joins the launch read
+        // from the SAME §6.6 root the erase writes — OUTSIDE the store tree,
+        // so the erase's deletion can never touch it. Missing/garbled → 0.
+        self.watchResetMarkerEraseCount = Self.loadResetMarkerEraseCount()
+        // TASK-040 R1: sync state joins the launch read (watermark + seq seeds).
+        self.watchTransport = watchTransport
+        self.watchSyncState = SyncStateStore(directory: directory).load()
         // The director starts from the LOADED state's read-model (the rig's
         // waking/settling choreography follows the state the session opens
         // onto, not a fresh default's) — derived from the load result's
@@ -389,6 +413,8 @@ final class MomoAppModel {
                 self?.significantTimeChangeOccurred()
             }
         })
+        // TASK-040 R1: bind sink + activate last (sink precedes activation).
+        bindWatchTransport()
     }
 
     isolated deinit {
@@ -621,10 +647,9 @@ final class MomoAppModel {
                     momentHapticSink(kind)
                 }
             case .pushWatchSnapshot:
-                // RESERVED SEAM (EPIC-008): the Watch push is a documented
-                // no-op this task — no WatchConnectivity code exists; the
-                // transport hangs here when EPIC-008 lands.
-                break
+                // TASK-040: the armed push — build + deliver the latest-wins
+                // context (the executor half; MomoAppModel+Watch.swift).
+                pushWatchSnapshot()
             }
         }
         // TASK-035 R2: reconcile the play round's presentation machinery

@@ -73,6 +73,32 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
     /// differs ignores it (prunes nothing — §6.4 step 4).
     public let lastAppliedEpoch: UUID
 
+    /// The §6.6 erase reset marker's count (TASK-040 R3), ADDITIVE OPTIONAL —
+    /// the schema adjudication of record: `decodeIfPresent`/`encodeIfPresent`
+    /// (nil → the key is OMITTED) evolves the wire shape with NO
+    /// `schemaVersion` bump. A strict-version bump would make every
+    /// pre-bump decoder DROP the whole payload (the DTOs' ignore-semantics)
+    /// and fire the OBS-3 parity-fixture obligation; the additive optional
+    /// needs neither — old payloads decode with `nil`, old decoders ignore
+    /// the unknown key. Nil means "no erase is pending"; from an erase until
+    /// Watch-side consumption the count rides EVERY context (the one-shot
+    /// consumption key is `WatchResetMarker`'s).
+    public let resetMarkerEraseCount: Int?
+
+    /// The character read-model's four wire fields (ADR-014, TASK-041 R1),
+    /// ADDITIVE OPTIONAL under the same adjudication as
+    /// `resetMarkerEraseCount`: absent key → nil, NO `schemaVersion` bump.
+    /// `display` carries the words (mood word, energy phrase, stage, quest);
+    /// this carries exactly the four character-family fields `DisplayState`
+    /// lacks (04 §9.2) — the rig's bands/activity/satiety — so W1 renders the
+    /// SAME character the iPhone's rig received at push time without the
+    /// Watch deriving anything (EPIC-008 AC-5: no consumer derives its own
+    /// view of engine state). Nil (cross-version skew) is the pinned
+    /// degraded render: words + quest line, pet-canvas slot skipped —
+    /// never a crash, never an error surface (UX §9); see
+    /// `makeWatchCharacterDisplay` for the assembly.
+    public let character: WatchCharacterDTO?
+
     /// - Parameters:
     ///   - schemaVersion: defaults to `StoreRules.watchSnapshotSchemaVersion`
     ///     (the production shape); tests pass explicit versions to pin the
@@ -84,7 +110,9 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         questInputs: [QuestProgress],
         hapticsEnabled: Bool,
         lastAppliedIntentSeq: Int,
-        lastAppliedEpoch: UUID
+        lastAppliedEpoch: UUID,
+        resetMarkerEraseCount: Int? = nil,
+        character: WatchCharacterDTO? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.snapshotSeq = snapshotSeq
@@ -93,6 +121,8 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         self.hapticsEnabled = hapticsEnabled
         self.lastAppliedIntentSeq = lastAppliedIntentSeq
         self.lastAppliedEpoch = lastAppliedEpoch
+        self.resetMarkerEraseCount = resetMarkerEraseCount
+        self.character = character
     }
 
     // MARK: Codec (canonical recipe; see the type header)
@@ -123,6 +153,7 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion, snapshotSeq, display, questInputs
         case hapticsEnabled, lastAppliedIntentSeq, lastAppliedEpoch
+        case resetMarkerEraseCount, character
     }
 
     private enum DisplayKeys: String, CodingKey {
@@ -170,6 +201,13 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         hapticsEnabled = try container.decode(Bool.self, forKey: .hapticsEnabled)
         lastAppliedIntentSeq = try container.decode(Int.self, forKey: .lastAppliedIntentSeq)
         lastAppliedEpoch = try container.decode(UUID.self, forKey: .lastAppliedEpoch)
+        // Additive OPTIONAL (see the property's adjudication): absent key →
+        // nil, so every pre-marker payload decodes unchanged.
+        resetMarkerEraseCount = try container.decodeIfPresent(Int.self, forKey: .resetMarkerEraseCount)
+        // Same additive-OPTIONAL adjudication (ADR-014): absent key → nil —
+        // the pinned degraded render (words + quest line, canvas slot
+        // skipped), never a crash.
+        character = try container.decodeIfPresent(WatchCharacterDTO.self, forKey: .character)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -201,6 +239,158 @@ public struct WatchSnapshot: Equatable, Sendable, Codable {
         try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
         try container.encode(lastAppliedIntentSeq, forKey: .lastAppliedIntentSeq)
         try container.encode(lastAppliedEpoch, forKey: .lastAppliedEpoch)
+        // encodeIfPresent: nil → the key is OMITTED — a no-marker context is
+        // byte-identical to the pre-marker wire shape (the pinned canonical
+        // bytes of TASK-023 are untouched by this field's absence).
+        try container.encodeIfPresent(resetMarkerEraseCount, forKey: .resetMarkerEraseCount)
+        // Same additive-OPTIONAL adjudication (ADR-014): nil → the key is
+        // OMITTED — a no-character context stays byte-identical to the
+        // pre-character wire shape.
+        try container.encodeIfPresent(character, forKey: .character)
+    }
+}
+
+// MARK: - WatchCharacterDTO (ADR-014; TASK-041 R1)
+
+/// The snapshot's character read-model carrier (ADR-014): EXACTLY the four
+/// `CharacterDisplayState` fields `DisplayState` lacks (04 §9.2) — the rig's
+/// mood/energy bands, the sustained activity, and the satiety window hint.
+/// Bond stage, wakefulness, and the moment request ride `display` (bondStage/
+/// wakefulness) and `display.greeting` (the moment projection) — the
+/// alternatives considered in the ADR rejected a full seven-field mirror as
+/// wire-redundant and Watch-side band derivation as a §9.2/AC-5 violation.
+///
+/// **Hand-written `Codable` — DISCLOSED (ADR-014; the `IntentEvent`
+/// precedent).** The conformance cannot synthesize: `MoodBand`/`EnergyBand`
+/// are deliberately bare `Sendable` messages in MomoCore (no `Codable`), and
+/// MomoCore's diff must stay empty (the TASK-023 frozen-surface constraint).
+/// The two bands map through exhaustive switches to their Swift case-name
+/// strings (the `IntentEvent` case-map discipline — an unknown string never
+/// decodes); `Activity`/`SatietyHint` ARE `Codable` in MomoCore and ride
+/// `encodeIfPresent`/`decodeIfPresent` verbatim (their optionality is the
+/// 04 §9.2 shape's). Equality is the synthesized field-wise form — every
+/// member is `Equatable`.
+public struct WatchCharacterDTO: Equatable, Sendable, Codable {
+
+    /// The mood presentation band (PRD §3.1) — the rig's expression base.
+    public let moodBand: MoodBand
+
+    /// The energy presentation band (PRD §3.2) — the rig's posture.
+    public let energyBand: EnergyBand
+
+    /// The sustained activity, if any (05 §3.1).
+    public let activity: Activity?
+
+    /// The satiety window's rendered hint (05 §4.5), if in window.
+    public let satietyHint: SatietyHint?
+
+    public init(
+        moodBand: MoodBand,
+        energyBand: EnergyBand,
+        activity: Activity?,
+        satietyHint: SatietyHint?
+    ) {
+        self.moodBand = moodBand
+        self.energyBand = energyBand
+        self.activity = activity
+        self.satietyHint = satietyHint
+    }
+
+    // MARK: Codec helpers (the recipe, restated; see WatchSnapshot's header)
+
+    /// The canonical bytes (`.sortedKeys`, Foundation defaults — the
+    /// snapshot's recipe; this DTO carries no envelope and no version gate
+    /// of its own: it rides INSIDE the snapshot's gated container). Nil on
+    /// an encoding failure — a domain-model regression, not a runtime state.
+    public func encoded() -> Data? {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return try? encoder.encode(self)
+    }
+
+    /// The plain decode (no version gate — the snapshot's gate governs the
+    /// pair). Nil for malformed bytes; total — never throws.
+    public static func decoded(from data: Data) -> WatchCharacterDTO? {
+        try? JSONDecoder().decode(WatchCharacterDTO.self, from: data)
+    }
+
+    // MARK: Codable (hand-written — see the type header's disclosure)
+
+    private enum CodingKeys: String, CodingKey {
+        case moodBand, energyBand, activity, satietyHint
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let moodRaw = try container.decode(String.self, forKey: .moodBand)
+        guard let moodBand = Self.moodBand(fromRaw: moodRaw) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .moodBand, in: container,
+                debugDescription: "unknown mood band '\(moodRaw)'"
+            )
+        }
+        self.moodBand = moodBand
+        let energyRaw = try container.decode(String.self, forKey: .energyBand)
+        guard let energyBand = Self.energyBand(fromRaw: energyRaw) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .energyBand, in: container,
+                debugDescription: "unknown energy band '\(energyRaw)'"
+            )
+        }
+        self.energyBand = energyBand
+        // MomoCore-Codable members ride verbatim; their optionality is the
+        // 04 §9.2 shape's (nil is a REAL value, not an absence to default).
+        activity = try container.decodeIfPresent(Activity.self, forKey: .activity)
+        satietyHint = try container.decodeIfPresent(SatietyHint.self, forKey: .satietyHint)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(Self.raw(of: moodBand), forKey: .moodBand)
+        try container.encode(Self.raw(of: energyBand), forKey: .energyBand)
+        try container.encodeIfPresent(activity, forKey: .activity)
+        try container.encodeIfPresent(satietyHint, forKey: .satietyHint)
+    }
+
+    // MARK: Case-name maps (exhaustive; an unknown string never decodes —
+    // the `IntentEvent` discipline)
+
+    private static func raw(of band: MoodBand) -> String {
+        switch band {
+        case .joyful: "joyful"
+        case .content: "content"
+        case .wistful: "wistful"
+        case .low: "low"
+        }
+    }
+
+    private static func moodBand(fromRaw raw: String) -> MoodBand? {
+        switch raw {
+        case "joyful": .joyful
+        case "content": .content
+        case "wistful": .wistful
+        case "low": .low
+        default: nil
+        }
+    }
+
+    private static func raw(of band: EnergyBand) -> String {
+        switch band {
+        case .energetic: "energetic"
+        case .relaxed: "relaxed"
+        case .drowsy: "drowsy"
+        case .exhausted: "exhausted"
+        }
+    }
+
+    private static func energyBand(fromRaw raw: String) -> EnergyBand? {
+        switch raw {
+        case "energetic": .energetic
+        case "relaxed": .relaxed
+        case "drowsy": .drowsy
+        case "exhausted": .exhausted
+        default: nil
+        }
     }
 }
 

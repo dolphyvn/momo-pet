@@ -1201,6 +1201,42 @@
         }
       }
     },
+    "momo.line.watch.a11y.glance" : {
+      "comment" : "The W1 VoiceOver composite (TASK-041 R6/R8; UX §10's W1 row, verbatim template: \"{name} feels {mood} and {energy}. {Stage}. Today's wish: {wish}. Pat button.\"). Accessibility-ONLY — never rendered. Positional placeholders: %1$@ = pet name, %2$@ = mood word, %3$@ = energy phrase (\"has plenty of energy\" completes the \"and\"), %4$@ = stage name, %5$@ = the quest line — all resolved over the SHIPPED vocabulary, so a localized reordering stays locale-correct (FR-10 AC-4). The trailing \"Pat button.\" pre-announces the pill element; the pill's own activation trait lands with TASK-042. A FIXED lookup.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ feels %2$@ and %3$@. %4$@. Today's wish: %5$@. Pat button."
+          }
+        }
+      }
+    },
+    "momo.line.watch.pat" : {
+      "comment" : "The W1 Pat pill's rendered label (TASK-041 R6/R8; UX §6.1's full-width pill, the one word). The chrome class — a one-word label, never body copy (the momo.tab.* precedent). The pat CAPTURE is TASK-042's; the label ships with the surface. A FIXED lookup.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pat"
+          }
+        }
+      }
+    },
+    "momo.line.watch.settlingIn" : {
+      "comment" : "The W1 settling-in line (TASK-041 R6/R8; UX §9's calm single line — the fresh-install and post-erase state, verbatim: \"Momo is settling in — meet Momo on iPhone.\"). No error, no retry affordance; the only W1 content when no snapshot is renderable. A FIXED lookup — never a seeded draw (the OBS-D adjudication's precedent: this line must say THE settling-in).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momo is settling in — meet Momo on iPhone."
+          }
+        }
+      }
+    },
     "momo.settings.about.privacy" : {
       "comment" : "The About section's short privacy statement (TASK-038 R6; FR-19/FR-20/D7/D19 restated, unnamed). Body copy — the 12-word law scans it.",
       "extractionState" : "manual",

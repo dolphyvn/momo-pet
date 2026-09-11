@@ -92,6 +92,14 @@ public enum StoreRules {
     /// queue.
     public static let intentEventSchemaVersion = 1
 
+    /// The push-side sentinel epoch (TASK-040 R1): what the iPhone
+    /// advertises as `lastAppliedEpoch` before ANY watch intent has applied.
+    /// A real Watch session epoch is a fresh UUID, so the all-zero sentinel
+    /// never matches one — a snapshot advertising it is inert against every
+    /// real epoch's prune gate (§6.4 step 4), which is exactly the desired
+    /// "nothing applied yet" semantics.
+    public static let zeroWatchSyncEpoch = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+
     /// The Watch → iPhone intent journal (05 §6.4's append-only queue behind
     /// `transferUserInfo`; ADR-003). NDJSON: one `IntentEvent` JSON object per
     /// line, `.sortedKeys`, newline-terminated. The doc names the MECHANISM,
@@ -117,6 +125,71 @@ public enum StoreRules {
     /// store's commit-point discipline, Requirement 3). Same-volume rule;
     /// never read by anyone.
     public static let temporarySyncStateFileName = "sync-state.json.tmp"
+
+    /// The §6.6 erase reset marker's own directory (TASK-040; 05 §6.6):
+    /// `Application Support/` itself — the store tree's PARENT, deliberately
+    /// OUTSIDE what the erase deletes, because the marker's persistence must
+    /// OUTLIVE the erased stores (the erase's directory deletion can never
+    /// touch the signal; no read-before-delete ordering hazard exists). The
+    /// marker file is the erase SENTINEL, not a data store: TASK-038's
+    /// "deletes every local store" governs the pet-data tree, which stays
+    /// fully deleted. DERIVED from `defaultDirectory()` — the ONE sanctioned
+    /// ambient read stays the only one (the discipline scan's count pin
+    /// holds unamended); the side effect that the store directory is also
+    /// created is harmless (the erase's first post-erase persist recreates
+    /// it, and a fresh install's launch read runs first anyway).
+    public static func watchResetMarkerDirectory() throws -> URL {
+        try defaultDirectory().deletingLastPathComponent()
+    }
+
+    /// The §6.6 erase reset marker's file (TASK-040): a one-int record
+    /// (`WatchResetMarker`) whose erase count rides EVERY application
+    /// context from an erase until the Watch consumes it. iPhone-local
+    /// bookkeeping like the sync state (plain JSON, no envelope — a future
+    /// breaking change would add a version field mirroring the DTOs).
+    public static let watchResetMarkerFileName = "watch-reset-marker.json"
+
+    /// The reset-marker save's temp file (the store's commit-point
+    /// discipline, mirrored by `WatchResetMarkerStore`). Same-volume rule;
+    /// never read by anyone.
+    public static let temporaryWatchResetMarkerFileName = "watch-reset-marker.json.tmp"
+
+    // MARK: - Watch-side stores (05 §6.6; ADR-013 duplicate; TASK-041)
+
+    /// The Watch's last-synced snapshot file (TASK-041 R2; the contract's
+    /// `watch-snapshot.json`): what W1 renders between syncs and at launch.
+    /// The bytes are the `WatchSnapshot` DTO ITSELF — no envelope, because the
+    /// DTO already carries `schemaVersion` and `WatchSnapshot.decoded(from:)`
+    /// gates it (the envelope's only jobs here). Watch-local bookkeeping
+    /// like the sync state: plain JSON, `.sortedKeys` on the record.
+    public static let watchSnapshotFileName = "watch-snapshot.json"
+
+    /// The snapshot's ONE retained predecessor (the contract's single
+    /// `.prev` — deliberately fewer generations than the iPhone store: the
+    /// Watch file is written once per RECEIVED snapshot, not per engine
+    /// event, so its exposure window is tiny and one fallback generation
+    /// covers it; `generationCount` is the iPhone store's record, not this
+    /// file family's).
+    public static let previousWatchSnapshotFileName = "watch-snapshot.prev.json"
+
+    /// The snapshot save's in-flight temp file (the commit-point
+    /// discipline, mirrored from the store family). Same-volume rule — it
+    /// lives in the store directory; never read by anyone.
+    public static let temporaryWatchSnapshotFileName = "watch-snapshot.json.tmp"
+
+    /// The Watch's §6.6 consumption record (TASK-041 R5): the last
+    /// `resetMarkerEraseCount` this Watch has CONSUMED (wipe + record, in
+    /// that order). Reuses the `WatchResetMarker` one-int record — the
+    /// count is the same number on the other side of the link — but the
+    /// FILE is Watch-local bookkeeping in the store directory, distinct
+    /// from the iPhone's out-of-tree sentinel (watch out: wiping the
+    /// snapshot store must never touch this file, or the same count would
+    /// re-consume forever).
+    public static let watchConsumedMarkerFileName = "watch-consumed-marker.json"
+
+    /// The consumed-marker save's temp file (the commit-point discipline).
+    /// Same-volume rule; never read by anyone.
+    public static let temporaryWatchConsumedMarkerFileName = "watch-consumed-marker.json.tmp"
 
     /// The default store directory (05 §5.2): `Application Support/Momo/`,
     /// created if missing — so EPIC-007's wiring is one call. This is the ONE

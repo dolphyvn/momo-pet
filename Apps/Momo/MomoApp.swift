@@ -31,7 +31,8 @@ struct MomoApp: App {
             storeDirectory: MomoApp.testStoreDirectory(),
             clock: time.clock,
             calendar: time.calendar,
-            freshDefault: MomoApp.fixtureDefaultState(clock: time.clock, calendar: time.calendar)
+            freshDefault: MomoApp.fixtureDefaultState(clock: time.clock, calendar: time.calendar),
+            watchTransport: LiveWatchTransport()
         )
     }()
 

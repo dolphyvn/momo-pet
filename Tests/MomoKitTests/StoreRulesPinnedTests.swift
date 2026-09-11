@@ -76,4 +76,49 @@ struct StoreRulesPinnedTests {
         #expect(StoreRules.temporaryIntentJournalFileName == "intent-journal.ndjson.tmp")
         #expect(StoreRules.temporarySyncStateFileName == "sync-state.json.tmp")
     }
+
+    // MARK: - The TASK-040 reset-marker constants (05 §6.6)
+
+    @Test("the zero watch-sync sentinel is the all-zero UUID (inert against every real epoch)")
+    func zeroWatchSyncEpoch() {
+        #expect(StoreRules.zeroWatchSyncEpoch == UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+        #expect(StoreRules.zeroWatchSyncEpoch != UUID())
+    }
+
+    @Test("the reset-marker file name is the §6.6 name, byte-for-byte")
+    func watchResetMarkerFileName() {
+        #expect(StoreRules.watchResetMarkerFileName == "watch-reset-marker.json")
+    }
+
+    @Test("the reset-marker temp name lives in its document's namespace (same-volume rename)")
+    func temporaryWatchResetMarkerFileName() {
+        #expect(StoreRules.temporaryWatchResetMarkerFileName == "watch-reset-marker.json.tmp")
+    }
+
+    @Test("the reset-marker directory is Application Support ITSELF — deliberately OUTSIDE the store tree the erase deletes")
+    func watchResetMarkerDirectory() throws {
+        let directory = try StoreRules.watchResetMarkerDirectory()
+        let path = directory.path(percentEncoded: false)
+        #expect(path.hasSuffix("Application Support/"), "got \(path)")
+        #expect(!path.hasSuffix("Application Support/Momo/"),
+                "the marker must NOT live inside the store tree the erase deletes")
+        var isDirectory: ObjCBool = false
+        #expect(FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory))
+        #expect(isDirectory.boolValue, "the factory must create the directory when missing")
+    }
+
+    // MARK: - The TASK-041 Watch-side store constants (05 §6.6; ADR-013)
+
+    @Test("the Watch snapshot generation names are the contract names, byte-for-byte")
+    func watchSnapshotFileNames() {
+        #expect(StoreRules.watchSnapshotFileName == "watch-snapshot.json")
+        #expect(StoreRules.previousWatchSnapshotFileName == "watch-snapshot.prev.json")
+    }
+
+    @Test("the Watch-side temp names live in their documents' namespaces (same-volume renames)")
+    func watchTemporaryFileNames() {
+        #expect(StoreRules.temporaryWatchSnapshotFileName == "watch-snapshot.json.tmp")
+        #expect(StoreRules.watchConsumedMarkerFileName == "watch-consumed-marker.json")
+        #expect(StoreRules.temporaryWatchConsumedMarkerFileName == "watch-consumed-marker.json.tmp")
+    }
 }
