@@ -7,6 +7,13 @@ import XCTest
 /// shell (UX-1: Home · Room · Settings) is reachable; the flow's own pins
 /// live in `MomoOnboardingUITests`. Real FR coverage (core loop, settings,
 /// accessibility audit) lands in later epics per 05 §10.6.
+///
+/// `@MainActor` (TASK-039 R4): XCTest test methods run on the main actor,
+/// so the unannotated class triggered one actor-isolation warning per
+/// `async`-propagating method under Swift 6's default isolation — 19 in
+/// the pre-consolidation tree. The annotation retires them; XCUIApplication
+/// interaction is main-actor work anyway.
+@MainActor
 final class MomoUITests: XCTestCase {
 
     override func setUpWithError() throws {

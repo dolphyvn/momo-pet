@@ -207,8 +207,11 @@ final class MomoAppModel {
 
     /// The last fingertip offset the play surface streamed (grid units from
     /// the stage center) — the stillness ticker's solo samples resume from
-    /// it; nil before the first real sample of a round.
-    private var lastPlayFingertipOffset: CGPoint?
+    /// it; nil before the first real sample of a round. Internal, not
+    /// private: the same-target canvas extension
+    /// (`MomoAppModel+Canvas.swift`, TASK-039 R8's disclosed extraction)
+    /// records the streamed sample.
+    internal var lastPlayFingertipOffset: CGPoint?
 
     /// Whether a play round is in flight — ENGINE-visible, not a
     /// presentation guess: the engine sets `activity = .playing` at
@@ -232,18 +235,10 @@ final class MomoAppModel {
     /// ambient (UX-12's priority verbatim).
     private(set) var latestCareMoment: CareMomentKind?
 
-    // MARK: The quest moments + celebrations (TASK-036; UX §5.5–§5.6)
-
-    /// Authored auto-fade of the M2 stage banner (TASK-036 R4, disclosed):
-    /// 03 §5.6's "auto-fades ~4 s" — the banner dismisses itself at 4.0 s.
-    static let celebrationAutoFadeSeconds: Double = 4.0
-
-    /// Authored length of the M1 flip flourish on the quest card
-    /// (TASK-036 R3, disclosed): the just-completed row's mark swells for
-    /// 0.6 s — 03 §5.5's "tiny in-scene flourish" scale, no spring
-    /// firework. Under Reduce Motion the swell is skipped (D16: the fill
-    /// itself is the emphasis).
-    static let questFlipFlourishSeconds: Double = 0.6
+    // MARK: The quest moments + celebrations state (TASK-036; UX §5.5–§5.6)
+    // (The authored constants and the machinery live in the same-target
+    // `MomoAppModel+Celebrations.swift` extension — TASK-039 R8's split;
+    // stored properties cannot leave the type's main declaration.)
 
     /// The M2 banner's visible stage — nil while hidden (UX §5.6's calm
     /// in-scene banner over Home; never a modal, never chrome). The
@@ -253,20 +248,29 @@ final class MomoAppModel {
     /// about once-per-stage. Disclosed: the banner does not defer across
     /// backgrounding — a celebration arriving in a backgrounded apply
     /// auto-fades on the wall clock; the engine's once-guard means the
-    /// moment itself is never re-minted.
-    private(set) var activeCelebrationStage: BondStage?
+    /// moment itself is never re-minted. The property (and its setter)
+    /// is internal (the same-target celebrations extension shows and
+    /// fades it — TASK-039 R8's disclosed extraction); nothing leaves
+    /// the target either way.
+    var activeCelebrationStage: BondStage?
 
     /// The banner's live auto-fade task (nil while no banner shows).
-    private var celebrationTask: Task<Void, Never>?
+    /// Internal, not private: the same-target celebrations extension
+    /// (`MomoAppModel+Celebrations.swift`, TASK-039 R8's disclosed
+    /// extraction) cancels and reassigns it.
+    internal var celebrationTask: Task<Void, Never>?
 
     /// The quests whose completion the card is still flourishes (M1's
     /// mark swell) — memory only, latest-wins exactly like
     /// `latestCareMoment`: never persisted, cleared by the authored
-    /// flourish task or superseded by the next application.
-    private(set) var celebratingQuests: [QuestID] = []
+    /// flourish task or superseded by the next application. The property
+    /// (and its setter) is internal for the same extension-extraction
+    /// reason (nothing leaves the target either way).
+    var celebratingQuests: [QuestID] = []
 
-    /// The flip flourish's live auto-clear task.
-    private var questFlipTask: Task<Void, Never>?
+    /// The flip flourish's live auto-clear task. Internal: the
+    /// celebrations extension cancels and reassigns it.
+    internal var questFlipTask: Task<Void, Never>?
 
     /// The moment-haptic sink (TASK-036 R7): the kinds
     /// `MomentHapticKind.deliveryKinds` decides fire here — gated on
@@ -288,8 +292,11 @@ final class MomoAppModel {
 
     /// Whether a canvas touch is currently open (the `touchEnded`
     /// idempotence guard — the FIX1-NOTE-1 cancel seam closes the press
-    /// EXACTLY once per opened touch, whichever path ends it).
-    private var isTouchOpen = false
+    /// EXACTLY once per opened touch, whichever path ends it). Internal,
+    /// not private: the same-target canvas extension
+    /// (`MomoAppModel+Canvas.swift`, TASK-039 R8's disclosed extraction)
+    /// flips it from the touch entries.
+    internal var isTouchOpen = false
 
     /// The UI-facing response seam (§4.1's fixed order, step 2): the shell
     /// may host this closure to observe the delivery; exactly-once
@@ -445,86 +452,9 @@ final class MomoAppModel {
         Task { await self.apply(trigger: .characterReport(report)) }
     }
 
-    // MARK: The canvas touch entries (TASK-034 R2; 04 §6.1)
-
-    /// A canvas touch BEGAN at `zone` — opens the director's L1 press
-    /// layer (the §6.1 press-length input starts at the physical touch,
-    /// which is what makes a long-press's hold length the press clip's
-    /// length). Returns the `canvasClock` stamp the gesture layer
-    /// classifies the touch with (the view reads no clock — D-R5).
-    ///
-    /// Recovery: one finger means touches cannot overlap, so a `touchBegan`
-    /// arriving while one is still open means the gesture layer lost the
-    /// old touch's end (a system cancellation SwiftUI never surfaced — the
-    /// FIX1-NOTE-1 seam's residual gap). The stale press closes at THIS
-    /// instant before the new one opens, so the open-touch invariant can
-    /// never wedge; `touchEnded` stays the idempotent normal close.
-    @discardableResult
-    func touchBegan(zone: TouchZone?) -> Double {
-        let now = canvasClock.elapsed()
-        if isTouchOpen {
-            isTouchOpen = false
-            foldDirector(.touchEnded(at: now))
-        }
-        isTouchOpen = true
-        foldDirector(.touchBegan(zone: zone, at: now))
-        return now
-    }
-
-    /// The canvas touch ENDED (a lift OR a cancellation — the gesture
-    /// layer's FIX1-NOTE-1 seam calls this on BOTH, so a system-stolen
-    /// touch resolves exactly like a released one). Idempotent: without an
-    /// open touch it is a no-op. Returns the close stamp.
-    @discardableResult
-    func touchEnded() -> Double {
-        let now = canvasClock.elapsed()
-        guard isTouchOpen else { return now }
-        isTouchOpen = false
-        foldDirector(.touchEnded(at: now))
-        return now
-    }
-
-    // MARK: The play round entries (TASK-035 R2; 04 §6.3; UX-3)
-
-    /// The play surface's fingertip sample (§6.3's pacer input): the
-    /// gesture layer converts the touch to GRID units (offset from the
-    /// stage center, y-down) and streams it here while a round is in
-    /// flight — INSTEAD of the touch vocabulary's pat intents. The offset
-    /// is remembered for the stillness ticker's solo samples.
-    func sendFingertip(offset: CGPoint, moving: Bool) {
-        lastPlayFingertipOffset = offset
-        foldDirector(.fingertip(offset: offset, moving: moving, at: canvasClock.elapsed()))
-    }
-
-    /// The quiet "Done" pill's early exit (UX-3; TASK-035 R2→R6): folds the
-    /// ONE stop event into the director, whose exactly-once
-    /// `handshakeCancelled(.play)` drains into the engine (R1) and ceases
-    /// the round there — the unified cease applies the round's effects and
-    /// count exactly once. NOT `.appHidden` (no hide semantics fire), and
-    /// not a local-only dismissal (the engine ceases; the count lands).
-    func stopPlayRound() {
-        foldDirector(.playStopped(at: canvasClock.elapsed()))
-    }
-
-    // MARK: The rig's reaction-motion seam (TASK-034 R3)
-
-    /// The Home rig's `reactionMotion` closure (R3): a `@Sendable` sampler
-    /// over the CURRENT director value — static reading under Reduce Motion
-    /// (the RESOLVED flag arrives from `MomoRigView`, which owns the
-    /// environment resolution). The director is captured BY VALUE, so the
-    /// closure never touches the main-actor model and the rig re-renders
-    /// its samples fresh on every fold (reading this method from the view's
-    /// body tracks `director`, re-evaluating `MomoRigView`'s closure with
-    /// the successor value). D-R5 holds: the view calls this one method and
-    /// never touches the director itself.
-    func reactionMotion() -> @Sendable (Double, Bool) -> MomoReactionMotion {
-        let director = self.director
-        return { time, reduceMotion in
-            reduceMotion
-                ? director.reduceMotionOverlay(at: time)
-                : director.overlay(at: time)
-        }
-    }
+    // (The canvas touch entries, the play-round entries, and the rig's
+    // reaction-motion seam live in the same-target
+    // `MomoAppModel+Canvas.swift` extension — TASK-039 R8's split.)
 
     /// Folds ONE presentation event into the director. The frozen `apply`
     /// is a mutating fold over a value type; the successor is built in a
@@ -533,8 +463,11 @@ final class MomoAppModel {
     /// emitted drains out of the director and submits to the engine
     /// EXACTLY ONCE, in emission (causal) order — the drain clears the
     /// log, so a report can never be delivered twice, and reports emitted
-    /// after this drain accumulate for the next one.
-    private func foldDirector(_ event: MomoCharacterEvent) {
+    /// after this drain accumulate for the next one. Internal, not
+    /// private: the same-target canvas extension
+    /// (`MomoAppModel+Canvas.swift`, TASK-039 R8's disclosed extraction)
+    /// folds the touch/play events through it.
+    func foldDirector(_ event: MomoCharacterEvent) {
         var successor = director
         successor.apply(event)
         let emitted = successor.drainReports()
@@ -544,115 +477,9 @@ final class MomoAppModel {
         }
     }
 
-    /// The R7 seam: a reaction's catalog line announced while VoiceOver
-    /// runs — NEVER rendered as body copy (UX-8; 04 §10.1 rule 7). The
-    /// gate (`SpokenReaction`) admits all four react families (touch ·
-    /// feed · play · care — TASK-035's widening), still excluding the
-    /// slots/greetings/vocab/moment classes, and plans without a line
-    /// announce nothing.
-    private func announceSpokenLine(for response: ResponsePlan) {
-        guard let key = SpokenReaction.announcementKey(for: response.lineKey)
-        else { return }
-        announceText(MomoCopyText.render(key))
-    }
-
-    /// The VoiceOver announcement primitive (the UX-8 pattern all
-    /// announcements share): a rendered line posted as an `.announcement`,
-    /// silent when VoiceOver is off. TASK-036 uses it for the M1
-    /// done-state lines and the M2 banner's full line (§5.6: the stage
-    /// moment is never visual-only).
-    private func announceText(_ text: String) {
-        guard UIAccessibility.isVoiceOverRunning else { return }
-        UIAccessibility.post(notification: .announcement, argument: text)
-    }
-
-    // MARK: The quest moments + celebrations (TASK-036)
-
-    /// The M1 flip half (R3): record the quests this application flipped
-    /// to done — the card's flourish memory, latest-wins, cleared by the
-    /// authored 0.6 s task — and speak each completion through the quest
-    /// card's done-state line ("{wish}, done" — the row label's own
-    /// shape, UX §10's words-never-symbols rule).
-    private func recordQuestFlips(_ flips: [QuestID]) {
-        guard !flips.isEmpty else { return }
-        celebratingQuests = flips
-        questFlipTask?.cancel()
-        questFlipTask = Task { await clearQuestFlips() }
-        for questID in flips {
-            announceText("\(MomoCopyText.render(HomeCopyKeys.questWishKey(for: questID))), done")
-        }
-    }
-
-    /// The flip flourish's auto-clear (the authored
-    /// `questFlipFlourishSeconds`); real-time sleep, so it runs under any
-    /// clock. A superseding application cancelled this task before its
-    /// sleep ends — the guard keeps a stale clear from erasing a NEWER
-    /// flip set.
-    private func clearQuestFlips() async {
-        try? await Task.sleep(for: .seconds(Self.questFlipFlourishSeconds))
-        guard !Task.isCancelled else { return }
-        celebratingQuests = []
-    }
-
-    /// The M2 celebration (R4): the banner stage goes visible, its
-    /// authored ~4 s auto-fade is scheduled, and the FULL line
-    /// ("{name} and you are now {Stage}. {descriptor line}.") is announced
-    /// so the stage moment is never visual-only (UX §5.6). A new
-    /// celebration replaces a showing one (the old fade task is
-    /// cancelled first).
-    private func showStageCelebration(_ stage: BondStage) {
-        celebrationTask?.cancel()
-        activeCelebrationStage = stage
-        celebrationTask = Task { await autoFadeCelebration() }
-        announceText(celebrationLine(for: stage))
-    }
-
-    /// The banner's auto-fade: nil the stage after the authored 4.0 s —
-    /// a REAL-TIME sleep (works under any clock; the banner is
-    /// presentation time, not canvas time).
-    private func autoFadeCelebration() async {
-        try? await Task.sleep(for: .seconds(Self.celebrationAutoFadeSeconds))
-        guard !Task.isCancelled else { return }
-        activeCelebrationStage = nil
-    }
-
-    /// UX §5.6: the banner dismisses on tap — the view's one banner
-    /// action, routed here like every other intent (D-R5; never a
-    /// UI-only dismissal).
-    public func dismissCelebration() {
-        celebrationTask?.cancel()
-        celebrationTask = nil
-        activeCelebrationStage = nil
-    }
-
-    /// The M2 banner's full line (UX §5.6's "{name} and you are now
-    /// {Stage}. {descriptor line}."): the FIXED `moment.01` template —
-    /// positional `%1$@`/`%2$@` placeholders keep a localized reordering
-    /// locale-correct — over the pet's name and the catalog stage word,
-    /// then the vocabulary descriptor sentence.
-    public func celebrationLine(for stage: BondStage) -> String {
-        let template = MomoCopyText.render(HomeCopyKeys.celebrationBannerTemplateKey)
-        let stageWord = MomoCopyText.render(HomeCopyKeys.stageNameKey(for: stage))
-        let descriptor = MomoCopyText.render(VocabularyKeys.bondDescriptorKey(for: stage))
-        return String(format: template, state.pet.name, stageWord) + " " + descriptor
-    }
-
-    /// The onboarding completion tap (TASK-032 R5; FR-1 AC-2, FR-13 AC-1):
-    /// mints the final pet identity AT THE TAP (the injected UUID keeps the
-    /// plan core pure and determinism testable) and applies the completion
-    /// trigger — the transformation whose `.persist` step is the atomic
-    /// completion write. The S2 button's disabled state is INV-1's product
-    /// face (whitespace-only names never reach here enabled); a violation
-    /// now is an invariant regression — DEBUG-loud, inert in release (no
-    /// plan applied, nothing persisted, the gate keeps the flow on S2).
-    func completeOnboarding(name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            Self.debugLoud("MomoAppModel: onboarding completion rejected a whitespace-only name")
-            return
-        }
-        Task { await self.apply(trigger: .onboardingCompleted(petID: UUID(), name: trimmed)) }
-    }
+    // (The VoiceOver announcements and the quest-moments/celebrations
+    // machinery live in the same-target `MomoAppModel+Canvas.swift` and
+    // `MomoAppModel+Celebrations.swift` extensions — TASK-039 R8's split.)
 
     // MARK: The settings-extension seams (TASK-038; the disclosed extraction)
 

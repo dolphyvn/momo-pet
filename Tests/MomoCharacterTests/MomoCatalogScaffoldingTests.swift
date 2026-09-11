@@ -15,8 +15,9 @@ import MomoCore
 /// TASK-038 landings
 /// committed to, and pins the contract copy VERBATIM (the touch pool's
 /// AC-5 pattern, extended to TASK-035's care loop, TASK-036's moment
-/// lines, TASK-037's room lines and tab labels, and TASK-038's settings
-/// keys). The catalog carries
+/// lines, TASK-037's room lines and tab labels, TASK-038's settings
+/// keys, and — TASK-039 R1, REVIEW-TASK-033 MINOR-1 — the FULL TASK-033
+/// landing: every slot line, greeting, status word, and wish). The catalog carries
 /// NO placeholder entries since TASK-036
 /// replaced the last one — a future placeholder must re-land its
 /// `.00`-convention pin with itself. (Tone over VALUES is the TASK-010
@@ -301,6 +302,143 @@ struct MomoCatalogScaffoldingTests {
                 "the FR-19 inventory is exactly ten keys")
         let strings = try Self.stringsDictionary()
         for (key, text) in Self.settingsVerbatim {
+            let entry = try #require(
+                strings[key] as? [String: Any],
+                "'\(key)' is missing from the shipped catalog")
+            let localizations = try #require(entry["localizations"] as? [String: Any], "'\(key)' has no localizations")
+            let en = try #require(localizations["en"] as? [String: Any], "'\(key)' has no en localization")
+            let unit = try #require(en["stringUnit"] as? [String: Any], "'\(key)' has no stringUnit")
+            #expect(unit["value"] as? String == text, "'\(key)' must read verbatim: '\(text)'")
+        }
+    }
+
+    // MARK: The TASK-033 landing's verbatim values (TASK-039 R1; REVIEW-TASK-033 MINOR-1)
+
+    /// REVIEW-TASK-033 MINOR-1: the TASK-033 landing shipped 58 values with
+    /// no verbatim VALUE pins — a slot-line rewrite passed every
+    /// catalog-facing test. This table closes that hole: EVERY unpinned
+    /// TASK-033 value, byte-exact against the shipped catalog (values were
+    /// read FROM the catalog file into this table; the pin's point is that
+    /// a future edit fails here). Covered: the 40 time-slot lines (four
+    /// pools × `.00`–`.09`), the 3 return greetings (`.01`–`.03`), the 8
+    /// status words (4 energy + 4 stage, the enumerated fixed lookups), and
+    /// the 7 quest wishes (`q1`–`q7`). The 12 OBS-1 vocab entries are
+    /// pinned kit-side (`VocabularyKeyTests`); the later keyspaces (react
+    /// touch, care moments, quest moments, room, tab, settings) are pinned
+    /// by their own tasks' tables above — NOT duplicated here. The
+    /// apostrophes are U+2019, the ellipsis in `night.00` is U+2026, the
+    /// quest dashes are U+2014 — byte-exact per the catalog convention. NO
+    /// epoch movement: this pin changes no values.
+    private static let landingVerbatim: [(key: String, text: String)] = [
+        ("momo.line.morning.00", "Good morning. Momo just woke up."),
+        ("momo.line.morning.01", "Momo is stretching off the sleep."),
+        ("momo.line.morning.02", "A soft start to the day."),
+        ("momo.line.morning.03", "Momo perked up the moment you arrived."),
+        ("momo.line.morning.04", "Morning light suits Momo."),
+        ("momo.line.morning.05", "Momo was dreaming about breakfast."),
+        ("momo.line.morning.06", "Slow blinks. Momo is glad you're here."),
+        ("momo.line.morning.07", "The day is quiet so far. Momo likes it."),
+        ("momo.line.morning.08", "Momo is doing small morning stretches."),
+        ("momo.line.morning.09", "You two have a whole day ahead."),
+        ("momo.line.day.00", "Momo is watching dust drift in the light."),
+        ("momo.line.day.01", "A calm afternoon. Momo is content."),
+        ("momo.line.day.02", "Momo is dozing with one ear up."),
+        ("momo.line.day.03", "Momo wouldn't mind a little company."),
+        ("momo.line.day.04", "Momo feels like playing, maybe."),
+        ("momo.line.day.05", "Everything is peaceful. Momo approves."),
+        ("momo.line.day.06", "Momo is loafed in a warm spot."),
+        ("momo.line.day.07", "Momo tilts an ear toward you."),
+        ("momo.line.day.08", "A quiet hour. Momo is rested and easy."),
+        ("momo.line.day.09", "Momo is saving energy for the evening."),
+        ("momo.line.evening.00", "The light is going soft. Momo is slowing down."),
+        ("momo.line.evening.01", "Momo is getting sleepy."),
+        ("momo.line.evening.02", "Momo had a good day."),
+        ("momo.line.evening.03", "Momo is winding down beside you."),
+        ("momo.line.evening.04", "A cozy hour. Momo's ears are at half-mast."),
+        ("momo.line.evening.05", "Momo yawned. That's an evening signal."),
+        ("momo.line.evening.06", "Momo wouldn't mind a tuck-in soon."),
+        ("momo.line.evening.07", "The day is settling. So is Momo."),
+        ("momo.line.evening.08", "Momo is curled a little tighter."),
+        ("momo.line.evening.09", "Tonight looks good for an early night."),
+        ("momo.line.night.00", "Shhh… Momo is sleeping."),
+        ("momo.line.night.01", "Momo is curled up, fast asleep."),
+        ("momo.line.night.02", "Momo's ear twitched. Still asleep."),
+        ("momo.line.night.03", "A small snore. Momo is deep in a dream."),
+        ("momo.line.night.04", "Momo sleeps best on quiet nights."),
+        ("momo.line.night.05", "All tucked in. Momo is warm."),
+        ("momo.line.night.06", "Momo stirs, then settles again."),
+        ("momo.line.night.07", "The house is quiet. Momo is resting."),
+        ("momo.line.night.08", "Momo will be ready for morning."),
+        ("momo.line.night.09", "Sweet dreams are in progress."),
+        ("momo.line.greeting.01", "Momo looked up right away."),
+        ("momo.line.greeting.02", "Momo missed you."),
+        ("momo.line.greeting.03", "Momo is up and starting the day."),
+        ("momo.line.status.energy.energetic", "Energetic"),
+        ("momo.line.status.energy.relaxed", "Relaxed"),
+        ("momo.line.status.energy.drowsy", "Drowsy"),
+        ("momo.line.status.energy.exhausted", "Exhausted"),
+        ("momo.line.status.stage.newFriends", "New Friends"),
+        ("momo.line.status.stage.gettingClose", "Getting Close"),
+        ("momo.line.status.stage.bestFriends", "Best Friends"),
+        ("momo.line.status.stage.soulCompanions", "Soul Companions"),
+        ("momo.line.quest.q1", "Morning hello — say hello to Momo"),
+        ("momo.line.quest.q2", "Mealtime — Momo would like a meal"),
+        ("momo.line.quest.q3", "Second helping — Momo is extra hungry today"),
+        ("momo.line.quest.q4", "Playtime — Momo feels like playing"),
+        ("momo.line.quest.q5", "Extra playful — Momo has lots of energy today"),
+        ("momo.line.quest.q6", "Tuck-in — Momo is getting sleepy"),
+        ("momo.line.quest.q7", "Gentle pats — Momo wouldn't mind some pats"),
+    ]
+
+    /// The EXACT key set the landing table must cover: the four slot pools'
+    /// `.00`–`.09` ranges, the greeting pool's `.01`–`.03`, the enumerated
+    /// status cases, and the seven wishes — nothing more, nothing less.
+    private static var landingKeySet: Set<String> {
+        var keys = Set<String>()
+        for band in ["morning", "day", "evening", "night"] {
+            for index in 0...9 {
+                keys.insert("momo.line.\(band).\(String(format: "%02d", index))")
+            }
+        }
+        for index in 1...3 {
+            keys.insert("momo.line.greeting.\(String(format: "%02d", index))")
+        }
+        for band in ["energetic", "relaxed", "drowsy", "exhausted"] {
+            keys.insert("momo.line.status.energy.\(band)")
+        }
+        for band in ["newFriends", "gettingClose", "bestFriends", "soulCompanions"] {
+            keys.insert("momo.line.status.stage.\(band)")
+        }
+        for wish in 1...7 {
+            keys.insert("momo.line.quest.q\(wish)")
+        }
+        return keys
+    }
+
+    @Test("the shipped catalog carries the TASK-033 landing verbatim: 40 slot lines, 3 greetings, 8 status words, 7 wishes (TASK-039 R1)")
+    func catalogCarriesTheTASK033LandingVerbatim() throws {
+        // Non-vacuity: the table is non-empty and covers EXACTLY the four
+        // intended namespaces — the key set equality proves both coverage
+        // (no missing key) and no-scope-creep (no extra key), and the
+        // 40/3/8/7 counts are pinned per class.
+        let tableKeys = Set(Self.landingVerbatim.map(\.key))
+        #expect(!tableKeys.isEmpty, "the landing table must not be empty")
+        #expect(tableKeys == Self.landingKeySet,
+                "the landing table must cover exactly the TASK-033 namespaces (missing: \(Self.landingKeySet.subtracting(tableKeys).sorted()); extra: \(tableKeys.subtracting(Self.landingKeySet).sorted()))")
+        func tableCount(matching pattern: String) -> Int {
+            Self.landingVerbatim.filter {
+                $0.key.range(of: pattern, options: .regularExpression) != nil
+            }.count
+        }
+        let slotPattern = "^momo\\.line\\.(morning|day|evening|night)\\.\\d{2}$"
+        #expect(tableCount(matching: slotPattern) == 40, "the slot pools are ten lines each — 40 in all")
+        #expect(tableCount(matching: "^momo\\.line\\.greeting\\.\\d{2}$") == 3, "the greeting pool is exactly three")
+        #expect(tableCount(matching: "^momo\\.line\\.status\\.") == 8, "the status words are exactly eight")
+        #expect(tableCount(matching: "^momo\\.line\\.quest\\.q[1-7]$") == 7, "the wishes are exactly seven")
+        #expect(Self.landingVerbatim.count == 58, "40 + 3 + 8 + 7 = 58 — the whole TASK-033 landing")
+        // Byte-exact values against the shipped catalog.
+        let strings = try Self.stringsDictionary()
+        for (key, text) in Self.landingVerbatim {
             let entry = try #require(
                 strings[key] as? [String: Any],
                 "'\(key)' is missing from the shipped catalog")

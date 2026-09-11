@@ -11,6 +11,7 @@ import MomoKit
 struct HomeContextualLineView: View {
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// The Home read-model slice this line renders (TASK-033 R1/R2).
     let model: HomeReadModel
@@ -20,11 +21,14 @@ struct HomeContextualLineView: View {
             .font(MomoTypography.body)
             .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
             .multilineTextAlignment(.center)
-            // Two lines, not one: every landed line is a single line at
-            // default type (§5.1's one-line sketch), but the cap lets
-            // accessibility sizes wrap a long line without truncating it
-            // (REVIEW-TASK-033 NITPICK-2).
-            .lineLimit(2)
+            // Two lines, not one, at DEFAULT type: every landed line is a
+            // single line there (§5.1's one-line sketch) and the cap keeps
+            // the composition's height stable (REVIEW-TASK-033 NITPICK-2).
+            // At ACCESSIBILITY type sizes the cap lifts — the composition
+            // is in its scrolling branch (AC-1b), so a long line WRAPS
+            // instead of truncating, remediating the audit's text-clipped
+            // finding for real (TASK-039 R6).
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("home.contextualLine")

@@ -87,7 +87,7 @@ final class MomoOnboardingUITests: XCTestCase {
     func testCompletedStoreLaunchesStraightToHome() {
         let app = freshApp()
         app.launch()
-        walkFlowToHome(app)
+        walkToHome(app)
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
         app.terminate()
         app.launch()
@@ -136,32 +136,8 @@ final class MomoOnboardingUITests: XCTestCase {
 
     // MARK: Helpers
 
-    /// Every test runs against its own throwaway store: a unique relative
-    /// name per launch, resolved by the app against ITS OWN temporary
-    /// directory (the disclosed R13 interpretation — the runner and the
-    /// app-under-test live in different sandboxes, so the app performs the
-    /// resolution). A unique name per test means a fresh store at every
-    /// launch; the restart tests reuse ONE configured app across a
-    /// terminate/relaunch, so their store persists across the kill.
-    private func freshApp() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-momo-store-directory",
-            "momo-onboarding-uitest-\(UUID().uuidString)",
-        ]
-        return app
-    }
-
-    /// Walks S1→S2→S3 with the pre-filled default name and taps Begin.
-    private func walkFlowToHome(_ app: XCUIApplication) {
-        let sayHello = app.buttons["Say hello"]
-        XCTAssertTrue(sayHello.waitForExistence(timeout: 10))
-        sayHello.tap()
-        let continueButton = app.buttons["Continue"]
-        XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
-        continueButton.tap()
-        let begin = app.buttons["Begin"]
-        XCTAssertTrue(begin.waitForExistence(timeout: 10))
-        begin.tap()
-    }
+    // `freshApp` and the shared walk live in `MomoUITestSupport.swift`
+    // (TASK-039 R5's extraction; this suite's former `walkFlowToHome` was
+    // the walk without the landing assertion, and the shared walk asserts
+    // strictly more).
 }
