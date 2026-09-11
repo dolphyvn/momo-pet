@@ -144,10 +144,13 @@ final class MomoAppModel {
 
     /// The Home composition's read-model (TASK-033 R2; UX §5.1): mirrors
     /// `displayState` — the same (state, now, calendar) inputs through
-    /// MomoKit's `makeHomeReadModel`, so the Home view binds through the app
-    /// model and never the engine (D-R5).
+    /// MomoKit's `makeHomeReadModel`, plus TASK-035 R5's in-memory latest
+    /// care moment (the contextual line's top priority), so the Home view
+    /// binds through the app model and never the engine (D-R5).
     var homeReadModel: HomeReadModel {
-        makeHomeReadModel(state, at: clock.now(), calendar: calendar)
+        makeHomeReadModel(
+            state, at: clock.now(), calendar: calendar,
+            latestCareMoment: latestCareMoment)
     }
 
     // MARK: The reaction director (TASK-034; EPIC-006's frozen fold)
@@ -155,12 +158,69 @@ final class MomoAppModel {
     /// The folded reaction director state (04 §4.1's choreography layer):
     /// every `MomoCharacterEvent` the presentation observes — the engine's
     /// plans, the read-model updates, the canvas touch boundaries, the app
-    /// hide/show gates — folds HERE, and the Home rig samples the projection
-    /// through `reactionMotion(at:reduceMotion:)`. The app model is the ONE
+    /// hide/show gates, the play round's early-exit stop (TASK-035 R6) —
+    /// folds HERE, and the Home rig samples the projection through
+    /// `reactionMotion(at:reduceMotion:)`. The app model is the ONE
     /// app-target owner of the fold (D-R5: the view never touches the
     /// director; MomoKit never imports MomoCharacter). Value-typed and
-    /// observable: a fold re-renders the rig on the next frame.
+    /// observable: a fold re-renders the rig on the next frame. Every report
+    /// a fold emits drains into `submit` (TASK-035 R1's exactly-once chain).
     private(set) var director: MomoDirectorState
+
+    // MARK: The play round (TASK-035 R2; UX-3)
+
+    /// Authored cadence of the play round's stillness ticker (TASK-035 R2,
+    /// disclosed): while a round is in flight the app model folds a
+    /// `moving: false` fingertip sample every second, so the director's
+    /// pacer resolves exactly as designed even with no finger on screen
+    /// (UX-3: "passive is fine — Momo performs solo"). The folds are the
+    /// pacer's OWN input vocabulary — §6.3's stillness drives the solo
+    /// wind-down, the payoff, and the `playRoundFinished` report that
+    /// drains into the engine's unified cease.
+    static let playTickerSeconds: Double = 1.0
+
+    /// Authored delay of the quiet "Done" pill after the round's start
+    /// instant (TASK-035 R2, disclosed; 03 §5.3's "~5 s"): inside the
+    /// acceptance band [4.5, 6.0] s.
+    static let donePillDelaySeconds: Double = 5.0
+
+    /// The live stillness-ticker task (nil while no round is in flight).
+    private var playTickerTask: Task<Void, Never>?
+
+    /// The live Done-pill window task (nil while no round is in flight).
+    private var donePillTask: Task<Void, Never>?
+
+    /// Whether the Done-pill window is open (the ~5 s task flipped it; the
+    /// pill itself is `isPlayDonePillVisible`, computed, so it disappears
+    /// when the round ends by ANY path).
+    private(set) var isDonePillWindowOpen = false
+
+    /// The last fingertip offset the play surface streamed (grid units from
+    /// the stage center) — the stillness ticker's solo samples resume from
+    /// it; nil before the first real sample of a round.
+    private var lastPlayFingertipOffset: CGPoint?
+
+    /// Whether a play round is in flight — ENGINE-visible, not a
+    /// presentation guess: the engine sets `activity = .playing` at
+    /// authorization and the unified cease (report-path completion OR
+    /// cancellation) clears it.
+    var isPlayRoundInFlight: Bool { state.state.activity == .playing }
+
+    /// Whether the quiet "Done" pill shows: the round is in flight AND its
+    /// ~5 s window has opened. Computed, so the pill disappears when the
+    /// round ends by any path (Done tap, solo completion, app hide).
+    var isPlayDonePillVisible: Bool { isPlayRoundInFlight && isDonePillWindowOpen }
+
+    // MARK: The care moments (TASK-035 R5)
+
+    /// The latest visual care moment (tuck-in settle / refusal /
+    /// blanket-adjust), tracked in MEMORY ONLY — never persisted, never
+    /// archived: it holds until superseded by a newer care moment or the
+    /// app relaunches (the retention disclosed in the task contract; it
+    /// rides REVIEW-TASK-033 OBSERVATION-A's ambient-visibility owner item).
+    /// The Home contextual line renders its fixed line above greeting and
+    /// ambient (UX-12's priority verbatim).
+    private(set) var latestCareMoment: CareMomentKind?
 
     /// Whether a canvas touch is currently open (the `touchEnded`
     /// idempotence guard — the FIX1-NOTE-1 cancel seam closes the press
@@ -356,6 +416,28 @@ final class MomoAppModel {
         return now
     }
 
+    // MARK: The play round entries (TASK-035 R2; 04 §6.3; UX-3)
+
+    /// The play surface's fingertip sample (§6.3's pacer input): the
+    /// gesture layer converts the touch to GRID units (offset from the
+    /// stage center, y-down) and streams it here while a round is in
+    /// flight — INSTEAD of the touch vocabulary's pat intents. The offset
+    /// is remembered for the stillness ticker's solo samples.
+    func sendFingertip(offset: CGPoint, moving: Bool) {
+        lastPlayFingertipOffset = offset
+        foldDirector(.fingertip(offset: offset, moving: moving, at: canvasClock.elapsed()))
+    }
+
+    /// The quiet "Done" pill's early exit (UX-3; TASK-035 R2→R6): folds the
+    /// ONE stop event into the director, whose exactly-once
+    /// `handshakeCancelled(.play)` drains into the engine (R1) and ceases
+    /// the round there — the unified cease applies the round's effects and
+    /// count exactly once. NOT `.appHidden` (no hide semantics fire), and
+    /// not a local-only dismissal (the engine ceases; the count lands).
+    func stopPlayRound() {
+        foldDirector(.playStopped(at: canvasClock.elapsed()))
+    }
+
     // MARK: The rig's reaction-motion seam (TASK-034 R3)
 
     /// The Home rig's `reactionMotion` closure (R3): a `@Sendable` sampler
@@ -379,19 +461,27 @@ final class MomoAppModel {
     /// Folds ONE presentation event into the director. The frozen `apply`
     /// is a mutating fold over a value type; the successor is built in a
     /// local copy and stored wholesale — the observable property changes
-    /// once per event, never mid-fold.
+    /// once per event, never mid-fold. TASK-035 R1: every report the fold
+    /// emitted drains out of the director and submits to the engine
+    /// EXACTLY ONCE, in emission (causal) order — the drain clears the
+    /// log, so a report can never be delivered twice, and reports emitted
+    /// after this drain accumulate for the next one.
     private func foldDirector(_ event: MomoCharacterEvent) {
         var successor = director
         successor.apply(event)
+        let emitted = successor.drainReports()
         director = successor
+        for entry in emitted {
+            submit(entry.report)
+        }
     }
 
-    /// The R7 seam: a touch reaction's catalog line announced while
-    /// VoiceOver runs — NEVER rendered as body copy (UX-8; 04 §10.1
-    /// rule 7). The prefix gate (`SpokenReaction`) admits only
-    /// `momo.line.react.touch.*`, so the feed/play/care pools stay silent
-    /// until their own tasks land their real lines, and plans without a
-    /// line announce nothing.
+    /// The R7 seam: a reaction's catalog line announced while VoiceOver
+    /// runs — NEVER rendered as body copy (UX-8; 04 §10.1 rule 7). The
+    /// gate (`SpokenReaction`) admits all four react families (touch ·
+    /// feed · play · care — TASK-035's widening), still excluding the
+    /// slots/greetings/vocab/moment classes, and plans without a line
+    /// announce nothing.
     private func announceSpokenLine(for response: ResponsePlan) {
         guard UIAccessibility.isVoiceOverRunning,
               let key = SpokenReaction.announcementKey(for: response.lineKey)
@@ -458,12 +548,18 @@ final class MomoAppModel {
             case .deliverResponse(let response):
                 // TASK-034: the engine's plan folds into the director —
                 // the §6.1 clip the rig then plays through
-                // `reactionMotion(at:reduceMotion:)` — and the touch
-                // pool's spoken line is announced under VoiceOver (R7/
-                // UX-8, accessibility-only; the prefix gate admits
-                // `momo.line.react.touch.*` keys alone).
+                // `reactionMotion(at:reduceMotion:)` — and the reaction's
+                // spoken line is announced under VoiceOver (R7/UX-8,
+                // accessibility-only; TASK-035 widened the gate to all
+                // four react families). TASK-035 R5: a visual care moment
+                // (tuck-in settle / refusal / blanket-adjust) records as
+                // the contextual line's top-priority line — memory only,
+                // held until a newer care moment supersedes it.
                 foldDirector(.plan(response, at: canvasClock.elapsed()))
                 announceSpokenLine(for: response)
+                if let moment = CareMoment.classify(response: response, state: state) {
+                    latestCareMoment = moment
+                }
                 deliverResponse?(response)
             case .deliverMoments(let moments):
                 deliverMoments?(moments)
@@ -474,6 +570,63 @@ final class MomoAppModel {
                 break
             }
         }
+        // TASK-035 R2: reconcile the play round's presentation machinery
+        // with the (possibly changed) engine state — the ticker and the
+        // Done-pill window live exactly while a round is in flight.
+        reconcilePlayPresentation()
+    }
+
+    // MARK: The play round machinery (TASK-035 R2)
+
+    /// Aligns the stillness ticker and the Done-pill window with the
+    /// engine's round-in-flight truth: both start together at the round's
+    /// start (the authorization's state application lands here) and both
+    /// stop when the round ends by ANY path — the Done tap, a solo
+    /// completion, an app-hide cancellation, a tuck-in preemption.
+    private func reconcilePlayPresentation() {
+        if isPlayRoundInFlight {
+            guard playTickerTask == nil else { return }
+            lastPlayFingertipOffset = nil
+            isDonePillWindowOpen = false
+            playTickerTask = Task { await runPlayTicker() }
+            donePillTask = Task { await openDonePillWindow() }
+        } else {
+            playTickerTask?.cancel()
+            playTickerTask = nil
+            donePillTask?.cancel()
+            donePillTask = nil
+            isDonePillWindowOpen = false
+            lastPlayFingertipOffset = nil
+        }
+    }
+
+    /// The stillness ticker: while the round is in flight, folds a
+    /// `moving: false` fingertip sample every second (the authored
+    /// `playTickerSeconds`), resuming from the last real fingertip offset.
+    /// This is what lets a passive round complete — the pacer reads the
+    /// stillness, resolves the solo wind-down, plays the payoff, and
+    /// reports `playRoundFinished`, which drains into the engine's unified
+    /// cease and ends the round (this loop's own exit, via the reconcile).
+    private func runPlayTicker() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(Self.playTickerSeconds))
+            guard !Task.isCancelled else { return }
+            guard isPlayRoundInFlight else { return }
+            foldDirector(.fingertip(
+                offset: lastPlayFingertipOffset ?? .zero,
+                moving: false,
+                at: canvasClock.elapsed()))
+        }
+    }
+
+    /// The Done-pill window: ~5 s (the authored `donePillDelaySeconds`,
+    /// 03 §5.3's "~5 s") after the round's start the window opens and the
+    /// pill becomes visible. Real-time sleep — works under any clock. The
+    /// window never opens for an already-ended round.
+    private func openDonePillWindow() async {
+        try? await Task.sleep(for: .seconds(Self.donePillDelaySeconds))
+        guard !Task.isCancelled, isPlayRoundInFlight else { return }
+        isDonePillWindowOpen = true
     }
 
     // MARK: Scheduling (§4.2 — see the type header's mechanism resolution)

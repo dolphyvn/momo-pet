@@ -344,6 +344,91 @@ struct MomoHandshakeTests {
             matching: ReactionFixtures.playRound, in: shown).isEmpty)
     }
 
+    /// TASK-035 R6: the Done pill's `.playStopped` rides the SAME
+    /// displacement-cancel machinery as hide — the round's report is the
+    /// exactly-once `handshakeCancelled(.play)`, the slot empties (no
+    /// fading remnant), and the underlying state shows through.
+    @Test("The Done stop cancels a running round exactly once (same machinery as hide)")
+    func playStoppedByDone() {
+        let state = ReactionFixtures.fold([
+            ReactionFixtures.plan(ReactionKeys.playReady, at: 1.0),
+            .fingertip(offset: CGPoint(x: 40, y: 0), moving: true, at: 3.5),
+            .playStopped(at: 6.0),
+        ])
+        let cancels = ReactionFixtures.reports(
+            matching: ReactionFixtures.playCancelled, in: state)
+        #expect(cancels.count == 1)
+        #expect(cancels.first?.at == 6.0)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playRound, in: state).isEmpty)
+        // The slot is empty and clean: the pet renders its underlying
+        // state with no fading remnant of the round.
+        #expect(state.stateLayer == nil)
+        #expect(state.overlay(at: 7.0) == .identity)
+    }
+
+    @Test("A stop with no round in flight is a tolerated no-op")
+    func playStoppedWithoutRound() {
+        // Bare stop on an idle pet: nothing reports, nothing renders.
+        let idle = ReactionFixtures.fold([.playStopped(at: 1.0)])
+        #expect(idle.reports.isEmpty)
+        #expect(idle.overlay(at: 2.0) == .identity)
+        // A stop against a CLIP (an L3 reaction owns the slot) never
+        // touches it: no cancel is reported, and the tap completes on its
+        // own clock.
+        let withClip = ReactionFixtures.fold([
+            ReactionFixtures.plan(ReactionKeys.tapHead, at: 1.0),
+            .playStopped(at: 1.5),
+        ])
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playCancelled, in: withClip
+        ).isEmpty)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.finished(ReactionKeys.tapHead),
+            in: withClip
+        ).count == 1)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.finished(ReactionKeys.tapHead),
+            in: ReactionFixtures.fold(
+                [.displayState(ReactionFixtures.content, at: 5.0)], into: withClip)
+        ).count == 1)
+    }
+
+    @Test("A stop after the round already resolved reports nothing new")
+    func playStoppedAfterResolution() {
+        let resolved = ReactionFixtures.fold([
+            ReactionFixtures.plan(ReactionKeys.playReady, at: 1.0),
+            .displayState(ReactionFixtures.content, at: 30.0),
+        ])
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playRound, in: resolved).count == 1)
+        // The late Done tap (round long gone) is a no-op: no cancel, no
+        // second completion.
+        let late = ReactionFixtures.fold(
+            [.playStopped(at: 40.0)], into: resolved)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playRound, in: late).count == 1)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playCancelled, in: late).isEmpty)
+    }
+
+    @Test("A stop never cancels a settle (the play-only seam)")
+    func playStoppedNeverCancelsSettle() {
+        let state = ReactionFixtures.fold([
+            ReactionFixtures.plan(ReactionKeys.settling, at: 1.0),
+            .playStopped(at: 2.0),
+            .displayState(ReactionFixtures.content, at: 9.0),
+        ])
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.playCancelled, in: state).isEmpty)
+        #expect(ReactionFixtures.reports(
+            matching: ReactionFixtures.settleCancelled, in: state).isEmpty)
+        let finishes = ReactionFixtures.reports(
+            matching: ReactionFixtures.settleFinished, in: state)
+        #expect(finishes.count == 1)
+        #expect(abs(finishes.first!.at - 4.0) < 1e-9)
+    }
+
     /// The invite is the round's phase 1 and shares its motion with the
     /// `react.playReady` clip (§6.3).
     @Test("The play invite is 2.4 s of ears-and-tail perk (two-group cap)")

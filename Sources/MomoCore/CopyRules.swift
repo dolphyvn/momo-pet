@@ -23,16 +23,20 @@ import Foundation
 ///   night plus "the engine subdivides the complement" is the whole
 ///   normative text; the hour numbers are TASK-019's tunable.
 /// - **Pool counts** (04 §10.4's line classes; TASK-011's catalog seed, the
-///   TASK-033 catalog landing, TASK-034's touch pool): the four TIME slots
-///   carry their real pools — ten 0-based lines each (04 §10.3's ten
-///   morning/day/evening/night lines) since TASK-033 landed the catalog —
-///   and since TASK-034 the `touch` react family carries its real pool of
-///   five (the §6.1 touch reactions' spoken lines, UX-8). The remaining
-///   react families and the two CONTEXT slots (`greeting` pools its return
-///   lines at the fixed indices 01–03; `care-moment` waits for TASK-035)
-///   stay at the placeholder count of 1 for now. The bump obligation is
-///   §4.10's: **a catalog change ⇒ bump the copy epoch** (`copyEpoch`), so
-///   every day-stable pick resalts and the mapping stays auditable.
+///   TASK-033 catalog landing, TASK-034's touch pool, TASK-035's care-loop
+///   pools): the four TIME slots carry their real pools — ten 0-based lines
+///   each (04 §10.3's ten morning/day/evening/night lines) since TASK-033
+///   landed the catalog — since TASK-034 the `touch` react family carries
+///   its real pool of five (the §6.1 touch reactions' spoken lines, UX-8),
+///   and since TASK-035 the `feed`/`play`/`care` react families carry their
+///   real pools of six each (the six authored spoken lines per family). The
+///   two CONTEXT slots keep their context-era counts: `greeting` pools its
+///   return lines at the fixed indices 01–03, and `care-moment` is a FIXED
+///   lookup by moment kind at 01–03 (TASK-035's contract adjudication, OBS-D
+///   precedent — a fixed lookup is not a "selection", so neither is drawn
+///   through `slotLineCount`). The bump obligation is §4.10's: **a catalog
+///   change ⇒ bump the copy epoch** (`copyEpoch`), so every day-stable pick
+///   resalts and the mapping stays auditable.
 /// - **Indexing truth (TASK-033):** the picker (`LineSelection.pick` /
 ///   `slotLineKey`) is ZERO-BASED and formats its index `%02d` — the
 ///   placeholder-era "index 00 is reserved for placeholders, real pools
@@ -43,20 +47,22 @@ import Foundation
 ///   fixed lookup starts at `01` for its own catalog-order reasons
 ///   (`HomeCopyKeys.greetingLineKey`).
 /// - **Epoch discipline** (05 §4.10, mirroring `QuestGeneration.currentEpoch`):
-///   `3` is the current copy-selection epoch (bumped from 1 by TASK-033's
-///   catalog landing and from 2 by TASK-034's touch pool, §4.10's
-///   obligation); `0` is the pre-selection placeholder marker. The epoch
-///   flows into every `DaySeed` the selection derives (`.copy` salt) —
-///   changing it reshuffles every pick.
+///   `4` is the current copy-selection epoch (bumped from 1 by TASK-033's
+///   catalog landing, from 2 by TASK-034's touch pool, and from 3 by
+///   TASK-035's feed/play/care pools, §4.10's obligation); `0` is the
+///   pre-selection placeholder marker. The epoch flows into every `DaySeed`
+///   the selection derives (`.copy` salt) — changing it reshuffles every
+///   pick.
 public enum CopyRules {
 
     /// The current copy-selection epoch (05 §4.10's salt-epoch semantics;
     /// engine-owned). `0` is the pre-selection placeholder marker. Changing
     /// it resalts every day's copy seed (via the `DaySeed.make` derivation)
-    /// and reshuffles every line pick. `3` — TASK-034's touch-pool landing
-    /// (the five §6.1 spoken touch lines replaced the touch placeholder,
-    /// §4.10's bump; epoch 2 was TASK-033's 40-line slot catalog).
-    public static let copyEpoch: Int = 3
+    /// and reshuffles every line pick. `4` — TASK-035's feed/play/care pool
+    /// landing (the six authored spoken lines per family replaced their
+    /// placeholders, §4.10's bump; epoch 3 was TASK-034's touch pool, epoch
+    /// 2 TASK-033's 40-line slot catalog).
+    public static let copyEpoch: Int = 4
 
     // MARK: Time slots (04 §10.4; D11)
 
@@ -126,22 +132,24 @@ public enum CopyRules {
 
     /// The react-line pool size for `family`: 5 for `touch` (TASK-034's
     /// §6.1 spoken touch lines — indices `00`–`04` under the 0-based
-    /// picker); 1 in the placeholder era for the remaining families (the
-    /// single index-`00` catalog entry; real pools land EPIC-006/007 — and
-    /// a catalog change bumps `copyEpoch` per §4.10). Explicit per-family
-    /// input so tests exercise real variation with synthetic sizes.
+    /// picker); 6 for `feed`/`play`/`care` (TASK-035's six authored spoken
+    /// lines per family — indices `00`–`05`; a catalog change bumps
+    /// `copyEpoch` per §4.10). Explicit per-family input so tests exercise
+    /// real variation with synthetic sizes.
     public static func reactLineCount(for family: ReactFamily) -> Int {
         switch family {
         case .touch: return 5
-        case .feed, .play, .care: return 1
+        case .feed, .play, .care: return 6
         }
     }
 
     /// The slot-line pool size for `slot`: 10 for the four TIME slots (04
     /// §10.3's ten lines each, landed by TASK-033's catalog — indices
     /// `00`–`09` under the 0-based picker); 1 for the CONTEXT slots (the
-    /// keyspace stays uniform; `greeting` is drawn at fixed indices 01–03,
-    /// never through this count, and `care-moment` waits for TASK-035).
+    /// keyspace stays uniform; neither is drawn through this count —
+    /// `greeting` resolves at fixed indices 01–03, and `care-moment` is a
+    /// fixed lookup by moment kind at 01–03, TASK-035's contract
+    /// adjudication).
     public static func slotLineCount(for slot: LineSlot) -> Int {
         switch slot {
         case .morning, .day, .evening, .night:

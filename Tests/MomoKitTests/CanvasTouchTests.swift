@@ -140,27 +140,33 @@ struct CanvasTouchTests {
 
     // MARK: The announcement gate (UX-8 — R7)
 
-    @Test("the gate admits the touch pool's keys — including the REAL selected one — and refuses every other family")
+    @Test("the gate admits all four react families' keys — including the REAL selected touch one — and refuses every non-react class")
     func announcementGate() {
         let selected = LineSelection.reactLineKey(
             petID: AppModelFixture.petID,
             dayKey: "2026-09-08",
             family: .touch
         )
-        #expect(selected == "momo.line.react.touch.02", "the fixture (petID, day) at the current epoch draws .02")
+        #expect(selected == "momo.line.react.touch.02", "the fixture (petID, day) at the current epoch draws .02 (the epoch-4 resalt keeps the touch residue)")
         #expect(SpokenReaction.announcementKey(for: selected) == selected)
 
         #expect(SpokenReaction.announcementKey(for: "momo.line.react.touch.00") == "momo.line.react.touch.00")
-        #expect(SpokenReaction.announcementKey(for: "momo.line.react.feed.00") == nil,
-                "the feed pool is a later task's surface")
-        #expect(SpokenReaction.announcementKey(for: "momo.line.react.play.00") == nil)
-        #expect(SpokenReaction.announcementKey(for: "momo.line.react.care.00") == nil)
+        #expect(SpokenReaction.announcementKey(for: "momo.line.react.feed.00") == "momo.line.react.feed.00",
+                "TASK-035 R7 widens the gate to every react family")
+        #expect(SpokenReaction.announcementKey(for: "momo.line.react.play.05") == "momo.line.react.play.05")
+        #expect(SpokenReaction.announcementKey(for: "momo.line.react.care.03") == "momo.line.react.care.03")
         #expect(SpokenReaction.announcementKey(for: "momo.line.day.02") == nil,
                 "visual body-copy keys are never announced by this seam")
+        #expect(SpokenReaction.announcementKey(for: "momo.line.care-moment.01") == nil,
+                "the care-moment VISUAL class is not a react key")
+        #expect(SpokenReaction.announcementKey(for: "momo.line.morning.07") == nil,
+                "the ambient slots stay out")
         #expect(SpokenReaction.announcementKey(for: nil) == nil,
                 "plans without a line announce nothing")
         #expect(SpokenReaction.announcementKey(for: "momo.line.react.touchX.00") == nil,
                 "the prefix includes the family's trailing dot")
+        #expect(SpokenReaction.announcementKey(for: "momo.line.reactx.touch.00") == nil,
+                "the react prefix carries the trailing dot — lookalike namespaces stay out")
     }
 
     // MARK: The laws' raw pins (the anti-echo exception)
@@ -172,6 +178,9 @@ struct CanvasTouchTests {
         #expect(CanvasTouchLaws.strokeMovementGrid == 60, "presentation-owned: the stroke movement threshold")
         #expect(CanvasTouchLaws.longPressMinimumSeconds == 0.5, "presentation-owned: the long-press hold floor")
         #expect(CanvasTouchLaws.doubleTapWindowSeconds == 0.35, "presentation-owned: the double-tap window")
-        #expect(CanvasTouchLaws.spokenTouchPrefix == "momo.line.react.touch.", "the UX-8 gate's namespace")
+        #expect(CanvasTouchLaws.spokenTouchPrefix == "momo.line.react.touch.", "the UX-8 gate's touch-family namespace")
+        #expect(CanvasTouchLaws.spokenReactPrefix == "momo.line.react.", "TASK-035 R7's widened gate namespace")
+        #expect(CanvasTouchLaws.spokenFamilies == ["touch", "feed", "play", "care"],
+                "the gate's family table mirrors CopyRules.ReactFamily's raw values")
     }
 }

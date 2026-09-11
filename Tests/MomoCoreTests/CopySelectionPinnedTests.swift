@@ -22,17 +22,21 @@ struct CopySelectionPinnedTests {
     private let petID = UUID(uuidString: "7C47A9C4-2E5F-4B8A-9C1D-3E6F8A2B4C0D")!
     private let day = "2026-09-08"
 
-    // MARK: The epoch + pool counts (TASK-033's slot catalog; TASK-034's touch pool)
+    // MARK: The epoch + pool counts (TASK-033's slot catalog; TASK-034's touch pool; TASK-035's feed/play/care pools)
 
-    @Test("the current copy-selection epoch is 3 (0 is the pre-selection placeholder marker; 1 the placeholder era, 2 the TASK-033 slot catalog)")
-    func copyEpochIsThree() {
-        #expect(CopyRules.copyEpoch == 3)
+    @Test("the current copy-selection epoch is 4 (0 is the pre-selection placeholder marker; 1 the placeholder era, 2 the TASK-033 slot catalog, 3 the TASK-034 touch pool, 4 the TASK-035 feed/play/care pools)")
+    func copyEpochIsFour() {
+        #expect(CopyRules.copyEpoch == 4)
     }
 
-    @Test("the pool counts: ten lines per time slot (TASK-033's catalog), five for touch (TASK-034's pool), 1 for the other react families and context slots")
+    @Test("the pool counts: ten lines per time slot (TASK-033's catalog), five for touch (TASK-034's pool), six for feed/play/care (TASK-035's pools), 1 for the context slots")
     func poolCountsPinned() {
         for family in CopyRules.ReactFamily.allCases {
-            let expected = family == .touch ? 5 : 1
+            let expected: Int
+            switch family {
+            case .touch: expected = 5
+            case .feed, .play, .care: expected = 6
+            }
             #expect(CopyRules.reactLineCount(for: family) == expected, "\(family)'s react pool drifted — a catalog change bumps the copy epoch with it (§4.10)")
         }
         for slot in CopyRules.LineSlot.allCases {
@@ -83,28 +87,30 @@ struct CopySelectionPinnedTests {
         #expect(CopyRules.ReactFamily.allCases.map(\.rawValue) == ["touch", "feed", "play", "care"])
     }
 
-    // MARK: The full-key literals (template + the epoch-3 draw)
+    // MARK: The full-key literals (template + the epoch-4 draw)
 
-    /// The full keys for one (pet, day): at epoch 3 the draw (derived by
-    /// the TASK-034 probe, run-then-deleted — seed `0x13ec67b5bdf1e2f7`,
-    /// draw `0xdc227781a4980eaa`) keeps index `02` over the ten-line TIME
-    /// slots (the SAME residue as epoch 2 — REVIEW-TASK-033 NOTE-2's
-    /// same-residue caveat, now the operative law) and draws index `02`
-    /// over TASK-034's five-line touch pool (`0xdc227781a4980eaa % 5`),
-    /// while every still-placeholder pool (the other react families,
-    /// greeting, care-moment) stays at `00` — its pool of 1 can only mint
-    /// the zero index. A pool bump, a draw-moving epoch bump, or a template
+    /// The full keys for one (pet, day): at epoch 4 the draw (derived by
+    /// the TASK-035 probe, run-then-deleted — seed `0xda4187ce48ff0bb7`,
+    /// draw `0xfdb4bc3ce6f541d3`) lands index `07` over the ten-line TIME
+    /// slots (`0xfdb4bc3ce6f541d3 % 10` — the epoch bump's designed
+    /// reshuffle, §4.10), KEEPS index `02` over TASK-034's five-line touch
+    /// pool (`% 5` — the residue survived the resalt), and draws index `01`
+    /// over TASK-035's six-line feed/play/care pools (`% 6`), while the
+    /// context slots (greeting, care-moment) stay at `00` — their pool of 1
+    /// can only mint the zero index (care-moment's real lines resolve by
+    /// the FIXED `HomeCopyKeys.careMomentLineKey` lookup, never through
+    /// this draw). A pool bump, a draw-moving epoch bump, or a template
     /// change fails here with the exact key attributed.
-    @Test("the raw keys for the pinned (pet, day): epoch 3 draws .02 in the ten-line slots AND the touch pool, .00 in the placeholder pools")
+    @Test("the raw keys for the pinned (pet, day): epoch 4 draws .07 in the ten-line slots, keeps .02 in the touch pool, draws .01 in the feed/play/care pools, .00 in the context slots")
     func rawKeysPinned() {
         #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .touch) == "momo.line.react.touch.02")
-        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .feed) == "momo.line.react.feed.00")
-        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .play) == "momo.line.react.play.00")
-        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .care) == "momo.line.react.care.00")
-        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .morning) == "momo.line.morning.02")
-        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .day) == "momo.line.day.02")
-        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .evening) == "momo.line.evening.02")
-        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .night) == "momo.line.night.02")
+        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .feed) == "momo.line.react.feed.01")
+        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .play) == "momo.line.react.play.01")
+        #expect(LineSelection.reactLineKey(petID: petID, dayKey: day, family: .care) == "momo.line.react.care.01")
+        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .morning) == "momo.line.morning.07")
+        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .day) == "momo.line.day.07")
+        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .evening) == "momo.line.evening.07")
+        #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .night) == "momo.line.night.07")
         #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .greeting) == "momo.line.greeting.00")
         #expect(LineSelection.slotLineKey(petID: petID, dayKey: day, slot: .careMoment) == "momo.line.care-moment.00")
     }

@@ -147,6 +147,56 @@ enum RigDiscipline {
         source.contains("reactionMotion: appModel.reactionMotion()")
     }
 
+    // MARK: - TASK-035 R9: the care loop's four structural wires
+    // (the F-1 rule again: headless suites cannot see a view wire)
+
+    /// (a) The report drain: the app model's director fold must drain the
+    /// successor's reports and submit each one — the exactly-once bridge
+    /// from the pure director to the engine (R1). A fold that applies but
+    /// never submits (or submits the PRE-fold state's reports, double-
+    /// delivering) fails the shape.
+    static func mentionsReportDrain(in source: String) -> Bool {
+        source.contains("successor.drainReports()") &&
+        source.contains("submit(entry.report)")
+    }
+
+    /// (b) The play surface: the canvas gesture layer must gate on the
+    /// round being in flight and route to the app model's fingertip
+    /// stream there (R2) — a drag during a round never dispatches a pat
+    /// intent. Absent either half (no gate, or no stream), the check
+    /// fails.
+    static func mentionsPlayFingertipSurface(in source: String) -> Bool {
+        source.contains("appModel.isPlayRoundInFlight") &&
+        source.contains("appModel.sendFingertip(offset:")
+    }
+
+    /// (c) The Done pill: the quiet pill must exist under its layout
+    /// identity AND route its tap through the app model's stop event (R6)
+    /// — never a UI-only dismissal, never an `.appHidden` stand-in.
+    static func mentionsDonePillStopWire(in source: String) -> Bool {
+        source.contains("home.playDonePill") &&
+        source.contains("appModel.stopPlayRound()")
+    }
+
+    /// (d) The stillness ticker (REVIEW-TASK-035 F-1): while a round is in
+    /// flight the app model folds a `moving: false` fingertip sample every
+    /// authored second — the passive round's ONLY fold source, and the
+    /// thing that advances the solo pacer to its payoff and
+    /// `playRoundFinished` report (R2). Display-state folds are
+    /// edge-gated, so a finger-less round never completes without it:
+    /// delete or disconnect any leg and every suite stays green while no
+    /// solo round ever auto-ends. Each leg names one breakage shape — the
+    /// authored cadence constant (ticker deleted), the sleep that reads it
+    /// (cadence decoupled to a literal), the stillness payload folded
+    /// into the director (fold disconnected from the event path), and the
+    /// reconcile's start wire (gating broken — never started).
+    static func mentionsPlayStillnessTicker(in source: String) -> Bool {
+        source.contains("static let playTickerSeconds") &&
+        source.contains("Task.sleep(for: .seconds(Self.playTickerSeconds))") &&
+        source.contains("moving: false,") &&
+        source.contains("playTickerTask = Task { await runPlayTicker() }")
+    }
+
     // MARK: - File access
 
     static func readRigFile(_ name: String) throws -> String {
@@ -332,6 +382,71 @@ struct RigDisciplineTests {
                 clock: clock,
                 stageSide: 260
             )
+            """))
+    }
+
+    // MARK: - TASK-035 R9: the care loop's four structural wires
+
+    @Test("The app model drains the director's reports into the engine (R1 wire pin)")
+    func appModelDrainsReports() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        #expect(RigDiscipline.mentionsReportDrain(in: source))
+
+        // Non-vacuity: a fold that applies but never drains fails — the
+        // reports would silently vanish (and the exactly-once bridge with
+        // them).
+        #expect(!RigDiscipline.mentionsReportDrain(in: """
+            var successor = director
+            successor.apply(event)
+            director = successor
+            """))
+    }
+
+    @Test("The in-flight-play drag branch streams fingertips (R2 wire pin)")
+    func playSurfaceStreamsFingertips() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/HomeCanvasTouchLayer.swift")
+        #expect(RigDiscipline.mentionsPlayFingertipSurface(in: source))
+
+        // Non-vacuity: a gesture layer without the gate (or without the
+        // stream) fails — the TASK-034 shape where every drag classifies.
+        #expect(!RigDiscipline.mentionsPlayFingertipSurface(in: """
+            .onChanged { value in
+                guard !touchIsDown else { noteMovement(value); return }
+                touchIsDown = true
+                downStamp = appModel.touchBegan(zone: zone(at: value.startLocation))
+            }
+            """))
+    }
+
+    @Test("The Done pill routes the stop event through the app model (R6 wire pin)")
+    func donePillRoutesStop() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/HomeView.swift")
+        #expect(RigDiscipline.mentionsDonePillStopWire(in: source))
+
+        // Non-vacuity: a pill that exists but dismisses LOCALLY (no stop
+        // route) fails the shape — the lie R6 forbids.
+        #expect(!RigDiscipline.mentionsDonePillStopWire(in: """
+            Button { isPillShown = false } label: { Text("Done") }
+                .accessibilityIdentifier("home.playDonePill")
+            """))
+    }
+
+    @Test("The passive round's stillness ticker folds on the authored cadence (R2 wire pin)")
+    func playStillnessTickerDrivesTheSoloRound() throws {
+        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        #expect(RigDiscipline.mentionsPlayStillnessTicker(in: source))
+
+        // Non-vacuity: the F-1 shape — a loop that still sleeps on the
+        // authored cadence but never folds the stillness sample into the
+        // director and is never started. Every suite stays green (the
+        // solo pacer simply never advances), so the guard must fail it.
+        #expect(!RigDiscipline.mentionsPlayStillnessTicker(in: """
+            private func runPlayTicker() async {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(Self.playTickerSeconds))
+                    lastPlayFingertipOffset = nil
+                }
+            }
             """))
     }
 

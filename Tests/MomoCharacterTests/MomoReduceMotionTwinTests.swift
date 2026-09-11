@@ -156,6 +156,21 @@ struct MomoReduceMotionTwinTests {
         .displayState(ReactionFixtures.content, at: 10),
     ]
 
+    /// TASK-035 R6: a Done-stop mid-round (invite → input → stop), plus
+    /// the stop's no-op twin — a running SETTLE the play-only stop must
+    /// leave untouched.
+    private static let playStop: [MomoCharacterEvent] = [
+        ReactionFixtures.plan(ReactionKeys.playReady, at: 1.0),
+        .fingertip(offset: CGPoint(x: 30, y: -10), moving: true, at: 2.0),
+        .playStopped(at: 4.0),
+        .displayState(ReactionFixtures.content, at: 30),
+    ]
+    private static let playStopNoRound: [MomoCharacterEvent] = [
+        ReactionFixtures.plan(ReactionKeys.settling, at: 1.0),
+        .playStopped(at: 2.0),
+        .displayState(ReactionFixtures.content, at: 10),
+    ]
+
     /// Long-press holds swept across the input-length band: the end pose
     /// (and thus the RM render) tracks the resolved hold.
     private static func holdSweep(_ hold: Double) -> [MomoCharacterEvent] {
@@ -179,6 +194,7 @@ struct MomoReduceMotionTwinTests {
         case .appShown(let at): at
         case .displayState(_, let at): at
         case .plan(_, let at): at
+        case .playStopped(let at): at
         }
     }
 
@@ -262,6 +278,12 @@ struct MomoReduceMotionTwinTests {
         twinCheck(Self.pacerNoRest, visibility: .mustDiffer)
         twinCheck(Self.pacerRest, visibility: .mustDiffer)
         twinCheck(Self.pacerDrowsy, visibility: .mustDiffer)
+    }
+
+    @Test("Twin law: the Done-stop stream folds identically and renders RM-visibly")
+    func playStopTwins() {
+        twinCheck(Self.playStop, visibility: .mustDiffer)
+        twinCheck(Self.playStopNoRound, visibility: .mustDiffer)
     }
 
     @Test("Twin law: a press-only stream is flag-INVARIANT (R4's static glance)")

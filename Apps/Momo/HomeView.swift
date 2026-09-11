@@ -97,6 +97,34 @@ struct HomeView: View {
         .accessibilityLabel(model.petName)
         .accessibilityIdentifier("home.canvas")
         .accessibilityActions { canvasCustomActions }
+        .overlay { playDonePill }
+    }
+
+    /// TASK-035 R2: the play round's quiet "Done" pill. It opens with the
+    /// app model's done-pill window (~5 s after the round starts — the
+    /// authored delay) and ANY round end closes it (the visibility is
+    /// derived from the round being in flight, so a pacer-resolved round
+    /// never leaves a stale pill). The tap routes the R6 `playStopped`
+    /// event through the app model — never a UI-only dismissal, never an
+    /// `.appHidden` stand-in. The overlay sits OUTSIDE the canvas's
+    /// flattened accessibility element so VoiceOver keeps a separate,
+    /// tappable "Done" button over the canvas.
+    @ViewBuilder
+    private var playDonePill: some View {
+        if appModel.isPlayDonePillVisible {
+            Button {
+                appModel.stopPlayRound()
+            } label: {
+                Text("Done")
+                    .font(.subheadline.weight(.medium))
+            }
+            .padding(.horizontal, MomoSpacing.medium)
+            .padding(.vertical, MomoSpacing.small)
+            .background(.thinMaterial, in: Capsule())
+            .accessibilityIdentifier("home.playDonePill")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, MomoSpacing.medium)
+        }
     }
 
     /// TASK-034 R6: the canvas's VoiceOver custom actions — the touch

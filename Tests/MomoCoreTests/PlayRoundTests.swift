@@ -21,7 +21,7 @@ struct PlayRoundTests {
     func authorizationMintsAndSets() {
         let start = fixture.state(dayKey: day, lastEvaluatedAt: fixture.instant(t))
         let outcome = fixture.send(start, .play, at: fixture.instant(t), dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.playReady, lineKey: "momo.line.react.play.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.playReady, lineKey: "momo.line.react.play.01", haptic: nil))
         #expect(outcome.newState.state.activity == .playing)
         #expect(outcome.newState.state.wakefulness == .awake) // play never moves wakefulness
         let pending = outcome.newState.pendingHandshake
@@ -35,7 +35,7 @@ struct PlayRoundTests {
     func drowsyRoundAuthorized() {
         let start = fixture.state(dayKey: day, energy: 30, lastEvaluatedAt: fixture.instant(t))
         let outcome = fixture.send(start, .play, at: fixture.instant(t), dayKey: day)
-        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.playReady, lineKey: "momo.line.react.play.00", haptic: nil))
+        #expect(outcome.response == ResponsePlan(reaction: ReactionKeys.playReady, lineKey: "momo.line.react.play.01", haptic: nil))
         #expect(outcome.newState.state.activity == .playing)
         #expect(outcome.newState.pendingHandshake?.kind == .play)
     }

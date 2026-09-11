@@ -333,6 +333,7 @@ struct MomoReactionDirectorTests {
             ReactionFixtures.plan(ReactionKeys.settling, at: 1.6),
             .displayState(
                 ReactionFixtures.displayState(wakefulness: .settling), at: 1.7),
+            .playStopped(at: 1.75), // TASK-035 R6: no round owns the slot — no-op
             ReactionFixtures.plan(ReactionKeys.stir, at: 1.8),
             .touchEnded(at: 1.9),
             .appHidden(at: 2.0),

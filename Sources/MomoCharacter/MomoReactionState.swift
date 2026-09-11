@@ -31,6 +31,14 @@ public enum MomoCharacterEvent: Equatable, Sendable {
     /// the coherence matrix's job.
     case appHidden(at: Double)
     case appShown(at: Double)
+
+    /// The user's early exit from a play round (TASK-035 R6; UX-3's "Done"
+    /// pill): the ONE presentation→director stop event. The fold cancels an
+    /// in-flight round through the SAME displacement-cancel machinery
+    /// `appHidden` uses — exactly-once `handshakeCancelled(.play)` when (and
+    /// only when) a round was in flight — and is a tolerated no-op otherwise
+    /// (never `.appHidden`-as-lie, never a UI-only dismissal).
+    case playStopped(at: Double)
 }
 
 extension MomoDirectorState {
@@ -39,7 +47,8 @@ extension MomoDirectorState {
     func eventTime(of event: MomoCharacterEvent) -> Double {
         switch event {
         case .plan(_, let at), .displayState(_, let at), .touchEnded(let at),
-            .fingertip(_, _, let at), .appHidden(let at), .appShown(let at):
+            .fingertip(_, _, let at), .appHidden(let at), .appShown(let at),
+            .playStopped(let at):
             return at
         case .touchBegan(_, let at):
             return at

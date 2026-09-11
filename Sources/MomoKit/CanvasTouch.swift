@@ -37,11 +37,25 @@ public enum CanvasTouchLaws {
     /// convention's magnitude).
     public static let doubleTapWindowSeconds: Double = 0.35
 
-    /// The touch pool's line-key namespace (04 §10.4). The spoken-line
-    /// announcement gate (UX-8) is keyed to EXACTLY this prefix: the
-    /// feed/play/care pools are later tasks' surface, and announcing their
-    /// placeholder entries would read placeholder prose aloud.
+    /// The touch pool's line-key namespace (04 §10.4). The touch-era
+    /// announcement gate was keyed to EXACTLY this prefix because the
+    /// feed/play/care pools were later tasks' surface (announcing their
+    /// placeholder entries would have read placeholder prose aloud);
+    /// TASK-035 landed those pools and widened the gate to the whole react
+    /// namespace (`spokenReactPrefix` below) — this constant remains the
+    /// touch family's namespace pin.
     public static let spokenTouchPrefix = "momo.line.react.touch."
+
+    /// The react namespace all four spoken families share (04 §10.4:
+    /// touch · feed · play · care) — TASK-035 R7's widened announcement-gate
+    /// prefix. Slots, greetings, the vocabulary, and the moment classes stay
+    /// OUTSIDE the gate (visual copy or non-reaction classes never speak).
+    public static let spokenReactPrefix = "momo.line.react."
+
+    /// The react families the announcement gate admits (04 §10.4's four
+    /// families; the `.suffix + "."` form guards against prefix collisions
+    /// like a hypothetical `touchX` family).
+    public static let spokenFamilies = ["touch", "feed", "play", "care"]
 }
 
 // MARK: Zone hit-test (the pure partition)
@@ -178,19 +192,27 @@ public enum CanvasCustomAction: String, CaseIterable, Sendable {
     }
 }
 
-// MARK: Spoken-line gate (UX-8 — R7)
+// MARK: Spoken-line gate (UX-8 — TASK-034 R7; TASK-035 R7's widening)
 
-/// The spoken-reaction announcement gate (TASK-034 R7; UX-8): a touch
-/// reaction's line key is announced while VoiceOver runs — never rendered.
-/// The gate admits ONLY the touch pool's keys: the feed/play/care pools
-/// are later tasks' surface, and their placeholder entries must never be
-/// spoken. Pure over the key string (INV-11 holds — keys in, keys out).
+/// The spoken-reaction announcement gate (UX-8): a reaction's line key is
+/// announced while VoiceOver runs — never rendered. TASK-034 admitted only
+/// the touch pool (the other families' placeholder entries must never be
+/// spoken); TASK-035 landed the feed/play/care pools and widened the gate
+/// to ALL FOUR react families (04 §10.4) — slots, greetings, the
+/// vocabulary, and the moment classes stay outside. Pure over the key
+/// string (INV-11 holds — keys in, keys out).
 public enum SpokenReaction {
 
-    /// The touch line key to announce, or nil when `lineKey` is outside
-    /// the touch pool (or the plan carries no line at all).
+    /// The reaction line key to announce, or nil when `lineKey` is outside
+    /// the four spoken families (or the plan carries no line at all).
     public static func announcementKey(for lineKey: String?) -> String? {
-        guard let lineKey, lineKey.hasPrefix(CanvasTouchLaws.spokenTouchPrefix) else {
+        guard let lineKey, lineKey.hasPrefix(CanvasTouchLaws.spokenReactPrefix) else {
+            return nil
+        }
+        let remainder = lineKey.dropFirst(CanvasTouchLaws.spokenReactPrefix.count)
+        guard CanvasTouchLaws.spokenFamilies.contains(where: {
+            remainder.hasPrefix($0 + ".")
+        }) else {
             return nil
         }
         return lineKey

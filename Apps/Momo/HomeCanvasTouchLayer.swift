@@ -51,6 +51,14 @@ struct HomeCanvasTouchSurface: View {
     /// normal lift runs `onEnded` first, so the reset finds nothing to do).
     @State private var touchIsDown = false
 
+    /// Whether a play-surface gesture is open (the play branch's own
+    /// down/lift discriminator, mirroring `touchIsDown`; TASK-035 R2).
+    @State private var playTouchIsDown = false
+
+    /// The last fingertip sample's touch-local location (the `moving`
+    /// delta's baseline; `.zero` before the first sample of a gesture).
+    @State private var lastFingertipLocation: CGPoint = .zero
+
     /// The one live touch's classification inputs.
     @State private var downStamp: Double = 0
     @State private var startLocation: CGPoint = .zero
@@ -70,7 +78,9 @@ struct HomeCanvasTouchSurface: View {
             let stageTop = max(0, (proxy.size.height - stageSide) / 2)
             Color.clear
                 .contentShape(Rectangle())
-                .gesture(dragGesture(stageTop: stageTop))
+                .gesture(dragGesture(
+                    stageTop: stageTop,
+                    stageCenter: CGPoint(x: proxy.size.width / 2, y: stageTop + stageSide / 2)))
         }
         .onChange(of: pressActive) { _, active in
             guard !active, touchIsDown else { return }
@@ -80,10 +90,19 @@ struct HomeCanvasTouchSurface: View {
 
     // MARK: The gesture pipeline
 
-    private func dragGesture(stageTop: CGFloat) -> some Gesture {
+    private func dragGesture(stageTop: CGFloat, stageCenter: CGPoint) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .updating($pressActive) { _, state, _ in state = true }
             .onChanged { value in
+                // TASK-035 R2: while a play round is in flight the canvas
+                // IS the play surface — gestures route to the §6.3
+                // fingertip stream INSTEAD of the touch vocabulary (no pat
+                // intent is ever dispatched for a gesture that began
+                // during a round).
+                guard !appModel.isPlayRoundInFlight else {
+                    playGesture(value, stageCenter: stageCenter)
+                    return
+                }
                 guard !touchIsDown else {
                     noteMovement(value)
                     return
@@ -96,13 +115,67 @@ struct HomeCanvasTouchSurface: View {
                 noteMovement(value)
             }
             .onEnded { value in
+                // The play surface's lift: the `moving: false` bookend, no
+                // touch vocabulary.
+                if playTouchIsDown {
+                    playTouchIsDown = false
+                    appModel.sendFingertip(
+                        offset: fingertipOffset(at: value.location, stageCenter: stageCenter),
+                        moving: false)
+                    return
+                }
                 guard touchIsDown else { return }
                 touchIsDown = false
                 noteMovement(value)
                 let upStamp = appModel.touchEnded()
+                // A round that began mid-drag (a second finger's Play tap
+                // under a held canvas touch): the lift never dispatches
+                // into the round.
+                guard !appModel.isPlayRoundInFlight else { return }
                 completeTouch(upAt: upStamp)
             }
     }
+
+    // MARK: The play surface (TASK-035 R2)
+
+    /// The in-flight round's gesture body: every movement samples the
+    /// fingertip (`moving` when the finger traveled since the last
+    /// sample — authored 1-pt threshold), the touch-down and the lift are
+    /// `moving: false` bookends, and the touch vocabulary stays entirely
+    /// out (no press layer, no zone, no pat dispatch).
+    private func playGesture(_ value: DragGesture.Value, stageCenter: CGPoint) {
+        let offset = fingertipOffset(at: value.location, stageCenter: stageCenter)
+        if !playTouchIsDown {
+            // The touch-down bookend: the baseline sample, never "moving".
+            playTouchIsDown = true
+            lastFingertipLocation = value.location
+            appModel.sendFingertip(offset: offset, moving: false)
+            return
+        }
+        let traveled = hypot(
+            value.location.x - lastFingertipLocation.x,
+            value.location.y - lastFingertipLocation.y
+        )
+        let moving = traveled >= Self.fingertipMovingPoints
+        lastFingertipLocation = value.location
+        appModel.sendFingertip(offset: offset, moving: moving)
+    }
+
+    /// The touch-local point → §6.3's fingertip grid (offset from the
+    /// stage CENTER, y-down, the rig's 1000-unit grid).
+    private func fingertipOffset(at point: CGPoint, stageCenter: CGPoint) -> CGPoint {
+        CGPoint(
+            x: (Double(point.x) - Double(stageCenter.x))
+                / Double(stageSide) * CanvasTouchLaws.stageGridSide,
+            y: (Double(point.y) - Double(stageCenter.y))
+                / Double(stageSide) * CanvasTouchLaws.stageGridSide
+        )
+    }
+
+    /// Authored: a fingertip sample counts as "moving" past this travel
+    /// since the previous sample (disclosed view chrome — the pacer's
+    /// rest logic only needs a stillness signal, not a velocity).
+    private static let fingertipMovingPoints: CGFloat = 1
 
     /// Movement in grid units (the classifier's stroke input): the running
     /// max over the touch's samples, so a wander-out-and-back still reads
@@ -157,6 +230,7 @@ struct HomeCanvasTouchSurface: View {
     /// tap (a cancelled stream never speaks for an uncompleted gesture).
     private func resolveAsCancellation() {
         touchIsDown = false
+        playTouchIsDown = false
         _ = appModel.touchEnded()
         pendingTap?.cancel()
         pendingTap = nil

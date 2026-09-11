@@ -25,6 +25,11 @@ import XCTest
 /// (all-day) = 2 rows; at 20:30 Q1's window has closed while Q6's has
 /// opened = 2 rows — the maximum any hour can show, because the third
 /// member is always the closed one.
+///
+/// TASK-035 extends the suite with the care loop's glass pins (its MARK
+/// below): the feed refusal's care-moment line, the play round's Done
+/// pill and its stop route, the 20:30 tuck-in flow and line, and the
+/// §10.4 spoken accessibility labels.
 @MainActor
 final class MomoHomeUITests: XCTestCase {
 
@@ -317,6 +322,110 @@ final class MomoHomeUITests: XCTestCase {
         XCTAssertEqual(stage.label, stageBefore, "petting never moves the stage words")
     }
 
+    // MARK: TASK-035 — the care loop at the glass (R2/R3/R4/R5/R8)
+
+    /// A fresh pet's first feed accepts (the eating beat); the SECOND feed
+    /// inside the same frozen hour is politely declined, and the decline
+    /// renders the adjudicated refusal line in the contextual slot — never
+    /// a cooldown, a portion, or a currency surface (R3's scope pin).
+    func testSecondFeedRendersTheRefusalLine() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let feed = app.buttons["home.actionPill.feed"]
+        XCTAssertTrue(feed.waitForExistence(timeout: 10))
+        XCTAssertTrue(feed.label == "Feed Momo", "R8's spoken label feeds this test's element lookup")
+
+        feed.tap()
+        XCTAssertTrue(homeElement(app, "home.canvas").waitForExistence(timeout: 5), "the first feed stays on Home")
+
+        feed.tap()
+        assertLineBecomes(
+            app,
+            "Momo is full and thanks you with a nod.",
+            "the second feed's refusal line (care-moment.02)"
+        )
+        XCTAssertEqual(app.alerts.count, 0, "a refusal is warm copy, never a presentation")
+    }
+
+    /// Play authorizes (a fresh 09:00 pet earns the round), the quiet Done
+    /// pill appears ~5 s after round start (the authored ticker delay,
+    /// real-time even under the frozen clock), and tapping it STOPS the
+    /// round — the R6 `playStopped` route, never a UI-only dismissal — so
+    /// the pill closes and the composition stays on Home with nothing
+    /// presented.
+    func testPlayRoundShowsTheDonePillAndStopsTheRound() {
+        let app = preparedHomeApp(clock: Self.morning)
+        let play = app.buttons["home.actionPill.play"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+
+        play.tap()
+        XCTAssertTrue(homeElement(app, "home.canvas").waitForExistence(timeout: 5), "the play tap stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "authorization is silent")
+
+        // ~5 s authored delay + the 1 s ticker grain + CI margin.
+        let pill = homeElement(app, "home.playDonePill")
+        XCTAssertTrue(pill.waitForExistence(timeout: 12), "the Done pill arrives within the authored window")
+        XCTAssertEqual(pill.label, "Done", "the pill is the quiet one-word stop")
+
+        pill.tap()
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: pill
+        )
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 5), .completed, "the stop closes the pill")
+        XCTAssertFalse(pill.exists, "the pill stays gone — the round has ceased")
+        XCTAssertTrue(homeElement(app, "home.canvas").exists, "the stop stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "the stop never presents anything")
+    }
+
+    /// At 20:30 the tuck-in chip is offered to a fresh awake pet (the R4
+    /// parity gate), accepting it settles the pet and renders the
+    /// adjudicated tuck-in line — the care-moment visual, not the spoken
+    /// care pool.
+    func testTuckInAtEveningRendersTheTuckInLine() {
+        let app = preparedHomeApp(clock: Self.evening)
+        let tuckIn = app.buttons["home.actionPill.tuckIn"]
+        XCTAssertTrue(tuckIn.waitForExistence(timeout: 10), "tuck-in is offered at 20:30")
+        XCTAssertTrue(tuckIn.label == "Tuck Momo in", "R8's spoken label")
+
+        tuckIn.tap()
+        XCTAssertTrue(homeElement(app, "home.canvas").waitForExistence(timeout: 5), "the tuck-in stays on Home")
+        XCTAssertEqual(app.alerts.count, 0, "care never presents anything")
+        assertLineBecomes(
+            app,
+            "Momo snuggles down under the blanket.",
+            "the accepted tuck-in's care-moment line (care-moment.01)"
+        )
+    }
+
+    /// The visible labels stay short ("Feed", "Play", "Tuck in"); the
+    /// spoken labels never abbreviate (§10.4). The `switch` over pill
+    /// kinds is exhaustive (no default), so each kind MUST name its label
+    /// to compile; this pin covers the three gates reachable at the glass
+    /// under a frozen clock. The nap gate (a drowsy/exhausted pet that is
+    /// not asleep) is not deterministically reachable without unverified
+    /// multi-day decay math — its "Nap time" label is disclosed as
+    /// compile-covered but not glass-pinned in the task record.
+    func testSpokenAccessibilityLabelsNeverAbbreviate() {
+        let morning = preparedHomeApp(clock: Self.morning)
+        XCTAssertEqual(
+            morning.buttons["home.actionPill.feed"].label,
+            "Feed Momo",
+            "the spoken label never abbreviates (§10.4)"
+        )
+        XCTAssertEqual(
+            morning.buttons["home.actionPill.play"].label,
+            "Play with Momo",
+            "the spoken label never abbreviates (§10.4)"
+        )
+
+        let evening = preparedHomeApp(clock: Self.evening)
+        XCTAssertEqual(
+            evening.buttons["home.actionPill.tuckIn"].label,
+            "Tuck Momo in",
+            "the spoken label never abbreviates (§10.4)"
+        )
+    }
+
     // MARK: Helpers
 
     private static let setup = "2026-09-10T08:59:00Z"
@@ -398,6 +507,30 @@ final class MomoHomeUITests: XCTestCase {
         XCTAssertNil(
             label.first(where: \.isNumber),
             "\(surface) must carry words, never digits — got '\(label)'",
+            file: file,
+            line: line
+        )
+    }
+
+    /// The contextual line's fold is synchronous on the tap, but the
+    /// render lands a runloop turn later — wait for the exact verbatim
+    /// line rather than racing it (the TASK-035 care-moment pins).
+    private func assertLineBecomes(
+        _ app: XCUIApplication,
+        _ expected: String,
+        _ surface: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let contextualLine = homeElement(app, "home.contextualLine")
+        let became = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", expected),
+            object: contextualLine
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [became], timeout: 5),
+            .completed,
+            "\(surface) must read verbatim: '\(expected)'",
             file: file,
             line: line
         )
