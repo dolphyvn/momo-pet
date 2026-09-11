@@ -28,7 +28,10 @@ final class MomoSettingsUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private static let morning = "2026-09-10T09:00:00Z"
+    // The frozen `morning` instant, the fixture launch (`fixtureHomeApp`),
+    // the onboarding walk (`walkToHome`), and the element lookup
+    // (`homeElement`) live in `MomoUITestSupport.swift` — TASK-039 R5's
+    // shared extraction. The filesystem polls below are this suite's own.
 
     /// The FR-19 MUST-NOT vocabulary — the R8 guard's list, mirrored at the
     /// glass: no rendered label (or identifier) on the Settings surface may
@@ -41,7 +44,7 @@ final class MomoSettingsUITests: XCTestCase {
     // MARK: Required Test 1 — the inventory census (FR-19 AC-1)
 
     func testSettingsInventoryIsExactlyTheFR19Surface() {
-        let app = fixtureHomeApp()
+        let app = fixtureHomeApp(kind: "stage-crossing")
         app.tabBars.buttons["Settings"].tap()
 
         // The four groups' controls, all present.
@@ -86,7 +89,7 @@ final class MomoSettingsUITests: XCTestCase {
     // MARK: Required Test 2 — rename flows to Home + Room (FR-19 AC-1)
 
     func testRenameFlowsToHomeAndRoomLabels() {
-        let app = fixtureHomeApp()
+        let app = fixtureHomeApp(kind: "stage-crossing")
         app.tabBars.buttons["Settings"].tap()
 
         let field = homeElement(app, "settings.name.field")
@@ -102,9 +105,12 @@ final class MomoSettingsUITests: XCTestCase {
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
         XCTAssertEqual(field.value as? String, "", "the field cleared for the gate check")
         XCTAssertFalse(save.isEnabled, "Save is disabled while the trimmed field is empty")
-        field.typeText("Mochi")
-        XCTAssertEqual(field.value as? String, "Mochi")
-        XCTAssertTrue(save.isEnabled, "Save re-enables for a non-empty name")
+
+        // The R7 trim probe: a PADDED name is accepted (whitespace-only is
+        // what the gate rejects), and the Save attempt commits — and
+        // redisplays — the EFFECTIVE trimmed name.
+        field.typeText("  Mochi  ")
+        XCTAssertTrue(save.isEnabled, "Save re-enables for a name whose trimmed form is non-empty")
 
         // Commit + dismiss the rename keyboard (the field's return key):
         // a keyboard left up swallows the tab-bar taps — they land on the
@@ -119,6 +125,16 @@ final class MomoSettingsUITests: XCTestCase {
             XCTWaiter().wait(for: [keyboardGone], timeout: 5), .completed,
             "the return key dismisses the rename keyboard")
 
+        save.tap()
+        let trimmedInField = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "Mochi"),
+            object: field
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [trimmedInField], timeout: 5), .completed,
+            "after a Save attempt the field displays the effective trimmed name (R7)")
+
+        // The re-synced field still saves: commit the effective name.
         save.tap()
 
         // Home reflects the rename immediately (the canvas speaks the name).
@@ -145,7 +161,7 @@ final class MomoSettingsUITests: XCTestCase {
     // MARK: Required Test 3 — the alert verbatim + Keep cancels (FR-19 AC-2)
 
     func testEraseAlertReadsVerbatimAndKeepCancels() {
-        let app = fixtureHomeApp()
+        let app = fixtureHomeApp(kind: "stage-crossing")
         app.tabBars.buttons["Settings"].tap()
 
         homeElement(app, "settings.erase.row").tap()
@@ -280,44 +296,6 @@ final class MomoSettingsUITests: XCTestCase {
     }
 
     // MARK: Helpers
-
-    /// A fixture launch (the R10 enabler, TASK-037's shape): a THROWAWAY
-    /// store + the frozen morning clock + the `stage-crossing` fixture,
-    /// whose onboarding-complete state lands straight on Home.
-    private func fixtureHomeApp() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-momo-store-directory", "momo-settings-uitest-fixture-\(UUID().uuidString)",
-            "-momo-fixed-clock", Self.morning,
-            "-momo-fixture", "stage-crossing",
-        ]
-        app.launch()
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForExistence(timeout: 10),
-            "the fixture's onboarding-complete state skips the walk")
-        return app
-    }
-
-    /// Walks S1→S2→S3 with the pre-filled default name and taps Begin,
-    /// asserting the landing on Home (the `MomoHomeUITests` walk).
-    private func walkToHome(_ app: XCUIApplication) {
-        let sayHello = app.buttons["Say hello"]
-        XCTAssertTrue(sayHello.waitForExistence(timeout: 10), "onboarding S1 should greet a fresh store")
-        sayHello.tap()
-        let continueButton = app.buttons["Continue"]
-        XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
-        continueButton.tap()
-        let begin = app.buttons["Begin"]
-        XCTAssertTrue(begin.waitForExistence(timeout: 10))
-        begin.tap()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10), "Begin lands on Home")
-    }
-
-    /// Identifiers land on non-button accessibility elements; `.any`
-    /// matches them regardless of the element type SwiftUI materializes.
-    private func homeElement(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
-    }
 
     /// Polls the runner's FileManager until the path exists (the async
     /// completion write lands a runloop or two after the tap).

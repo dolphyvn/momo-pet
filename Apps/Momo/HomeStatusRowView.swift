@@ -38,6 +38,11 @@ struct HomeStatusRowView: View {
             .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(model.petName) feels \(MomoCopyText.render(model.moodWordKey)) and \(MomoCopyText.render(model.energyPhraseKey))")
+            // Display text, never a control: the static-text trait is the
+            // honest semantic declaration — VoiceOver reads it as text with
+            // no activation, and the hit-area audit sees a non-interactive
+            // node (the 44-pt floor governs TAPPABLE controls; TASK-039 R6).
+            .accessibilityAddTraits(.isStaticText)
             .accessibilityIdentifier("home.statusRow.moodEnergy")
 
             // The bond stage — its own element, name + descriptor.
@@ -51,6 +56,7 @@ struct HomeStatusRowView: View {
             .foregroundStyle(MomoUIColors.textSecondary.resolve(colorScheme))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(MomoCopyText.render(model.stageNameKey)). \(MomoCopyText.render(model.bondDescriptorKey))")
+            .accessibilityAddTraits(.isStaticText)
             .accessibilityIdentifier("home.statusRow.stage")
         }
         .frame(maxWidth: .infinity)

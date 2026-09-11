@@ -204,14 +204,19 @@ enum RigDiscipline {
     /// fold (the state-born `.displayState` door keeps it — folding it here
     /// too would double-render through both doors), the remainder folded
     /// through the director's `.moments` event, and the haptic kinds gated
-    /// on the user's setting read AT DELIVERY. Absent any leg the fan-out
-    /// degrades silently — the greeting double-fires, moments drop on the
-    /// floor, or haptics play past the setting.
+    /// on the user's setting read AT DELIVERY and actually DELIVERED
+    /// through the sink (REVIEW-TASK-036 F-2's fifth leg: the recorded
+    /// bite computed the gated kinds and discarded them with `_ = kind` —
+    /// every suite stayed green while moments stopped buzzing; the sink
+    /// invocation is the only leg that sees it). Absent any leg the
+    /// fan-out degrades silently — the greeting double-fires, moments drop
+    /// on the floor, or haptics play past the setting (or never at all).
     static func mentionsMomentFanOut(in source: String) -> Bool {
         source.contains("case .deliverMoments(let moments):") &&
         source.contains("QuestMomentSupport.eventBornMoments(moments)") &&
         source.contains("foldDirector(.moments(eventBorn") &&
-        source.contains("hapticsEnabled: state.settings.hapticsEnabled")
+        source.contains("hapticsEnabled: state.settings.hapticsEnabled") &&
+        source.contains("momentHapticSink(kind)")
     }
 
     /// (f) The director's completion advance: the L4 completion block must
@@ -260,15 +265,36 @@ enum RigDiscipline {
         roomInteractiveTokens.filter { source.contains($0) }
     }
 
-    /// Presence check that the room scene is ONE accessibility element
-    /// carrying the image trait and a composed label (FR-3 AC-3 / UX §10
-    /// row 435): the region flattened with `.ignore`, announced as an
-    /// image, carrying the label. Absent any leg the scene reads as bare
-    /// canvas or as traversable children.
+    /// Presence + ATTACHMENT check that the room scene is ONE accessibility
+    /// element carrying the image trait and a composed label (FR-3 AC-3 /
+    /// UX §10 row 435): the region flattened with `.ignore`, announced as
+    /// an image, carrying the label. Absent any leg the scene reads as
+    /// bare canvas or as traversable children.
+    ///
+    /// Attachment hardening (REVIEW-TASK-037 N-1): the three legs must sit
+    /// in the scene Canvas's construction REGION — textually between the
+    /// `Canvas {` opening and the scene's `room.scene` identifier — so the
+    /// recorded probe shape (relocating the legs onto the outer VStack,
+    /// where they would flatten the whole tab region into one element)
+    /// now fails: the legs are present, but outside the scene's region.
+    ///
+    /// Envelope limit (disclosed): a textual region scan proves ORDER
+    /// relative to the Canvas's construction, not SwiftUI's actual
+    /// modifier-chain attachment — a leg textually inside the region but
+    /// attached to a sibling view is invisible to this scan. The glass
+    /// backstop covers the shape: `MomoHomeUITests` pins the scene's
+    /// composed label ("{name}’s cozy room") AND the caption as SEPARATE
+    /// elements, which a wrongly flattened construction cannot satisfy.
     static func mentionsRoomSceneAccessibility(in source: String) -> Bool {
-        source.contains(".accessibilityElement(children: .ignore)") &&
-        source.contains(".accessibilityAddTraits(.isImage)") &&
-        source.contains(".accessibilityLabel(")
+        let code = stripLineComments(source)
+        guard let canvasRange = code.range(of: "Canvas {"),
+              let sceneRange = code.range(of: ".accessibilityIdentifier(\"room.scene\")"),
+              canvasRange.lowerBound < sceneRange.lowerBound
+        else { return false }
+        let sceneRegion = code[canvasRange.lowerBound..<sceneRange.lowerBound]
+        return sceneRegion.contains(".accessibilityElement(children: .ignore)") &&
+            sceneRegion.contains(".accessibilityAddTraits(.isImage)") &&
+            sceneRegion.contains(".accessibilityLabel(")
     }
 
     // MARK: - TASK-038 R8: the Settings surface's inventory + erase discipline
@@ -310,6 +336,19 @@ enum RigDiscipline {
     /// the executor's erase, and the About section carries the privacy
     /// statement. Absent any leg the row silently degrades — a toggle that
     /// writes local view state, an alert that dismisses without erasing.
+    ///
+    /// Erase-attachment hardening (REVIEW-TASK-038 N-1): the erase wiring
+    /// must additionally be anchored INSIDE the alert construction — AFTER
+    /// the destructive confirm's role marker and BEFORE the cancel's, and
+    /// ABSENT from everything after the cancel marker — so the recorded
+    /// probe shape (wiring `eraseAllData()` onto the Keep button) now
+    /// fails: the call exists (the presence legs pass) but sits in the
+    /// cancel context.
+    ///
+    /// Envelope limit (disclosed): a textual order scan proves POSITION
+    /// relative to the alert's role markers, not SwiftUI's closure
+    /// attachment — the glass backstop covers the shape (the Keep-cancels
+    /// pin and the runner-side store-absence pins in `MomoSettingsUITests`).
     static func mentionsSettingsInventory(in source: String) -> Bool {
         source.contains("SettingsCopyKeys.renameFieldLabelKey") &&
         source.contains("appModel.renamePet(to:") &&
@@ -318,7 +357,27 @@ enum RigDiscipline {
         source.contains("SettingsCopyKeys.eraseRowKey") &&
         source.contains("appModel.eraseAllData()") &&
         source.contains("SettingsCopyKeys.aboutPrivacyKey") &&
-        source.contains(".alert(")
+        source.contains(".alert(") &&
+        eraseWiringIsAnchoredToTheDestructiveConfirm(in: source)
+    }
+
+    /// The attachment leg (see `mentionsSettingsInventory`): within the
+    /// STRIPPED source, from the `.alert(` construction onward, the erase
+    /// call must sit after the destructive role marker and before the
+    /// cancel's — and never again anywhere after the cancel marker.
+    static func eraseWiringIsAnchoredToTheDestructiveConfirm(in source: String) -> Bool {
+        let code = stripLineComments(source)
+        guard let alertRange = code.range(of: ".alert(") else { return false }
+        let alertOnward = code[alertRange.lowerBound...]
+        guard let destructiveRange = alertOnward.range(of: "role: .destructive"),
+              let eraseRange = alertOnward.range(of: "appModel.eraseAllData()"),
+              let cancelRange = alertOnward.range(of: "role: .cancel")
+        else { return false }
+        let inDestructiveContext = destructiveRange.lowerBound < eraseRange.lowerBound
+            && eraseRange.lowerBound < cancelRange.lowerBound
+        let absentFromCancelContext = !code[cancelRange.upperBound...]
+            .contains("appModel.eraseAllData()")
+        return inDestructiveContext && absentFromCancelContext
     }
 
     /// The erase sequence (R5; FR-19 AC-2): delete the store tree FIRST,
@@ -358,6 +417,23 @@ enum RigDiscipline {
     static func readRigFile(_ name: String) throws -> String {
         try String(contentsOf: URL(fileURLWithPath: RepoTree.repoRoot + "/" + name),
                    encoding: .utf8)
+    }
+
+    /// The app model's full source: the main file and its same-target
+    /// extension files, CONCATENATED. TASK-039 R8 split the class across
+    /// files along its natural seams; the guards read the CLASS, not one
+    /// file — a member's move between the app-model files cannot silence a
+    /// guard. (The ordered-range scans that need ONE file's text — the
+    /// erase sequence over the `+Settings` extension — still read that
+    /// file directly.)
+    static func readAppModelSource() throws -> String {
+        let appModelFiles = [
+            "Apps/Momo/MomoAppModel.swift",
+            "Apps/Momo/MomoAppModel+Canvas.swift",
+            "Apps/Momo/MomoAppModel+Celebrations.swift",
+            "Apps/Momo/MomoAppModel+Settings.swift",
+        ]
+        return try appModelFiles.map { try readRigFile($0) }.joined(separator: "\n")
     }
 }
 
@@ -545,7 +621,7 @@ struct RigDisciplineTests {
 
     @Test("The app model drains the director's reports into the engine (R1 wire pin)")
     func appModelDrainsReports() throws {
-        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let source = try RigDiscipline.readAppModelSource()
         #expect(RigDiscipline.mentionsReportDrain(in: source))
 
         // Non-vacuity: a fold that applies but never drains fails — the
@@ -589,7 +665,7 @@ struct RigDisciplineTests {
 
     @Test("The passive round's stillness ticker folds on the authored cadence (R2 wire pin)")
     func playStillnessTickerDrivesTheSoloRound() throws {
-        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let source = try RigDiscipline.readAppModelSource()
         #expect(RigDiscipline.mentionsPlayStillnessTicker(in: source))
 
         // Non-vacuity: the F-1 shape — a loop that still sleeps on the
@@ -610,7 +686,7 @@ struct RigDisciplineTests {
 
     @Test("The .deliverMoments arm excludes the greeting, folds the rest, gates the haptics (R9e)")
     func deliverMomentsArmWiring() throws {
-        let source = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let source = try RigDiscipline.readAppModelSource()
         #expect(RigDiscipline.mentionsMomentFanOut(in: source))
 
         // Non-vacuity: an arm that folds the WHOLE batch (the greeting
@@ -621,6 +697,19 @@ struct RigDisciplineTests {
                 foldDirector(.moments(moments, at: 0))
                 for kind in MomentHapticKind.deliveryKinds(for: moments, hapticsEnabled: true) {
                     momentHapticSink(kind)
+                }
+            """))
+
+        // The F-2 bite shape (REVIEW-TASK-036): the gated kinds are
+        // COMPUTED but DISCARDED — `_ = kind`. The first four legs hold;
+        // the missing sink invocation fails the fifth (the hardened
+        // guard's own re-bite fixture).
+        #expect(!RigDiscipline.mentionsMomentFanOut(in: """
+            case .deliverMoments(let moments):
+                let eventBorn = QuestMomentSupport.eventBornMoments(moments)
+                foldDirector(.moments(eventBorn, at: 0))
+                for kind in MomentHapticKind.deliveryKinds(for: moments, hapticsEnabled: state.settings.hapticsEnabled) {
+                    _ = kind
                 }
             """))
     }
@@ -647,7 +736,7 @@ struct RigDisciplineTests {
 
     @Test("The banner's fade task and tap-dismiss route through the app model (R9g)")
     func celebrationWires() throws {
-        let appModel = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let appModel = try RigDiscipline.readAppModelSource()
         let view = try RigDiscipline.readRigFile("Apps/Momo/HomeView.swift")
         #expect(RigDiscipline.mentionsCelebrationAutoFade(in: appModel))
         #expect(RigDiscipline.mentionsBannerDismissWire(in: view))
@@ -694,6 +783,37 @@ struct RigDisciplineTests {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("room.scene")
             """))
+        // (c) The REVIEW-TASK-037 N-1 probe shape: the three a11y legs
+        // RELOCATED from the scene Canvas onto the outer VStack. The legs
+        // are present (the file-wide presence scan stayed green) but
+        // OUTSIDE the scene's region — the hardened attachment leg fails.
+        #expect(!RigDiscipline.mentionsRoomSceneAccessibility(in: """
+            VStack {
+                RoomScene(petName: name)
+                Text(caption)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isImage)
+            .accessibilityLabel("\\(name)’s cozy room")
+            .accessibilityIdentifier("room")
+
+            struct RoomScene: View {
+                var body: some View {
+                    Canvas { context, size in context.fill(path, with: .color(token)) }
+                        .accessibilityIdentifier("room.scene")
+                }
+            }
+            """))
+        // (d) The anchored shape passes: the legs sit between the Canvas
+        // opening and the scene identifier — the region scan is not
+        // merely a failing shape.
+        #expect(RigDiscipline.mentionsRoomSceneAccessibility(in: """
+            Canvas { context, size in context.fill(path, with: .color(token)) }
+                .accessibilityElement(children: .ignore)
+                .accessibilityAddTraits(.isImage)
+                .accessibilityLabel("\\(name)’s cozy room")
+                .accessibilityIdentifier("room.scene")
+            """))
     }
 
     // MARK: - TASK-038 R8: the Settings surface's inventory + erase discipline
@@ -727,12 +847,48 @@ struct RigDisciplineTests {
             // The sound row is discussed here but that is a comment.
             Toggle("Sound", isOn: $soundOn)
             """).isEmpty)
+
+        // The attachment leg in isolation (REVIEW-TASK-038 N-1's probe):
+        // fixtures carrying ALL presence legs, differing ONLY in where the
+        // erase wiring sits relative to the alert's role markers. The
+        // mis-attached shape (erase onto the Keep/cancel button — the
+        // recorded P-1 probe) fails; the anchored shape passes.
+        let presenceLegs = """
+            TextField(SettingsCopyKeys.renameFieldLabelKey, text: $name)
+            Button { appModel.renamePet(to: name) } label: { Text("Save") }
+            Toggle(SettingsCopyKeys.hapticsToggleKey, isOn: $haptics)
+            appModel.setHapticsEnabled(haptics)
+            Button(role: .destructive) { presented = true } label: {
+                Text(SettingsCopyKeys.eraseRowKey)
+            }
+            Text(SettingsCopyKeys.aboutPrivacyKey)
+            """
+        #expect(!RigDiscipline.mentionsSettingsInventory(in: presenceLegs + """
+
+            .alert("Erase everything?", isPresented: $presented) {
+                Button("Erase", role: .destructive) {
+                }
+                Button("Keep Momo", role: .cancel) {
+                    appModel.eraseAllData()
+                }
+            } message: { Text(SettingsCopyKeys.aboutPrivacyKey) }
+            """))
+        #expect(RigDiscipline.mentionsSettingsInventory(in: presenceLegs + """
+
+            .alert("Erase everything?", isPresented: $presented) {
+                Button("Erase", role: .destructive) {
+                    appModel.eraseAllData()
+                }
+                Button("Keep Momo", role: .cancel) {
+                }
+            } message: { Text(SettingsCopyKeys.aboutPrivacyKey) }
+            """))
     }
 
     @Test("The erase sequence deletes first, resets, swaps to the fresh default, never persists (R8)")
     func eraseSequenceIsDeleteThenResetThenFreshSwap() throws {
         let extensionSource = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel+Settings.swift")
-        let appModel = try RigDiscipline.readRigFile("Apps/Momo/MomoAppModel.swift")
+        let appModel = try RigDiscipline.readAppModelSource()
         #expect(
             RigDiscipline.mentionsEraseSequence(in: extensionSource, appModelSource: appModel),
             "erase must delete the store tree, reset transients, then install the init path's fresh default — never persisting")
@@ -820,5 +976,57 @@ struct RigDisciplineTests {
         // Non-vacuity: the shape pin fires on the real file.
         #expect(try !RigDiscipline.readRigFile("Sources/MomoCharacter/RigLayerTree.swift")
             .contains("rigCanvas(pose: .rest)"))
+    }
+
+    // MARK: - TASK-039 R6: the status row's spoken order
+
+    @Test("The status row declares mood·energy before stage (VoiceOver reads declaration order)")
+    func homeStatusRowSpeaksMoodEnergyBeforeStage() throws {
+        // The glass cannot encode the order (both composites report the
+        // row's collapsed accessibility frame — the audit suite's verified
+        // 28.0/28.0 observation), so the traversal order is pinned where it
+        // actually lives: the declaration order VoiceOver follows.
+        let source = try RigDiscipline.readRigFile("Apps/Momo/HomeStatusRowView.swift")
+        let moodEnergy = try #require(source.range(of: "home.statusRow.moodEnergy"))
+        let stage = try #require(source.range(of: "home.statusRow.stage"))
+        #expect(moodEnergy.lowerBound < stage.lowerBound,
+                "mood·energy must be declared before stage — VoiceOver reads declaration order")
+
+        // Non-vacuity: the comparison is directional — a swapped fixture
+        // fails it.
+        let swapped = """
+            .accessibilityIdentifier("home.statusRow.stage")
+            .accessibilityIdentifier("home.statusRow.moodEnergy")
+            """
+        let swappedStage = try #require(swapped.range(of: "home.statusRow.stage"))
+        let swappedMoodEnergy = try #require(swapped.range(of: "home.statusRow.moodEnergy"))
+        #expect(swappedStage.lowerBound < swappedMoodEnergy.lowerBound)
+    }
+
+    @Test("Home's only line-limited texts are the two disclosed caps (the S4 text-clipped disclosure's scope pin)")
+    func homeLineLimitCensusMatchesDisclosure() throws {
+        // The audit suite's S4 text-clipped disclosure covers exactly the
+        // quest card's wish cap. This census is what keeps that disclosure
+        // from being a catch-all: any NEW line-limited text on Home fails
+        // here and must earn its own disclosure row with a why.
+        let files = [
+            "Apps/Momo/HomeView.swift",
+            "Apps/Momo/HomeStatusRowView.swift",
+            "Apps/Momo/HomeContextualLineView.swift",
+            "Apps/Momo/HomeActionRowView.swift",
+            "Apps/Momo/HomeQuestCardView.swift",
+        ]
+        var census: [String: Int] = [:]
+        for file in files {
+            let code = RigDiscipline.stripLineComments(try RigDiscipline.readRigFile(file))
+            census[file] = code.components(separatedBy: ".lineLimit(").count - 1
+        }
+        #expect(census["Apps/Momo/HomeView.swift"] == 0)
+        #expect(census["Apps/Momo/HomeStatusRowView.swift"] == 0)
+        #expect(census["Apps/Momo/HomeContextualLineView.swift"] == 1,
+                "the contextual line's AX-conditional two-line cap (NITPICK-2)")
+        #expect(census["Apps/Momo/HomeActionRowView.swift"] == 0)
+        #expect(census["Apps/Momo/HomeQuestCardView.swift"] == 1,
+                "the wish row's AX-conditional one-line cap + 0.8 scale floor")
     }
 }

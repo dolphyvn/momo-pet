@@ -26,6 +26,7 @@ struct HomeQuestCardView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// The Home read-model slice this card renders (TASK-033 R1/R2).
     let model: HomeReadModel
@@ -88,7 +89,12 @@ struct HomeQuestCardView: View {
             Text(MomoCopyText.render(row.wishKey))
                 .font(MomoTypography.caption)
                 .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
-                .lineLimit(1)
+                // The one-line cap + 0.8 scale floor is the DEFAULT-type
+                // stability cap (the card's height is stable on the SE); at
+                // accessibility type sizes the cap lifts — the wish wraps
+                // instead of clipping, inside the AC-1b scroll (TASK-039
+                // R6's text-clipped remediation).
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 0)
             Image(systemName: row.isCompleted ? "circle.fill" : "circle")
@@ -104,6 +110,13 @@ struct HomeQuestCardView: View {
         .padding(.horizontal, MomoSpacing.extraSmall)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(MomoCopyText.render(row.wishKey)), \(row.isCompleted ? "done" : "pending")")
+        // A status line, not a control: the row has no tap action (a wish
+        // completes by DOING it, §5.5), so it speaks as static text —
+        // VoiceOver reads the state-in-words with no activation, and the
+        // hit-area audit sees a non-interactive node (TASK-039 R6; the
+        // flattened element's a11y frame is the text's, not the 44-pt
+        // layout row — verified at the glass).
+        .accessibilityAddTraits(.isStaticText)
         .accessibilityIdentifier("home.questRow.\(row.questID.rawValue.lowercased())")
     }
 

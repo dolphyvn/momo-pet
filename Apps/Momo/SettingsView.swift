@@ -108,9 +108,17 @@ struct SettingsView: View {
                 MomoCopyText.render(SettingsCopyKeys.renameFieldLabelKey),
                 text: $nameField
             )
+            .accessibilityLabel(MomoCopyText.render(SettingsCopyKeys.renameFieldLabelKey))
             .accessibilityIdentifier("settings.name.field")
             Button(MomoCopyText.render(SettingsCopyKeys.renameSaveKey)) {
-                appModel.renamePet(to: nameField)
+                // FR-19 AC-1's effective name: the executor trims, so a
+                // Save attempt re-syncs the field to the TRIMMED value —
+                // the displayed name is always the effective one (TASK-039
+                // R7). `renamePet` performs its own trim (defense at the
+                // executor); this re-sync is the observable contract.
+                let trimmed = nameField.trimmingCharacters(in: .whitespacesAndNewlines)
+                nameField = trimmed
+                appModel.renamePet(to: trimmed)
             }
             .disabled(!canSave)
             .accessibilityIdentifier("settings.name.save")

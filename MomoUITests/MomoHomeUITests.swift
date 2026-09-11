@@ -607,40 +607,9 @@ final class MomoHomeUITests: XCTestCase {
 
     // MARK: Helpers
 
-    /// A fixture launch (the R10 enabler): a THROWAWAY store (the fixture
-    /// rides the fresh-default fallback, so the store must never pre-exist)
-    /// + the frozen morning clock + the `-momo-fixture <kind>` argument.
-    /// The fixture's onboarding-complete state lands straight on Home.
-    private func fixtureHomeApp(kind: String) -> XCUIApplication {
-        let app = homeApp(store: "momo-home-uitest-fixture-\(UUID().uuidString)", clock: Self.morning)
-        app.launchArguments += ["-momo-fixture", kind]
-        app.launch()
-        XCTAssertTrue(
-            app.tabBars.firstMatch.waitForExistence(timeout: 10),
-            "the fixture's onboarding-complete state skips the walk"
-        )
-        return app
-    }
-
-    private static let setup = "2026-09-10T08:59:00Z"
-    private static let morning = "2026-09-10T09:00:00Z"
-    private static let evening = "2026-09-10T20:30:00Z"
-
-    /// A Home-suite launch: its own throwaway store (R13) and a frozen
-    /// clock (R7 — also UTC-pins the calendar, so the pinned hour IS the
-    /// local hour regardless of the host's timezone).
-    private func homeApp(store: String, clock: String) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-momo-store-directory", store,
-            "-momo-fixed-clock", clock,
-        ]
-        return app
-    }
-
-    private func freshHomeApp(clock: String) -> XCUIApplication {
-        homeApp(store: "momo-home-uitest-\(UUID().uuidString)", clock: clock)
-    }
+    // The launch/clock/walk machinery (`homeApp`, `freshHomeApp`,
+    // `fixtureHomeApp`, the frozen instants, `walkToHome`, `homeElement`)
+    // lives in `MomoUITestSupport.swift` — TASK-039 R5's shared extraction.
 
     /// Onboards at the 08:59 setup instant against a shared throwaway
     /// store, then relaunches that store at `clock` — the launch-open
@@ -660,27 +629,6 @@ final class MomoHomeUITests: XCTestCase {
             "the completed store lands straight on Home"
         )
         return app
-    }
-
-    /// Walks S1→S2→S3 with the pre-filled default name and taps Begin,
-    /// asserting the landing on Home (the `MomoOnboardingUITests` walk).
-    private func walkToHome(_ app: XCUIApplication) {
-        let sayHello = app.buttons["Say hello"]
-        XCTAssertTrue(sayHello.waitForExistence(timeout: 10), "onboarding S1 should greet a fresh store")
-        sayHello.tap()
-        let continueButton = app.buttons["Continue"]
-        XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
-        continueButton.tap()
-        let begin = app.buttons["Begin"]
-        XCTAssertTrue(begin.waitForExistence(timeout: 10))
-        begin.tap()
-        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10), "Begin lands on Home")
-    }
-
-    /// Identifiers land on non-button accessibility elements; `.any`
-    /// matches them regardless of the element type SwiftUI materializes.
-    private func homeElement(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
     private func questRowQuery(_ app: XCUIApplication) -> XCUIElementQuery {
