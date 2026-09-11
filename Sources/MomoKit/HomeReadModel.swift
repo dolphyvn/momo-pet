@@ -103,6 +103,15 @@ public struct HomeReadModel: Sendable {
     /// where every day has a record).
     public let questRows: [HomeQuestRow]
 
+    /// The all-wishes-done truth (TASK-036 R5; UX §5.5 M3): the §4.8
+    /// cascade's `.allDone` state for today's set at the current local
+    /// hour — the SAME derivation `makeDisplayState`'s quest line uses,
+    /// never a "all visible rows completed" proxy (a closed-window row is
+    /// still a wish). Mirrors the engine's empty-set reading: with no day
+    /// record the cascade falls through to `.allDone`; the card's M3 line
+    /// renders only over an existing record (rows present).
+    public let isAllDone: Bool
+
     // MARK: Action row (UX §5.1/§5.4)
 
     /// The visible action pills, in row order: feed, play, then the
@@ -124,6 +133,7 @@ public struct HomeReadModel: Sendable {
         bondDescriptorKey: String,
         contextualLineKey: String,
         questRows: [HomeQuestRow],
+        isAllDone: Bool,
         actionPills: [InteractionIntent.Kind]
     ) {
         self.petName = petName
@@ -138,6 +148,7 @@ public struct HomeReadModel: Sendable {
         self.bondDescriptorKey = bondDescriptorKey
         self.contextualLineKey = contextualLineKey
         self.questRows = questRows
+        self.isAllDone = isAllDone
         self.actionPills = actionPills
     }
 }
@@ -235,6 +246,7 @@ public func makeHomeReadModel(
             careMoment: latestCareMoment
         ),
         questRows: questRows,
+        isAllDone: QuestGeneration.cascade(questSet: todaysQuests, localHour: localHour) == .allDone,
         actionPills: pills
     )
 }

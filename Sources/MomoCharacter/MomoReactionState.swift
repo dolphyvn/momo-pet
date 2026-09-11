@@ -39,6 +39,15 @@ public enum MomoCharacterEvent: Equatable, Sendable {
     /// only when) a round was in flight — and is a tolerated no-op otherwise
     /// (never `.appHidden`-as-lie, never a UI-only dismissal).
     case playStopped(at: Double)
+
+    /// A batch of engine-minted moments (TASK-036 R1; FR-16): quest
+    /// completions and bond-stage crossings born as EVENTS (`EngineOutcome`
+    /// §4.3 L4), delivered through the app model's `.deliverMoments` arm.
+    /// The state-born greeting door stays `.displayState`'s `momentRequest`
+    /// — the two doors share one L4 slot, event moments queueing behind a
+    /// fold that arrives mid-moment. The batch plays FIFO in causal order
+    /// (the engine's emission order); an empty batch is a no-op.
+    case moments([CharacterMoment], at: Double)
 }
 
 extension MomoDirectorState {
@@ -48,7 +57,7 @@ extension MomoDirectorState {
         switch event {
         case .plan(_, let at), .displayState(_, let at), .touchEnded(let at),
             .fingertip(_, _, let at), .appHidden(let at), .appShown(let at),
-            .playStopped(let at):
+            .playStopped(let at), .moments(_, let at):
             return at
         case .touchBegan(_, let at):
             return at
