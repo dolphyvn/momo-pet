@@ -1,0 +1,33 @@
+TASK-045 R5 — Download size <= 60 MB; art <= 1.5 MB
+===================================================
+Budget (verbatim, 05 §12): "Download size (both apps)" | "<= 60 MB total" and
+"Art budget" | "<= 1.5 MB generated art (TASK-030 method)".
+
+App/product sizes (exact bytes, ls -l on build products; Release unless noted):
+  Momo.app      (Release-watchsimulator .app)        7,609,627 B  (~7.3 MB)
+  Momo.app      (Debug-watchsimulator .app)          5,303,171 B
+  MomoWatch.app (Release-watchsimulator .app)        5,979,174 B  (~5.7 MB)
+  MomoWatch.app (Debug-watchsimulator .app)          4,036,920 B
+  Unsigned archive products (CODE_SIGNING_ALLOWED=NO,
+  -destination 'generic/platform=iOS Simulator'):
+    Momo.xcarchive/Products/Applications/Momo.app        2,429,051 B
+    MomoWatch.xcarchive/Products/Applications/MomoWatch.app 1,921,494 B
+  (Archive products strip sim-only slices; App Store thinning applies to device
+  archives, not sim archives — the .app sizes above are the honest at-build
+  download-size proxies. Both are ~10% of the 60 MB budget.)
+  Note: the xcarchives themselves were deleted post-measurement in the
+  disk-pressure cleanup (00-environment); the byte counts above were recorded
+  before deletion.
+
+Art budget — TASK-030 method re-measure (exact os.path.getsize bytes, never
+du -k; buckets over Sources/MomoCharacter generated art):
+  rig bucket        9 files    50,096 B   (<= 307,200 B / 0.3 MB bucket)
+  room+props       20,647 B               (<= 256,000 B bucket)
+  generated total  70,743 B    (<= 1,572,864 B = 1.5 MB budget) -> PASS
+  anchor outside buckets: MomoRig.swift 1,810 B (TASK-030 O8 basis note)
+  Sources/MomoCharacter/*.swift total 356,559 B — grew +4,696 B vs TASK-030's
+  351,863 B; the delta is the disclosed TASK-035 R6 playStopped seam added to
+  MomoCharacter (recorded in TASK-035; no undisclosed art growth).
+
+Verdict: R5 PASS (download ~7.3 MB iPhone / ~5.7 MB Watch vs 60 MB; generated
+art 70,743 B vs 1.5 MB). No budget values edited.

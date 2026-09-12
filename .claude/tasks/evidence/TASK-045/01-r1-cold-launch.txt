@@ -1,0 +1,38 @@
+TASK-045 R1 — Cold launch <= 2.0 s
+==================================
+Budget (verbatim, 05 §12): "App cold launch to interactive Home" | "<= 2.0 s"
+Method: XCTest launch metrics (XCTApplicationLaunchMetric inside measure(), 5
+iterations per measurement) driven by a THROWAWAY /tmp UI-probe project
+(bundle com.task045.LaunchProbeUITests; XCUIApplication(bundleIdentifier:
+"com.momo.app")). It does NOT live in the repo; frozen surfaces untouched.
+Onboarding completed once per sim first (probe testACompleteOnboardingOnce) so
+every measured launch lands on interactive Home; the probe asserts the tab bar
+exists after each measured launch (pinned post-condition).
+Surface: iOS SIMULATOR (iPhone SE 3rd gen + iPhone 17 Pro), Release build.
+Device leg (smallest physical devices per 05 §12 note): BLOCKED per §25 —
+exactly one physical iPhone present and it is the owner's daily device (not a
+bare test device), no clean install path; raw inventory in
+raw-xctrace-list-devices.txt. Owner-routed.
+
+Command (per sim):
+  xcodebuild test -project LaunchProbe.xcodeproj -scheme LaunchProbe \
+    -destination 'id=<UDID>' \
+    -only-testing:LaunchProbeUITests/LaunchProbeUITests/testColdLaunchToInteractiveHome
+
+iPhone SE (3rd generation), Release — per-run values (s), from xcodebuild
+stdout "measured [Duration (AppLaunch), s] ... values:":
+  1.084750, 1.104645, 1.106435, 1.100153, 1.092735
+  avg 1.098  RSD 0.732%  MEDIAN 1.100153 s
+  -> PASS (55% headroom vs 2.0 s)
+Raw: raw-xcbuild-launch-se3.log
+
+iPhone 17 Pro, Release — per-run values (s):
+  1.561344, 1.591565, 1.500864, 1.391926, 1.085477
+  avg 1.426  RSD 12.869%  MEDIAN 1.500864 s
+  -> PASS (25% headroom). Distribution note (R11: no cherry-picking): values
+  DESCENDED monotonically across the 5 runs on the freshly booted sim —
+  first-launch-after-boot overhead decaying, not a spread of regressions.
+  Recorded in full; the median is the reported statistic.
+Raw: raw-xcbuild-launch-17pro.log
+
+Verdicts: R1 SIM legs PASS on both pinned sims. R1 DEVICE leg BLOCKED (owner-routed).

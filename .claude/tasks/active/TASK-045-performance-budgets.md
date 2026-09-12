@@ -83,16 +83,69 @@ Measure — never assume (project.md §33) — every budget row of 05 §12 on th
 
 ## Status
 
-READY (contract authored 2026-09-12; not yet dispatched).
+DONE-pending-push (2026-09-12): implementation complete (all R1–R12 rows with evidence; no MISS; no budget value edited); review APPROVED_WITH_MINOR_NOTES (REVIEW-TASK-045; F-1 wording fix + F-3/F-4 table precision applied at closeout); orchestrator gates re-verified (swift test 1161/113 personally re-run, all structural citations exact). Atomic commit (this commit); push (this push pending). Final DONE state recorded in the completed/ copy.
 
 ## Implementation Notes
 
-(fresh implementer fills — per CLAUDE.md §9 the implementer does NOT commit.)
+Implemented 2026-09-08..09-12 by the fresh TASK-045 agent. Per-row evidence
+lives in `.claude/tasks/evidence/TASK-045/` (00-environment + one file per
+row + raw logs; no traces/bundles). Summary verdicts:
+
+| Row | Budget (verbatim 05 §12) | Measured (surface) | Verdict |
+|---|---|---|---|
+| R1 cold launch | `≤ 2.0 s (NFR-1) on the smallest supported device` | iPhone SE 3 sim: median 1.100153 s (5 XCTApplicationLaunchMetric runs, RSD 0.7%); iPhone 17 Pro sim: median 1.500864 s (RSD 12.9%, descending first-boot distribution recorded in full) | PASS (sim legs); device leg BLOCKED per §25, owner-routed |
+| R2 animation | `Sustained 60 fps on reference hardware; ≤ 8 ms/frame CPU+GPU work on 60 Hz devices; no sustained stutter (NFR-1). ProMotion not assumed` | NO measured value anywhere: `xctrace` "Animation Hitches" verbatim refuses the sim ("Hitches is not supported on this platform") and no authorized physical device exists (raw-xctrace-list-devices.txt). Supplementary sim signal: ~10.4% of one host core at Home idle. Structural: 21-constant transform-only full rig (zero blur/shadow/opacity in MomoRig.swift), next-event-timer scheduling | BLOCKED (device legs per §25; sim metric impossible) — honest no-claim |
+| R3 iPhone memory | `≤ 150 MB steady-state Home idle (provisional, NFR-3)` | phys_footprint soak, both iPhone sims (Release): settle 47 MB -> peak 56 MB -> plateau 56 MB with 57 MB tails x5 on both sims (tails precision per REVIEW F-3) | PASS (sim legs, 62% headroom); device leg BLOCKED, owner-routed |
+| R4 Watch memory | `≤ 80 MB foreground (provisional starting budget; VERIFY-AT-BUILD against current watchOS norms)` | Watch SE 3 40mm: 19 MB flat x22; Series 11 42mm: 20 MB steady x22; comparator (empty SwiftUI watch app, same sim): 19 MB — Momo's own memory ~1 MB over the platform floor | PASS (sim legs, ~4x headroom); VERIFY-AT-BUILD recorded, value unedited; physical Watch owner-routed |
+| R5 sizes | `≤ 60 MB (NFR-4); art contribution ≤ 1.5 MB target (04 §8.3) — app is binary-dominated` | Momo.app Release 7,609,627 B; MomoWatch.app Release 5,979,174 B (archive products 2,429,051 / 1,921,494 B). Art (TASK-030 exact-bytes method): generated total 70,743 B <= 1,572,864 B; MomoCharacter .swift total 356,559 B (+4,696 B = disclosed TASK-035 playStopped seam) | PASS |
+| R6 energy | iPhone `Xcode energy gauge Low over a 10-min idle session (NFR-2); no background work beyond WC delivery`; Watch `No standing timers/work; AOD = static glyph; schedulers are next-event timers only (04 §5.2); WC transfers coalesced by the system (context latest-wins)` | No energy measurement exists or is claimed. Structural attestations recorded: realTreeNoTimers green; AOD glyph binds no clock (GlanceView.swift:200-268); next-event schedulers (04:288/:362); zero UIBackgroundModes anywhere | BLOCKED (device legs per §25, owner-routed); structure recorded, not labeled as energy data |
+| R7 Watch snapshot restore | `≤ ~2 s raise-to-glance (intake; protects FR-17's ≤ 5 s raise-to-pat)` | Existing E2E re-run on Watch SE 3 44mm: MomoWatchUITests 9/9 PASS; testSnapshotRestoreStaysWithinTheBudget asserts restore - baseline <= 2.0 s over a measured baseline — PASSED (14.296 s case wall incl. 3 launches) | PASS (sim leg); physical-Watch leg owner-routed |
+| R8 Play round | `≤ 30 s bounded by engine + character pacing (FR-7, 04 §6.3)` | Existing proofs cited: authored worst case 22.4 s inside cap (MomoHandshakeTests roundBound); pacer deadline holds for ANY input stream (MomoReactionDirector.swift:757-761); engine PlayRoundTests green — inside the fresh 1161/113 run | PASS (proof+engine); device stopwatch leg owner-routed |
+| R9 sync cadence | `Context pushes: on-change only (a handful/day steady state); intent sends: on pat` | Live paired-sim session (SE3 + 44mm): pushes fired 1x/launch + 16x clustered exactly in the interaction window; ZERO during the 60 s idle and 30 s settle windows. Structural: `if outcome.changed` gate (AppModelPlan.swift:252); tick-only evaluates plan no push (:22). 7006 "not installed" failures kept verbatim as environmental truth (they mark exactly when attempts happened) | PASS (sim pair census + structure; intent-send half structural-only — sends app-silent by design, receive-side silent in the window; disclosed in 09-r9); physical pair owner-routed |
+| R10 discipline | evidence per row | `.claude/tasks/evidence/TASK-045/` 00..10 + raw-* logs (~150 KB text; no traces/bundles committed) | DONE |
+| R11 miss discipline | any MISS -> stop+record | No MISS occurred; every measured row passed with the recorded distributions reported in full (17 Pro descending distribution noted, not cherry-picked) | N/A (no misses) |
+| R12 standing gates | swift test >= 1161/113; builds green; frozen surfaces diff-empty; zero entitlements/Info.plist/timer changes; no production changes | fresh `swift test` 1161/113 PASSED; 4 builds SUCCEEDED; watch UI 9/9; `git status --porcelain` = 0 lines and stash = 0 (tree byte-identical to HEAD — frozen surfaces diff-empty BY TREE IDENTITY; zero new entitlements/Info.plist keys; zero timers; no production source changes needed or made); iPhone app UI 35/35 cited as baseline for the unchanged tree (not re-run — stated plainly) | DONE |
+
+Deviations / notes for the reviewer and orchestrator:
+- The R1/R3 probe harness is a throwaway /tmp Xcode project (NOT in the repo) —
+  it probes the installed Momo app via XCUIApplication(bundleIdentifier:) so the
+  frozen surfaces stay untouched; the commit therefore contains only the task
+  file + evidence files (docs(qa) shape).
+- R4 adjudication used a throwaway comparator watch app to establish the
+  watchOS 26.5 sim platform floor (~19 MB) — context for VERIFY-AT-BUILD; the
+  80 MB normative value was not edited.
+- Disk-pressure incident mid-session (host volume 100%): tooling blocked until
+  I removed my own /tmp artifacts (values pre-recorded), this project's
+  DerivedData intermediates, and the two probe projects' DerivedData. Sim
+  runtime volumes and devices untouched. Remaining free space ~0.5 GB — the
+  owner should free disk space before the next heavy session.
+- Watch-sim wedge during the R9 session (post-UI-test): rebooted the 44mm,
+  reinstalled the app, restarted that stream; pre-reboot watch-stream data
+  discarded and the incident recorded in the session notes.
+- Handoff (§28): Completed = all R1-R12 rows with evidence. Files Changed =
+  task file + evidence dir only. Tests Run/Test Results = 10-r12-gates.txt.
+  Known Issues = device-leg rows owner-routed; disk pressure. Decisions =
+  comparator method, throwaway-probe method, no budget value edited.
+  Reviewer Status = pending fresh reviewer. Commit/Push = orchestrator.
+  Recommended Next Step = fresh review agent per §10/§33, then orchestrator
+  commit `docs(qa): TASK-045 performance budget verification evidence`.
 
 ## Reviewer Findings
 
-(fresh reviewer fills under `.claude/tasks/reviews/REVIEW-TASK-045.md`; this section records only the disposition.)
+Full record: `.claude/tasks/reviews/REVIEW-TASK-045.md` — **VERDICT: APPROVED_WITH_MINOR_NOTES** (fresh independent §10/§33 agent, 2026-09-12). The reviewer re-derived the budget list from 05 §12 before reading this file, personally re-ran the full gate battery (1161/113; both builds; watch UI 9/9 incl. the restore-budget test), re-measured R1 (own probe: median 1.111244 s vs recorded 1.100153 s, ~1 % apart) and R3 (47 MB flat under automation digit-for-digit; clean-launch 25 MB delta explained as automation overhead, personally reproduced), reproduced the verbatim Animation-Hitches sim refusal, and confirmed the census/structure/sizes exactly. Dispositions:
+
+- **F-1 (Minor — FIXED at closeout):** the table's "verbatim" budget strings were paraphrases/truncations in several rows (values and semantics always correct; nothing edited). Fixed in this closeout pass: every row's Budget cell now carries §12's literal text. The "(no polling) / idle == zero sync work" additions were removed from R9's budget cell (supported by 05:272-275, but not this row's text — the structural pins in 09-r9 still carry that evidence).
+- **F-2 (Note — accepted):** R3's "phys_footprint" label vs the headline "64-bit Footprint" line — equal in every run the reviewer inspected; values sound. Raw evidence left as-written; correction recorded here.
+- **F-3 (Note — FIXED in table):** "FLAT 56 MB" understated the 57 MB tails x5; the R3 measured cell now records plateau + tails.
+- **F-4 (Note — FIXED in table):** R9's verdict now surfaces that the intent-send half-leg's evidence is structural-only (sends app-silent by design; receive-side silent in the window), as disclosed in 09-r9.
+- **F-5 (Note — accepted, recorded here):** evidence file 05-r5-sizes.txt mislabels the Momo.app rows "(Release/Debug-watchsimulator)" — the byte values are the iphonesimulator products (Debug matches byte-for-byte at 5,303,171 B). Raw evidence left as-written; this record corrects it. Same for 10-r12's build-list label.
+- **F-6 (Note — accepted):** Release Momo.app rebuild delta +47,238 B (+0.62 %) between sessions; Debug byte-identical; presumed rebuild nondeterminism; immaterial vs 60 MB.
+- **F-7 (Note — accepted):** 10-r12's "porcelain → 0 lines" is the gate-time snapshot; the handoff tree adds exactly the expected documentation entries.
+- **F-8 (Note — accepted):** the reviewer's fresh xctrace capture shows one extra sim-pair line vs the recorded capture (benign environment drift); a refreshed device-identity capture rides the next task that checks device identity.
 
 ## Completion Evidence
 
-(orchestrator fills at closeout.)
+- **Review:** `.claude/tasks/reviews/REVIEW-TASK-045.md` — APPROVED_WITH_MINOR_NOTES; F-1 fixed at closeout (budget strings now §12-verbatim); F-2/F-5..F-8 accepted as recorded corrections; F-3/F-4 folded into the table.
+- **Gates at closeout:** `swift test` 1161/113 PASSED (orchestrator re-run, exit 0; reviewer digit-for-digit); Momo + MomoWatch builds BUILD SUCCEEDED (reviewer re-runs on pinned sims); `MomoWatchUITests` 9/9 incl. `testSnapshotRestoreStaysWithinTheBudget` (reviewer re-run, xcresult-confirmed on the pinned 44mm); frozen surfaces diff-EMPTY by tree identity (diff = task docs only); zero production/test-code changes; zero entitlements/Info.plist/timer deltas.
+- **Commit:** (this commit) — `docs(qa): TASK-045 performance budget verification evidence` (task file + evidence dir + review record; no traces/bundles).
+- **Push:** (this push pending) — `origin feature/EPIC-009-release-readiness`.

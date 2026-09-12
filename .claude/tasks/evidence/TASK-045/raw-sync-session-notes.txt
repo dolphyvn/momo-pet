@@ -1,0 +1,12 @@
+R9 sync-cadence session — Sat 12 Sep 2026 04:09:24 UTC
+pair 9DC3AD8E-1237-44F8-99D3-7DCF7478853C: iPhone SE3 + Watch SE3 44mm
+iPhone app: Release-watchsimulator build (onboarded). Watch app: Debug-watchsimulator build.
+NOTE: watch sim rebooted mid-session (wedged post-UI-test; watchkitapp reinstalled) — pre-reboot watch stream discarded, iPhone stream continuous since 04:07:42 UTC.
+SESSION-START 04:07:42 (iPhone app launched 04:07:42)
+IDLE-START 04:09:24
+IDLE-END 04:10:24
+SOAK-START 04:10:29
+SOAK-END 04:12:51
+WATCHPAT-START 04:13:00
+WATCHPAT-END 04:13:40
+DRAIN-END 04:13:55
