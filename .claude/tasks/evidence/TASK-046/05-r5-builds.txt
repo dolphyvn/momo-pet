@@ -1,0 +1,16 @@
+TASK-046 evidence 05 — §19/R5: both scheme builds on the pinned sims
+(recorded 2026-09-12; no production file touched by this task — builds compile the standing tree)
+
+1. iPhone app
+   Command:  xcodebuild -project Momo.xcodeproj -scheme Momo \
+                 -destination 'id=1F25E487-A78E-464C-95AF-0BD1A9B3E1BE' build
+   Surface:  iPhone SE (3rd generation), iOS 26.5, simulator 1F25E487-A78E-464C-95AF-0BD1A9B3E1BE (pinned)
+   Result:   ** BUILD SUCCEEDED ** — exit code 0
+
+2. Watch app
+   Command:  xcodebuild -project Momo.xcodeproj -scheme MomoWatch \
+                 -destination 'id=8A854895-225C-411B-89C1-B03337BFE957' build
+   Surface:  Apple Watch SE 3 (44mm), watchOS 26.5, simulator 8A854895-225C-411B-89C1-B03337BFE957 (pinned)
+   Result:   ** BUILD SUCCEEDED ** — exit code 0
+
+Raw tails retained in the session log; the BUILD SUCCEEDED lines above are the record.

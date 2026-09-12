@@ -1,0 +1,33 @@
+TASK-045 R3 — iPhone memory <= 150 MB steady-state Home idle
+============================================================
+Budget (verbatim, 05 §12): "Memory, iPhone" | "<= 150 MB steady-state Home idle
+(provisional)".
+Method: scripted soak in the same throwaway probe (LaunchProbe), Release build:
+launch -> 30 s settle -> pat x5 -> feed -> full play round stopped via the
+Done pill -> Room/Settings/Home tab cycling x2 -> 30 s return-to-idle window.
+During the whole soak, the HOST sampled the sim app's phys_footprint
+(/usr/bin/footprint <host-pid>) every 5 s. Simulator surface, Release build.
+Device leg: BLOCKED per §25 (same basis as 00-environment).
+
+Command:
+  xcodebuild test -project LaunchProbe.xcodeproj -scheme LaunchProbe \
+    -destination 'id=<UDID>' \
+    -only-testing:.../testMemorySoakHomeIdleInteractionsReturnToIdle   &
+  sample-footprint.sh <udid-prefix> <out.log> 34 5 Momo     # 34 x 5 s
+
+iPhone SE (3rd gen) — raw-footprint-se3-soak.log:
+  post-launch settle ~47 MB -> interaction peak 56 MB -> final return-to-idle
+  plateau FLAT at 56 MB across the last ~11 samples (~55 s).
+  Steady-state Home idle = 56 MB -> PASS (62% headroom vs 150 MB).
+
+iPhone 17 Pro — raw-footprint-17pro-soak.log:
+  same shape: ~47 MB settle -> 56 MB peak -> flat 56 MB plateau.
+  Steady-state Home idle = 56 MB -> PASS.
+
+Shape note: footprint returns to and HOLDS the idle plateau after the full
+interaction storm (no creep across the return-to-idle window) — the soak is
+the leak-canary; two independent runs this session (R1 probe session and the
+R9 sync session re-launch) showed the same 47->56 MB shape.
+
+Verdict: R3 SIM legs PASS on both pinned sims (56 MB vs 150 MB provisional).
+DEVICE leg BLOCKED, owner-routed. Provisional value NOT edited.

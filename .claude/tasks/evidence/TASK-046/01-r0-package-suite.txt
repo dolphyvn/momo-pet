@@ -1,0 +1,30 @@
+TASK-046 evidence 01 — §10.5 R0: fresh package-suite execution (the ALREADY-COVERED green pointer)
+(recorded 2026-09-12; run BEFORE any task changes — the tree is the standing baseline)
+
+Command:  swift test            (repo root; Package.swift suites = Tests/MomoCoreTests + Tests/MomoKitTests + Tests/MomoCharacterTests)
+
+Result:   ✔ Test run with 1161 tests in 113 suites passed after 1.404 seconds.
+          exit code 0
+          → digit-for-digit match with the standing baseline (1161/113) — ZERO regressions, ZERO additions yet.
+
+This run is the fresh green execution pointer for every ALREADY-COVERED row whose tests live in the
+package suites (rows 1, 2, 3, 8-Core, 9, 10):
+- row 1  Timezone change mid-day      TimeFoldTests.swift:552  timezoneChangeCausesAtMostOneRollover
+- row 2  Daylight-saving change       TimeFoldTests.swift:176  dstFallBackNightIsTenHours
+                                      TimeFoldTests.swift:209  dstSpringForwardNightIsEightHours
+- row 3  Date rollover                TimeFoldTests.swift:386  midnightRolloverExactlyOnce
+                                      TimeFoldTests.swift:410  midnightRolloverExactlyOnceAcrossFoldedSpans
+                                      TimeFoldTests.swift:469  absentDayLedgerIsEmpty
+                                      TimeFoldTests.swift:504  sevenDayAbsenceAddsOnlyLandingDay
+- row 8  Fresh installation (Core)    QuestGenerationTests.swift:120  unknownPriorsForceQ6
+                                      QuestGenerationTests.swift:323  freshInstallDayOneContainsQ6
+                                      AppModelOnboardingPlanTests.swift:35  completionTransform
+- row 9  Upgrade (Kit)                MigrationChainTests.swift:136/143/180/191/240/257/266/290
+- row 10 Long inactivity               TimeFoldTests.swift:469/:504 + GreetingSelectionTests.swift:39/:54
+- row 6  Watch unavailable (plan pin) AppModelPlanTests.swift:132  watchSeamReservedOnlyWhenChanged
+                                      AppModelPlanTests.swift:23   fixedOrder
+
+Every pointer was BODY-READ in this session before recording (R0 standard: a name match is not evidence —
+see the audit table in the task file's Implementation Notes for the per-row body-read verification).
+
+Raw tail of the run (last 25 lines) retained in the session log; the counts line above is the record.

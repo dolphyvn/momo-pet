@@ -1,0 +1,37 @@
+TASK-045 R4 — Watch memory <= 80 MB foreground (VERIFY-AT-BUILD)
+================================================================
+Budget (verbatim, 05 §12): "Memory, Watch" | "<= 80 MB foreground (provisional;
+VERIFY-AT-BUILD)". The provisional value is left untouched; this record is the
+at-build verification.
+Method: identical host-side phys_footprint sampling (/usr/bin/footprint) of the
+MomoWatch host process while the watch app sat foregrounded on the watch sim,
+Release build. 22 samples x 5 s (~2 min) per watch.
+Device leg (physical Watch): BLOCKED per §25 — no physical Watch exists in this
+environment (raw-xctrace-list-devices.txt). Owner-routed.
+
+Watch SE 3 (40mm), F0A75761... — raw-footprint-watch-se3-40mm.log:
+  19 MB on every one of 22 samples (dead flat across the ~2 min foreground
+  window). -> PASS (76% headroom vs 80 MB).
+
+Apple Watch Series 11 (42mm), EB5715E3... — raw-footprint-watch-s11-42mm.log:
+  18 MB at launch, 19 MB briefly, then 20 MB steady for the remaining 15+
+  samples. Steady-state foreground = 20 MB. -> PASS (75% headroom).
+
+VERIFY-AT-BUILD context — platform floor comparator:
+  a throwaway single-view SwiftUI watch app (ProbeWatch, /tmp, WKWatchOnly)
+  built Release with the same SDK was sampled on the SAME Series 11 sim
+  (raw-footprint-probewatch-comparator.log): 18 MB launch, 19 MB across all
+  10 soak samples.
+  => MomoWatch's steady foreground sits ~1 MB above the empty-SwiftUI-app
+  platform floor of watchOS 26.5 sims. The app's OWN memory is ~1 MB of the
+  20 MB; the 80 MB provisional budget holds ~4x headroom on both pinned
+  watch sims.
+
+Adjudication: no normative edit; sim legs PASS with large headroom; the
+physical-Watch confirmation remains an owner-routed device obligation (same
+routing as TASK-044 R5's device-leg records).
+
+Command pattern:
+  xcrun simctl install <watch-udid> Release-watchsimulator/MomoWatch.app
+  xcrun simctl launch <watch-udid> com.momo.app.watchkitapp
+  sample-footprint.sh <udid-prefix> <out.log> 22 5 MomoWatch

@@ -1,0 +1,27 @@
+TASK-045 R8 — Play round <= 30 s
+================================
+Budget (verbatim, 05 §12): "Play round duration" | "<= 30 s".
+Method: the bound is ALREADY pinned by existing tests (no duplication —
+cited and re-verified inside this session's green swift-test battery).
+
+Evidence:
+1. Character side — Tests/MomoCharacterTests/MomoHandshakeTests.swift
+   :192  "MARK: Play (§6.3; §7.1's 15–30 s round; R7's <= 30 s law)"
+   :196  @Test("The authored worst-case round is 22.4 s, inside §7.1's 30 s cap")
+   The test proves the director's pacer clamps ANY input stream to the authored
+   worst case; the deadline itself is the pacer's sample-less deadline
+   (Sources/MomoCharacter/MomoReactionDirector.swift:757-761 — "so the <= 30 s
+   bound holds for ANY input stream").
+2. Engine side — Tests/MomoCoreTests/PlayRoundTests.swift: authorize -> cease
+   applies -10/+6 exactly once; single-instant application; night-overtake
+   folds the round (the round cannot outlive its authored window).
+
+Verification this session: `swift test` re-run PASSED with 1161 tests in 113
+suites (includes both suites above). The authored worst case (22.4 s) is a
+PROOF-SIDE number (adversarial input clamp), not a stopwatch run of a device
+play session; a physical stopwatch run of "pat -> celebrate" on device belongs
+to the owner-routed device pass (§25) — recorded honestly as the row's only
+open device qualifier, same as R2/R6.
+
+Verdict: R8 PASS on the existing proof+engine suites (1161/113 green this
+session); device stopwatch leg owner-routed, not measured here.

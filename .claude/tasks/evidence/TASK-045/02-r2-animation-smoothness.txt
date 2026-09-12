@@ -1,0 +1,48 @@
+TASK-045 R2 — Animation smoothness (60 fps sustained, <= 8 ms/frame)
+=====================================================================
+Budget (verbatim, 05 §12): "Animation smoothness (Home idle + interactions)"
+| "60 fps sustained; <= 8 ms/frame average frame cost"
+
+DEVICE leg: BLOCKED per §25.
+Basis (verbatim situation, raw capture raw-xctrace-list-devices.txt):
+  the host exposes exactly ONE physical device, the owner's iPhone
+  (JNJGYD4G9Q / 8DE821A1-0104-52AC-9AE6-4CB1DC690FA3), with NO paired Watch
+  and no bare test-device provisioning path in this session. Frame-time
+  instrumentation on the owner's daily device was not authorized work for
+  this task. Owner-routed.
+
+SIM side — the hitches instrument does not exist on the simulator (recorded
+verbatim from the tool):
+  command: xcrun xctrace record --template 'Animation Hitches' \
+             --device 1F25E487-A78E-464C-95AF-0BD1A9B3E1BE \
+             --launch com.momo.app --time-limit 60s --output hitches-se3.trace
+  tool output: "* [Error] Hitches is not supported on this platform."
+So no fps / hitch-ratio number can be produced on the sim surface either;
+none is claimed. (The 60 fps row therefore has NO measured value anywhere in
+this evidence set — that is the honest state.)
+
+Supplementary sim-side signal (NOT an fps measurement — explicitly labeled):
+host-process CPU% of the Momo app during Home idle, iPhone SE 3 sim,
+10 samples at ~3 s spacing (raw-cpu-idle-se3.log): 10.8, 11.9, 11.6, 10.8,
+11.7, 7.2, 12.0, 6.5, 10.2, 11.5 — mean ~10.4% of ONE host core, including
+simulator rendering overhead. Consistent with a calm render loop; not a
+frame-time proof.
+
+STRUCTURAL citations (why the budget is credible on device; structural, not a
+measurement):
+- The iPhone rig is the "full" tier: exactly 21 generated Path constants
+  composed per frame (Sources/MomoCharacter/RigLODTier.swift:54-64
+  partNames(for: .full)).
+- Transform-only drawing: a census of Sources/MomoCharacter/MomoRig.swift for
+  blur/shadow/.opacity/Material/gradient finds ZERO matches — the per-frame
+  cost is path transforms + fills, no offscreen or blend-heavy effects.
+- LOD tiers shrink cost on lesser surfaces (RigLODTier.swift:27-46; Watch
+  never renders the full rig, pinned by RigLODTierTests.watchNeverFull).
+- The animation schedule is next-event timers with zero standing cost between
+  events (docs/design/04-character-system.md:288, :362; green real-tree guard
+  Tests/MomoKitTests/MomoWatchSweepScanTests.swift:274 realTreeNoTimers inside
+  the passing swift-test battery).
+
+Verdict: R2 = BLOCKED on device legs per §25 (owner-routed); sim surface
+cannot measure the metric (tool verbatim above); structural posture recorded.
+No budget value was edited. No MISS is claimed (no measured failure exists).

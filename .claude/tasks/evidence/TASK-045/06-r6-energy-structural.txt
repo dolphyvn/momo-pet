@@ -1,0 +1,47 @@
+TASK-045 R6 — Energy rows
+=========================
+Budget rows (verbatim, 05 §12 line "Energy" and "Energy, Watch"):
+  "Energy, iPhone": "Energy gauge Low after 10-min idle" |
+    gauge evidence: "Energy gauge on device"
+  "Energy, Watch": "No standing timers/work; AOD = static glyph; schedulers are
+    next-event timers only (04 §5.2); WC transfers coalesced by the system
+    (context latest-wins)" | evidence: "Energy gauge on device; pat-roundtrip
+    trace"
+
+DEVICE legs (both): BLOCKED per §25.
+Basis: the budget's own declared evidence surface is "Energy gauge on device" —
+a physical-device instrument. raw-xctrace-list-devices.txt shows exactly one
+physical iPhone (owner's daily device) and NO paired physical Watch in this
+environment. No energy measurement is claimed. Owner-routed (same routing and
+shape as TASK-044 R5 device-obligation records).
+
+STRUCTURAL attestations (explicitly labeled: these are STRUCTURE proofs, NOT
+energy measurements):
+1. Zero standing timers — the real-tree guard over all MomoWatch sources is
+   green inside the passing battery:
+   Tests/MomoKitTests/MomoWatchSweepScanTests.swift:274 realTreeNoTimers
+   (WatchSweepScan.noTimersViolations over KitRepo.momoWatchSources() == []),
+   with the mutation direction proving the guard bites
+   (Timer(timeInterval:repeats:) fixture -> exactly 1 violation, :252-254).
+2. AOD = static glyph — the AOD branch binds NO clock and NO sampler:
+   Apps/MomoWatch/GlanceView.swift:200-268 ("the glyph rig branch binds no
+   clock — stillness IS the AOD posture"; 28 pt glyph stage inside
+   RigLOD.glyphStagePoints 24-32); RigLODTier.swift:11-14 "this tier never
+   binds a clock"; 04-character-system.md AOD stillness law.
+3. Schedulers are next-event timers only — docs/design/04-character-system.md
+   :362 ("all schedulers are next-event timers; app-hide zeroes the
+   CharacterClock ... timers re-schedule, never replay") and :288 (blinking:
+   "zero standing cost between blinks (timer scheduled for next event only)").
+4. No background work at all — zero UIBackgroundModes entries in any Info.plist
+   and zero in Momo.xcodeproj/project.pbxproj (census this session: no
+   matches); the engine is event-driven catch-up, "never a background timer"
+   (05-technical-architecture.md:272-275; TASK-040 R4 zero-background-
+   requirements record).
+5. Sync cadence (the Watch-energy coalescing clause) — live session census in
+   09-r9-sync-cadence.txt: context pushes fire on state CHANGE only
+   (AppModelPlan.swift:252 "if outcome.changed"; tick-only evaluations plan
+   neither persist nor push — AppModelPlan.swift:22); latest-wins context.
+
+Verdict: R6 = BLOCKED on device legs per §25 (owner-routed); structural
+posture recorded in full. The energy rows are NOT marked PASS — no energy
+measurement exists; that is the honest state. No budget values edited.

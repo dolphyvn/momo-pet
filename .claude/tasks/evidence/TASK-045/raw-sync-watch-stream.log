@@ -1,0 +1,5 @@
+getpwuid_r did not find a match for uid 502
+Filtering the log data using "subsystem == "com.momo.app" OR subsystem == "com.apple.watchconnectivity""
+Timestamp               Ty Process[PID:TID]
+2026-09-12 05:13:35.836 Df MomoWatch[23536:36e6e11] [com.momo.app:watch-transport] session activated (state 2)
+Child process terminated with signal 15: Terminated

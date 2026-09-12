@@ -1,0 +1,35 @@
+TASK-045 R7 — Watch restore <= ~2 s
+===================================
+Budget (verbatim, 05 §12): "Watch restore from disk" | "<= ~2 s".
+Method: re-run of the EXISTING MomoWatchUITests restore E2E
+(testSnapshotRestoreStaysWithinTheBudget, MomoWatchUITests/MomoWatchUITests.swift:111)
+on the pinned Apple Watch SE 3 (44mm) sim. No test was written or modified for
+this row (no duplication).
+
+Command:
+  xcodebuild test -project Momo.xcodeproj -scheme MomoWatch \
+    -destination 'id=8A854895-225C-411B-89C1-B03337BFE957'
+
+Result (2026-09-12, this session):
+  Executed 9 tests, with 0 failures (0 unexpected) in 64.123 s
+  ** TEST SUCCEEDED **
+  testSnapshotRestoreStaysWithinTheBudget: PASSED (14.296 s test-case wall,
+  which includes the baseline launch, the seeded relaunch and the measured
+  restore relaunch).
+Semantics (the test's own body, :111-154): it measures a FRESH-store baseline
+launch, seeds a store through the real store path, relaunches over the SAME
+store, and asserts
+  XCTAssertLessThanOrEqual(restoreElapsed - baselineElapsed, 2.0)
+i.e. the DISK-restore delta over launch overhead stays within the ~2 s budget.
+The assertion passed, so restore-delta <= 2.0 s held on the pinned 44mm sim.
+(The test prints the sub-values only on failure; the passing assertion is the
+recorded evidence, per its source.)
+
+Per-test walls (all 9 passed): AllDone 7.829 / CanvasTap 5.412 /
+FixtureSeeded 6.120 / FreshLaunch 4.844 / PatPillTap 5.205 /
+ResetHold 4.999 / ResetMarker 9.451 / SnapshotRestore 14.296 / StaleFixture 5.969.
+
+Surface note: watchOS SIMULATOR. A physical-Watch restore run remains part of
+the owner-routed device obligations (§25; no physical Watch in this env).
+
+Verdict: R7 PASS (sim leg, existing E2E, 9/9 green this session).

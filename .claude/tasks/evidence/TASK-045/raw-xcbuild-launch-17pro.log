@@ -1,0 +1,140 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project LaunchProbe.xcodeproj -scheme LaunchProbe -destination id=8E57D4E0-FAA2-499F-8FC6-E0B50AE855BA
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'LaunchProbeUITests' in project 'LaunchProbe' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: bb85564a5837db869a09619b4135bb40
+Build description path: /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Intermediates.noindex/XCBuildData/bb85564a5837db869a09619b4135bb40.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk /Users/dolphy/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.5-23F81a-6cfe768891a92b912361537c460fe42b.sdkstatcache
+    cd /tmp/task045/launchprobe/LaunchProbe.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk -o /Users/dolphy/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.5-23F81a-6cfe768891a92b912361537c460fe42b.sdkstatcache
+
+ProcessInfoPlistFile /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/Info.plist /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Intermediates.noindex/LaunchProbe.build/Debug-iphonesimulator/LaunchProbeUITests.build/empty-LaunchProbeUITests.plist (in target 'LaunchProbeUITests' from project 'LaunchProbe')
+    cd /tmp/task045/launchprobe
+    builtin-infoPlistUtility /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Intermediates.noindex/LaunchProbe.build/Debug-iphonesimulator/LaunchProbeUITests.build/empty-LaunchProbeUITests.plist -producttype com.apple.product-type.bundle.ui-testing -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Intermediates.noindex/LaunchProbe.build/Debug-iphonesimulator/LaunchProbeUITests.build/ProductTypeInfoPlistAdditions.plist -o /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/Info.plist
+
+CopySwiftLibs /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest (in target 'LaunchProbeUITests' from project 'LaunchProbe')
+    cd /tmp/task045/launchprobe
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/LaunchProbeUITests --scan-folder /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/Frameworks --scan-folder /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/PlugIns --scan-folder /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/SystemExtensions --scan-folder /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Products/Debug-iphonesimulator/LaunchProbeUITests-Runner.app/PlugIns/LaunchProbeUITests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Build/Intermediates.noindex/LaunchProbe.build/Debug-iphonesimulator/LaunchProbeUITests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+2026-09-12 04:40:34.743378+0100 LaunchProbeUITests-Runner[4499:57224514] [Default] Running tests...
+2026-09-12 04:40:34.794612+0100 LaunchProbeUITests-Runner[4499:57224912] [General] Failed to send CA Event for app launch measurements for ca_event_type: 0 event_name: com.apple.app_launch_measurement.FirstFramePresentationMetric
+2026-09-12 04:40:34.836181+0100 LaunchProbeUITests-Runner[4499:57224918] [General] Failed to send CA Event for app launch measurements for ca_event_type: 1 event_name: com.apple.app_launch_measurement.ExtendedLaunchMetrics
+objc[4499]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x1092e0310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10871c398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'All tests' started at 2026-09-12 04:40:50.778.
+Test Suite 'LaunchProbeUITests.xctest' started at 2026-09-12 04:40:50.779.
+Test Suite 'LaunchProbeUITests' started at 2026-09-12 04:40:50.779.
+Test Case '-[LaunchProbeUITests.LaunchProbeUITests testACompleteOnboardingOnce]' started.
+    t =     0.00s Start Test at 2026-09-12 04:40:50.783
+    t =     0.52s Set Up
+    t =     0.53s Open com.momo.app
+    t =     0.53s     Launch com.momo.app
+    t =     1.02s         Setting up automation session
+    t =     2.47s         Wait for com.momo.app to idle
+    t =     4.66s Checking existence of `TabBar (First Match)`
+    t =     4.81s Tap "Say hello" Button
+    t =     4.81s     Wait for com.momo.app to idle
+    t =     4.90s     Find the "Say hello" Button
+    t =     4.94s     Check for interrupting elements affecting "Say hello" Button
+    t =     5.01s     Synthesize event
+    t =     5.51s     Wait for com.momo.app to idle
+    t =     5.53s Waiting 10.0s for TextField (First Match) to exist
+    t =     6.60s     Checking `Expect predicate `existsNoRetry == 1` for object TextField (First Match)`
+    t =     6.60s         Checking existence of `TextField (First Match)`
+    t =     6.61s Tap "Continue" Button
+    t =     6.61s     Wait for com.momo.app to idle
+    t =     6.62s     Find the "Continue" Button
+    t =     6.63s     Check for interrupting elements affecting "Continue" Button
+    t =     6.66s     Synthesize event
+    t =     6.99s     Wait for com.momo.app to idle
+    t =     7.03s Tap "Begin" Button
+    t =     7.03s     Wait for com.momo.app to idle
+    t =     7.03s     Find the "Begin" Button
+    t =     7.06s     Check for interrupting elements affecting "Begin" Button
+    t =     7.33s     Synthesize event
+    t =     7.78s     Wait for com.momo.app to idle
+    t =     7.82s Waiting 10.0s for TabBar (First Match) to exist
+    t =     8.83s     Checking `Expect predicate `existsNoRetry == 1` for object TabBar (First Match)`
+    t =     8.83s         Checking existence of `TabBar (First Match)`
+    t =     8.84s Terminate com.momo.app:5832
+    t =     9.90s Tear Down
+Test Case '-[LaunchProbeUITests.LaunchProbeUITests testACompleteOnboardingOnce]' passed (10.025 seconds).
+Test Case '-[LaunchProbeUITests.LaunchProbeUITests testColdLaunchToInteractiveHome]' started.
+    t =     0.00s Start Test at 2026-09-12 04:41:00.808
+    t =     0.03s Set Up
+    t =     0.05s Open com.momo.app
+    t =     0.05s     Launch com.momo.app
+    t =     0.28s         Setting up automation session
+    t =     1.55s         Wait for com.momo.app to idle
+    t =     5.07s Open com.momo.app
+    t =     5.07s     Launch com.momo.app
+    t =     5.07s         Terminate com.momo.app:6436
+    t =     6.34s         Setting up automation session
+    t =     7.42s         Wait for com.momo.app to idle
+    t =     9.61s Open com.momo.app
+    t =     9.62s     Launch com.momo.app
+    t =     9.62s         Terminate com.momo.app:6767
+    t =    10.82s         Setting up automation session
+    t =    11.89s         Wait for com.momo.app to idle
+    t =    14.14s Open com.momo.app
+    t =    14.14s     Launch com.momo.app
+    t =    14.14s         Terminate com.momo.app:7244
+    t =    15.37s         Setting up automation session
+    t =    16.39s         Wait for com.momo.app to idle
+    t =    18.45s Open com.momo.app
+    t =    18.45s     Launch com.momo.app
+    t =    18.45s         Terminate com.momo.app:7546
+    t =    19.68s         Setting up automation session
+    t =    20.67s         Wait for com.momo.app to idle
+    t =    22.70s Open com.momo.app
+    t =    22.70s     Launch com.momo.app
+    t =    22.70s         Terminate com.momo.app:7812
+    t =    23.92s         Wait for accessibility to load
+    t =    23.92s         Setting up automation session
+    t =    24.66s         Wait for com.momo.app to idle
+/tmp/task045/launchprobe/LaunchProbeUITests.swift:29: Test Case '-[LaunchProbeUITests.LaunchProbeUITests testColdLaunchToInteractiveHome]' measured [Duration (AppLaunch), s] average: 1.426, relative standard deviation: 12.869%, values: [1.561344, 1.591565, 1.500864, 1.391926, 1.085477], performanceMetricID:com.apple.dt.XCTMetric_ApplicationLaunch-AppLaunch.duration, baselineName: "", baselineAverage: , polarity: prefers smaller, maxPercentRegression: 10.000%, maxPercentRelativeStandardDeviation: 10.000%, maxRegression: 0.000, maxStandardDeviation: 0.000
+    t =    26.95s Waiting 10.0s for TabBar (First Match) to exist
+    t =    27.98s     Checking `Expect predicate `existsNoRetry == 1` for object TabBar (First Match)`
+    t =    27.98s         Checking existence of `TabBar (First Match)`
+    t =    28.03s Tear Down
+Test Case '-[LaunchProbeUITests.LaunchProbeUITests testColdLaunchToInteractiveHome]' passed (28.360 seconds).
+Test Suite 'LaunchProbeUITests' passed at 2026-09-12 04:41:29.168.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 38.385 (38.390) seconds
+Test Suite 'LaunchProbeUITests.xctest' passed at 2026-09-12 04:41:29.169.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 38.385 (38.390) seconds
+Test Suite 'All tests' passed at 2026-09-12 04:41:29.169.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 38.385 (38.391) seconds
+2026-09-12 04:41:29.507 xcodebuild[3502:57221473] [MT] IDETestOperationsObserverDebug: 63.502 elapsed -- Testing started completed.
+2026-09-12 04:41:29.507 xcodebuild[3502:57221473] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-09-12 04:41:29.507 xcodebuild[3502:57221473] [MT] IDETestOperationsObserverDebug: 63.502 sec, +63.502 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/dolphy/Library/Developer/Xcode/DerivedData/LaunchProbe-gruofjcizwqraxhijrzikezogtfp/Logs/Test/Test-LaunchProbe-2026.09.12_04-40-20-+0100.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

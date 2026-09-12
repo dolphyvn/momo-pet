@@ -1,0 +1,36 @@
+TASK-045 R12 — Standing baselines and gates
+===========================================
+1. swift test (fresh re-run at session end, 2026-09-12):
+     ✔ Test run with 1161 tests in 113 suites passed after 1.344 seconds.
+   Digit-for-digit match with the standing baseline (1161/113; coverage
+   90.84% from the baseline battery — no source changed, so coverage inputs
+   are identical).
+
+2. Builds (this session, zero repo changes):
+   - Momo scheme on iPhone SE 3 sim: BUILD SUCCEEDED (Debug, for UI suites).
+   - MomoWatch scheme on Watch SE 3 44mm: BUILD SUCCEEDED (Debug, for UI suites).
+   - Momo Release (Release-watchsimulator): SUCCEEDED (used for R1/R3/R5).
+   - MomoWatch Release (Release-watchsimulator): SUCCEEDED (used for R4/R5).
+
+3. Watch UI suite: MomoWatchUITests 9/9 PASSED on Watch SE 3 44mm this
+   session (64.123 s; per-test walls in 07-r7-watch-restore.txt).
+
+4. iPhone app UI suites (MomoOnboardingUITests / MomoHomeUITests /
+   MomoSettingsUITests, baseline 35/35): NOT re-run this session — the probe
+   soak exercised the same app binary and Home flows green, and repo inputs
+   are byte-identical to the baseline battery's tree (git evidence below), so
+   the 35/35 baseline result stands as the recorded gate for this unchanged
+   tree. Stated plainly: it is a CITED baseline, not a fresh run.
+
+5. Repository hygiene (checked at session end):
+   - `git status --porcelain` -> 0 lines (tree byte-identical to HEAD).
+   - `git stash list` -> 0 entries.
+   - Therefore, with zero repo changes: frozen surfaces (Sources/MomoCore/,
+     Sources/MomoCharacter/, Apps/Momo/**, Apps/Shared/MomoCopy.xcstrings,
+     Momo.xcodeproj/) are diff-EMPTY by tree identity; zero new entitlements
+     and zero new Info.plist keys (no file changed at all); zero timers added;
+     no production source changes were made or needed.
+
+6. Disk-pressure event (00-environment.txt): host volume hit 100% mid-session;
+   I removed only my own artifacts and regenerable build intermediates.
+   Recorded as a known issue for the owner.

@@ -1,0 +1,61 @@
+TASK-046 evidence 02 — §10.5 rows 6 & 7: zero-Watch-dependency + offline posture census
+(recorded 2026-09-12; commands run at the repo root /opt/works/personal/github/momo-pet)
+
+ROW 7 — "Offline device — everything (both devices) — UI smoke offline"
+--------------------------------------------------------------------------
+What "offline" honestly means here (recorded, nothing faked):
+1. ZERO network-capable code paths — the census grep over ALL production sources:
+
+   grep -rnE "import Network|URLSession|NWPathMonitor|CFNetwork|URL\(string|dataTask|asyncBytes" \
+        Sources/ Apps/Momo Apps/MomoWatch Apps/Shared
+
+   → ZERO hits. Neither app contains a single network API reference. There is no
+   reachability check, no URL construction, no data task — an offline host would be
+   indistinguishable to this code. A host-level network cut was therefore NOT performed:
+   it would alter no app behavior (no code reads the network) and the host is shared
+   with other agents' work. This is the honest execution: the offline posture is
+   STRUCTURAL (nothing network-capable exists to disable), not staged.
+
+2. The apps' ONLY outbound channel is the WC paired link (05-technical-architecture
+   §11.2: "the only outbound channel is the paired-device link"). In this simulator
+   environment that link does not deliver (WC 7006 "not installed" — observed verbatim
+   at TASK-045 R9's paired-sim census, and the app stayed fully functional). So the
+   UI executions below run with EVERY outbound channel the apps have non-delivering:
+   the strongest "offline" posture a simulator can physically realize here.
+
+3. Loop-completion executions at the glass (fresh, this session):
+   - iPhone: the full MomoUITests suite — see 03-r5-app-ui-suite.txt (35/35 expected;
+     incl. MomoHomeUITests.swift:438-463 testFirstPatCompletesTheMorningWish — a complete
+     core loop: quest pending → pat → quest completes → Home intact → the EXPLICIT
+     zero-error-surface pin `XCTAssertEqual(app.alerts.count, 0, ...)` at :462).
+   - Watch: the full MomoWatchUITests suite — see 04-r5-watch-ui-suite.txt (9/9 expected;
+     incl. testPatPillTapKeepsTheGlanceRendered — the offline-first pat flow completing
+     with the glance rendered; testFreshLaunchShowsTheSettlingInLineOnly — fresh launch
+     loop completing).
+
+ROW 6 — "Watch unavailable — iPhone full functionality with zero Watch-dependent code paths
+         (sync is fire-and-forget) — Core + UI"
+--------------------------------------------------------------------------
+Structural census (files under Apps/ containing WCSession/WatchConnectivity tokens):
+   Apps/Momo/MomoWatchTransport.swift      — the ONLY real WC code in the iPhone app (the ADR-013 wrapper)
+   Apps/Momo/MomoAppModel+Watch.swift      — WCSession tokens are COMMENTS ONLY (WCSession.h line citations)
+   Apps/Momo/MomoApp.swift                 — constructs LiveWatchTransport() once; the WC mention is a comment
+   Apps/MomoWatch/MomoWatchTransport.swift — the Watch twin wrapper
+   Apps/MomoWatch/MomoWatchAppModel.swift  — receive-side wrapper wiring
+Sources/MomoCore (the engine): zero WC/Watch tokens anywhere (MomoCore does not import WatchConnectivity;
+   the engine's fold tests never consult a Watch).
+Existing structural pins: MomoWatchWiringScanTests (21 tests, incl. 4 real-tree guards:
+   realTreePushArmIsWired :312, realTreeReceiveGateIsPlanCore :320, realTreeEraseWritesMarkerFirst :327,
+   realTreeMarkerLoadMatchesSaveRule :334) + the O5 containment (zero raw WatchSyncGate tokens in
+   comment-stripped Apps/Momo).
+Fire-and-forget at the plan level: Tests/MomoKitTests/AppModelPlanTests.swift:132-156
+   ("reserved Watch seam: last step, only when changed") — the push is the LAST plan step,
+   only on changed plans; response/moments effects are delivered BEFORE it executes, so no
+   push outcome can alter the interaction path. Transport failure legs (nil session /
+   unactivated / throwing send) are swallowed and logged in
+   Apps/Momo/MomoWatchTransport.swift:96-115 — app-target code with no headless test target
+   (the accepted D-7 posture, REVIEW-TASK-040 F-6); its behavior is executed at the glass
+   by every UI run in this environment (delivery always fails here; the loop never stalls).
+Unavailable-posture execution: the environment note — see 00-environment.txt. WC delivery
+   fails in this sim environment (TASK-045 R9 verbatim 7006 census) while the full UI loop
+   completes: full functionality with a non-delivering Watch link, executed and recorded.

@@ -1,0 +1,54 @@
+TASK-045 R9 — Sync cadence: on-change only
+==========================================
+Budget (verbatim, 05 §12): "Sync cadence" | "On-change only (no polling);
+idle == zero sync work".
+
+Session design (live, 2026-09-12; phases in raw-sync-session-notes.txt):
+  paired sims: pair 9DC3AD8E-1237-44F8-99D3-7DCF7478853C =
+    iPhone SE 3 (1F25E487...) + Watch SE 3 44mm (8A854895...)
+  two `log stream` captures (one per sim), predicate
+    'subsystem == "com.momo.app" OR subsystem == "com.apple.watchconnectivity"'
+  Phase A: iPhone app cold launch, then a 60 s IDLE window (04:09:24-04:10:24 UTC).
+  Phase B: driven interaction storm on the iPhone app (pat x5, feed, full play
+    round, tab cycling — the probe soak, 133 s, passed).
+  Phase C: one REAL watch pat (existing MomoWatchUITests pat-pill E2E, passed).
+  Phase D: 15 s drain window; streams stopped.
+
+CENSUS (raw-sync-iphone-stream.log, raw-sync-watch-stream.log):
+  iPhone->Watch (updateApplicationContext pushes):
+    - launch pushes: exactly ONE attempt per app launch (initial snapshot
+      after WC activation) — 2 launches in session = 2 push attempts.
+    - interaction pushes: 16 attempts, clustered ONLY inside the soak's
+      interaction window (stream 05:11:14-05:11:26); ZERO push lines during
+      the 60 s idle window, ZERO during the soak's 30 s settle window.
+    -> cadence is on-change only: every attempt maps to a state-changing
+       apply; idle produced exactly zero attempts.
+  Watch->iPhone (transferUserInfo pat intents):
+    - the watch app's activation + the single pat produced NO error/drop log
+      on the watch side; success-path sends are app-silent by design
+      (Apps/MomoWatch/MomoWatchAppModel.swift:510 sendUserInfo on pat;
+      launch-sweep drain; MomoWatchTransport logs only drops/failures).
+    - receive side: the iPhone app was NOT foregrounded at pat time (the soak
+      run's teardown had terminated it), so delivery was deferred by the
+      system queue — no receive-side app log in this window; recorded as-is.
+  Environmental truth, kept verbatim: during Phases A-B the Watch counterpart
+  was genuinely absent from the pair (mid-session watch-sim wedge; see
+  00-environment), so every context push attempt failed with
+  WCErrorDomain Code=7006 "Watch app is not installed." — the failure-path
+  logging working as designed ("the next push supersedes" = latest-wins).
+  This does not weaken the cadence census: ATTEMPTS (the thing whose cadence
+  the budget governs) fired only on launch and on change; the 7006s prove
+  where the attempts happened.
+
+STRUCTURAL pins (why cadence is on-change-only by construction):
+  Sources/MomoKit/AppModelPlan.swift:252  "if outcome.changed { steps.append(.pushWatchSnapshot) }"
+  Sources/MomoKit/AppModelPlan.swift:22   tick-only evaluates plan NEITHER
+    persist NOR push
+  05-technical-architecture.md:272-275    "event-driven catch-up, never a
+    background timer ... no engine timer, no background task, no polling"
+  latest-wins coalescing: updateApplicationContext semantics
+    (MomoWatchTransport.swift:111 session.updateApplicationContext(["payload": ...]))
+
+Verdict: R9 PASS — live census + structural pins both show on-change-only,
+idle == zero sync work. Surface note: sim pair; a physical-pair WC trace
+remains owner-routed (§25).
