@@ -11,10 +11,11 @@ import XCTest
 /// throwaway directory (a RELATIVE value resolves inside the app's own
 /// temporary directory, so two launches of the same app instance share it
 /// while tests stay isolated from one another and from production — the
-/// iPhone R13 pattern's Watch twin). `-momo-watch-fixture w1` seeds a
-/// deterministic snapshot through the REAL `WatchSnapshotStore.save` before
-/// the launch read, so every assertion below exercises the genuine
-/// persistence + read path (the MomoApp R10 pattern's Watch twin).
+/// iPhone R13 pattern's Watch twin). `-momo-watch-fixture <kind>` (`w1`,
+/// `alldone`, `stale` — the TASK-043 kinds) seeds a deterministic snapshot
+/// through the REAL `WatchSnapshotStore.save` before the launch read, so
+/// every assertion below exercises the genuine persistence + read path (the
+/// MomoApp R10 pattern's Watch twin).
 ///
 /// **Restore-measurement semantics (honest by construction).** The restore
 /// launch's clock starts immediately before `app.launch()` and stops when
@@ -61,7 +62,7 @@ final class MomoWatchUITests: XCTestCase {
     // MARK: Required Test 3b — the seeded glance renders W1's content
 
     func testFixtureSeededGlanceRendersTheW1Content() {
-        let app = seededW1App(store: "momo-watch-uitest-w1-\(UUID().uuidString)")
+        let app = seededApp(store: "momo-watch-uitest-w1-\(UUID().uuidString)")
 
         // The composite VoiceOver element (status + canvas + quest announce
         // as ONE, UX §10's W1 row resolved over the shipped strings) —
@@ -120,8 +121,8 @@ final class MomoWatchUITests: XCTestCase {
 
         // Phase 2 — seed a store through the real store path.
         let store = "momo-watch-uitest-restore-\(UUID().uuidString)"
-        let seededApp = seededW1App(store: store)
-        seededApp.terminate()
+        let seeded = seededApp(store: store)
+        seeded.terminate()
 
         // Phase 3 — relaunch over the SAME store WITHOUT the fixture: the
         // glance must come back from DISK within the budget (the delta over
@@ -155,7 +156,7 @@ final class MomoWatchUITests: XCTestCase {
     /// glance still rendered — no crash, no wedge, no error surface (the
     /// journal's keep-as-is discipline makes every I/O outcome quiet).
     func testPatPillTapKeepsTheGlanceRendered() {
-        let app = seededW1App(store: "momo-watch-uitest-pill-\(UUID().uuidString)")
+        let app = seededApp(store: "momo-watch-uitest-pill-\(UUID().uuidString)")
         let pill = watchElement(app, "watch.patPill")
         XCTAssertTrue(pill.isHittable, "the Pat pill must be tappable in the rendered glance")
         pill.tap()
@@ -176,7 +177,7 @@ final class MomoWatchUITests: XCTestCase {
     /// element keeps VoiceOver users on the pill): tapping anywhere on the
     /// slot must run the same flow and leave the glance rendered.
     func testCanvasTapKeepsTheGlanceRendered() {
-        let app = seededW1App(store: "momo-watch-uitest-canvas-\(UUID().uuidString)")
+        let app = seededApp(store: "momo-watch-uitest-canvas-\(UUID().uuidString)")
         let canvas = watchElement(app, "watch.canvas")
         XCTAssertTrue(canvas.isHittable, "the canvas must be tappable in the rendered glance")
         canvas.tap()
@@ -190,6 +191,56 @@ final class MomoWatchUITests: XCTestCase {
         )
     }
 
+    // MARK: TASK-043 — the all-done fixture renders the all-done line
+
+    /// The `alldone` fixture's carried set is fully complete, so the live
+    /// cascade yields `.allDone` at EVERY local hour: the glance's quest
+    /// placeholder must render the all-done line
+    /// (`HomeCopyKeys.allDoneLineKey` → "Momo had a lovely day.") — the
+    /// R2 swap, over the real persistence + read + re-cascade path.
+    func testAllDoneFixtureRendersTheAllDoneLine() {
+        let app = seededApp(store: "momo-watch-uitest-alldone-\(UUID().uuidString)", fixture: "alldone")
+        let glance = watchElement(app, "watch.glance")
+        XCTAssertTrue(glance.waitForExistence(timeout: 10), "the all-done fixture must render the glance")
+        XCTAssertTrue(
+            glance.label.contains("Momo had a lovely day"),
+            "the completed set's live cascade must render the all-done line: '\(glance.label)'"
+        )
+    }
+
+    // MARK: TASK-043 — the stale fixture re-cascades under the local hour
+
+    /// The `stale` fixture's FROZEN line says all-done over a fresh day's
+    /// incomplete set (§10.4's stale-data shape: a day-roll the next push
+    /// has not refreshed). The Watch's own re-cascade must replace it with
+    /// the live wish for the CURRENT local hour — the runner derives the
+    /// expected wish from its own clock (the app and runner share the
+    /// simulator's clock and timezone, mirroring the app model's
+    /// `calendar.component(.hour, from:)`), accepting the NEXT hour's wish
+    /// too because the boundary between this derivation and the app's
+    /// render may cross an hour (the disclosed no-timer latency, UX-9).
+    func testStaleFixtureRendersTheLiveCascadeLine() {
+        let hour = Calendar.current.component(.hour, from: Date())
+        func wishText(for hour: Int) -> String {
+            if hour >= 20 || hour < 7 { return "Tuck-in" }
+            if hour < 12 { return "Morning hello" }
+            return "Mealtime"
+        }
+        let accepted = [wishText(for: hour), wishText(for: (hour + 1) % 24)]
+
+        let app = seededApp(store: "momo-watch-uitest-stale-\(UUID().uuidString)", fixture: "stale")
+        let glance = watchElement(app, "watch.glance")
+        XCTAssertTrue(glance.waitForExistence(timeout: 10), "the stale fixture must render the glance")
+        XCTAssertTrue(
+            accepted.contains { glance.label.contains($0) },
+            "the stale all-done bytes must re-cascade to hour \(hour)'s live wish (±1): expected one of \(accepted), got '\(glance.label)'"
+        )
+        XCTAssertFalse(
+            glance.label.contains("Momo had a lovely day"),
+            "the frozen all-done line must not survive the live re-cascade: '\(glance.label)'"
+        )
+    }
+
     // MARK: - Helpers
 
     /// The house element query (the `MomoUITestSupport.homeElement` pattern,
@@ -199,18 +250,21 @@ final class MomoWatchUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
-    /// Launches the app with the W1 fixture seeded into a named store
-    /// directory and waits for the glance (both DEBUG seams; see header).
-    private func seededW1App(store: String) -> XCUIApplication {
+    /// Launches the app with the named fixture kind seeded into a named
+    /// store directory and waits for the glance (both DEBUG seams; see
+    /// header). Kinds: `w1` (the standard rendered glance), `alldone` (the
+    /// day's set fully complete — TASK-043), `stale` (a frozen all-done line
+    /// over a fresh day's incomplete set — TASK-043).
+    private func seededApp(store: String, fixture: String = "w1") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-momo-store-directory", store,
-            "-momo-watch-fixture", "w1",
+            "-momo-watch-fixture", fixture,
         ]
         app.launch()
         XCTAssertTrue(
             watchElement(app, "watch.glance").waitForExistence(timeout: 10),
-            "the fixture-seeded launch must render the W1 glance"
+            "the fixture-seeded launch must render the glance"
         )
         return app
     }

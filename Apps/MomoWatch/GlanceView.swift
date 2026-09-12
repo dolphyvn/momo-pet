@@ -60,17 +60,25 @@ struct GlanceView: View {
     // MARK: The four slots (UX §6.1)
 
     private func glance(for snapshot: WatchSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: MomoSpacing.small) {
+        // The quest line's LIVE value (TASK-043 R1): the app model's stored
+        // re-cascade — recomputed at init, receive, and scene activation,
+        // never on a timer. The fallback reads the FROZEN push-time output
+        // and exists only as belt-and-braces for the never-expected window
+        // where the stored line is nil beside a snapshot; the app model sets
+        // and clears both together at every leg, so the single read here is
+        // the whole view-side story (the scan census pins it).
+        let questLine = model.liveQuestLine ?? snapshot.display.questLine
+        return VStack(alignment: .leading, spacing: MomoSpacing.small) {
             // The composite VoiceOver element: status + canvas + quest
             // announce as ONE, in UX §10's exact W1 wording; the pill stays
             // its own element below.
             Group {
                 statusSlot(for: snapshot.display)
                 petCanvas
-                questSlot(for: snapshot.display)
+                questSlot(for: questLine)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(compositeLabel(for: snapshot))
+            .accessibilityLabel(compositeLabel(for: snapshot, questLine: questLine))
             .accessibilityIdentifier("watch.glance")
             patPill
         }
@@ -138,11 +146,14 @@ struct GlanceView: View {
         .accessibilityIdentifier("watch.canvas")
     }
 
-    /// The quest line: the snapshot's cascade OUTPUT, display-only (the
-    /// Watch-side re-cascade is TASK-043's) — the wish key or the all-done
-    /// key through the SHARED `HomeCopyKeys` lookups.
-    private func questSlot(for display: DisplayState) -> some View {
-        Text(MomoCopyText.render(questLineKey(for: display.questLine)))
+    /// The quest line: the LIVE cascade output (TASK-043 R1 — the Watch
+    /// re-runs the shared derivation over the carried inputs under its own
+    /// local hour), display-only by construction: a `Text`, no action
+    /// affordance — the pat canvas and Pat pill below are the ONLY
+    /// tappables (UX §6.1). The wish key or the all-done key through the
+    /// SHARED `HomeCopyKeys` lookups.
+    private func questSlot(for questLine: QuestGeneration.QuestLine) -> some View {
+        Text(MomoCopyText.render(questLineKey(for: questLine)))
             .font(MomoTypography.caption)
             .foregroundStyle(MomoUIColors.textSecondary.resolve(colorScheme))
             .lineLimit(2)
@@ -220,9 +231,14 @@ struct GlanceView: View {
     /// "{name} feels {mood} and {energy}. {Stage}. Today's wish: {wish}.
     /// Pat button." — resolved over the SHIPPED strings through the catalog
     /// template's five positional placeholders (the `moment.01` formatting
-    /// precedent). The trailing "Pat button." pre-announces the pill element
-    /// that follows the composite.
-    private func compositeLabel(for snapshot: WatchSnapshot) -> String {
+    /// precedent). The quest placeholder is the SAME live line the visual
+    /// slot renders (TASK-043 R1 — one value, both surfaces). The trailing
+    /// "Pat button." pre-announces the pill element that follows the
+    /// composite.
+    private func compositeLabel(
+        for snapshot: WatchSnapshot,
+        questLine: QuestGeneration.QuestLine
+    ) -> String {
         let display = snapshot.display
         return String(
             format: MomoCopyText.render(WatchCopyKeys.glanceAccessibilityTemplateKey),
@@ -230,7 +246,7 @@ struct GlanceView: View {
             MomoCopyText.render(display.moodWordKey),
             MomoCopyText.render(display.energyPhraseKey),
             MomoCopyText.render(HomeCopyKeys.stageNameKey(for: display.bondStage)),
-            MomoCopyText.render(questLineKey(for: display.questLine))
+            MomoCopyText.render(questLineKey(for: questLine))
         )
     }
 }

@@ -62,9 +62,9 @@ actor MomoWatchSnapshotPersister {
 /// serial queue; the transport's sink re-isolates every frame onto the main
 /// actor here (`bindWatchTransport`'s Task hop). The main actor touches NO
 /// file I/O beyond the launch read — the ONE sanctioned synchronous
-/// main-thread read (OBS-1, KB-scale: the snapshot + the consumed marker);
-/// every save and wipe rides `MomoWatchSnapshotPersister` off the main
-/// actor.
+/// main-thread read (OBS-1, KB-scale: three store reads — the snapshot pair,
+/// the consumed marker, and the session epoch); every save and wipe rides
+/// `MomoWatchSnapshotPersister` off the main actor.
 ///
 /// **Degraded states are quiet (UX §9).** A nil snapshot (fresh install,
 /// post-wipe, unrecoverable store) renders the settling-in line; an
@@ -81,6 +81,25 @@ final class MomoWatchAppModel {
     /// wholesale on every accepted receive (latest-wins, §6.3) and cleared
     /// by a marker consumption — never mutated field-by-field.
     private(set) var snapshot: WatchSnapshot?
+
+    /// The LIVE quest line (TASK-043 R1; 05 §4.8/§4.11): the shared cascade
+    /// re-run over the carried `questInputs` under THIS Watch's local hour.
+    /// STORED observable state — an `@Observable` computed property reading
+    /// `wallClock.now()` would not be change-tracked, so the recompute legs
+    /// (below) write here and receives re-render the body through it.
+    ///
+    /// Nil exactly when `snapshot` is nil; the view reads the frozen
+    /// `display.questLine` only as the belt-and-braces fallback for the
+    /// never-expected window between the two. Recompute legs (exactly four
+    /// `recomputeQuestLine()` calls — the scan census): init (first render),
+    /// receive (steady shape), receive (consume clears it with the
+    /// snapshot), and scene activation (background→foreground). NO timers
+    /// (§4.2): between legs a line can go stale at an hour boundary until
+    /// the next render trigger — the accepted latency UX-9's
+    /// no-freshness-indicator calm governs. Day semantics: the cascade runs
+    /// over the CARRIED set only — the Watch never synthesizes a day's quest
+    /// set; the set refreshes on the next snapshot (`WatchCascade`'s note).
+    private(set) var liveQuestLine: QuestGeneration.QuestLine?
 
     /// The last `resetMarkerEraseCount` this Watch has consumed (§6.6).
     /// Launched from the consumed-marker store; advanced on every
@@ -199,7 +218,8 @@ final class MomoWatchAppModel {
         Self.seedFixtureIfRequested(directory: resolved)
 
         // The launch read (OBS-1's one sanctioned synchronous main-thread
-        // read): the snapshot pair plus the consumed marker, both KB-scale.
+        // read): three KB-scale store reads — the snapshot pair, the
+        // consumed marker, and (below) the session epoch.
         snapshot = WatchSnapshotStore(directory: resolved).load()
         consumedEraseCount = WatchConsumedMarkerStore(directory: resolved)
             .load()?.eraseCount ?? 0
@@ -237,6 +257,12 @@ final class MomoWatchAppModel {
             ) {
             reactionDirector = MomoDirectorState(displayState: display)
         }
+
+        // The live quest line's FIRST recompute leg (TASK-043 R1): the
+        // launch render derives it from the restored snapshot under the
+        // launch hour. (Legs census: init + receive steady + receive
+        // consume + scene activation = 4.)
+        recomputeQuestLine()
 
         // The sink binds FIRST, activation SECOND (the WCSession.h:42-45
         // discipline). The WC queue's frames hop to the main actor; the
@@ -278,6 +304,26 @@ final class MomoWatchAppModel {
         return makeWatchCharacterDisplay(display: snapshot.display, character: character)
     }
 
+    // MARK: The live quest line (TASK-043 R1)
+
+    /// The ONE re-cascade, written by each recompute leg: the SHARED
+    /// derivation through MomoKit's seam (`WatchCascade` — the Watch target
+    /// names no engine surface in code) over the carried inputs under the
+    /// hour of the INJECTED `wallClock` + `calendar` (D20 — no ambient
+    /// reads; the `makeDisplayState` shape). A nil snapshot clears the line
+    /// with it — the settling-in shape never carries a quest line.
+    private func recomputeQuestLine() {
+        guard let snapshot else {
+            liveQuestLine = nil
+            return
+        }
+        let localHour = calendar.component(.hour, from: wallClock.now())
+        liveQuestLine = WatchCascade.liveQuestLine(
+            questSet: snapshot.questInputs,
+            localHour: localHour
+        )
+    }
+
     // MARK: The receive path (R4/R5)
 
     /// One delivered context frame: decode-or-skip → §6.6 consumption
@@ -311,6 +357,10 @@ final class MomoWatchAppModel {
             await persister.consumeWipe(directory: storeDirectory, eraseCount: eraseCount)
             consumedEraseCount = eraseCount
             self.snapshot = nil
+            // The consume recompute leg (TASK-043 R1): the line clears WITH
+            // the snapshot — post-wipe renders the settling-in shape, never
+            // a quest line beside a nil snapshot.
+            recomputeQuestLine()
             return
         }
         // The steady shape: latest-wins render first (§6.3's instant local
@@ -320,6 +370,10 @@ final class MomoWatchAppModel {
         // persist that carried the pair). The submission order through the
         // persister's mailbox matches the receive order (O1).
         self.snapshot = snapshot
+        // The receive recompute leg (TASK-043 R1): the line re-cascades from
+        // the NEW snapshot's carried inputs before the disk legs, so the
+        // render input is coherent the moment the render state lands.
+        recomputeQuestLine()
         await persister.persist(directory: storeDirectory, snapshot: snapshot)
         await persister.pruneJournal(
             directory: storeDirectory,
@@ -347,8 +401,17 @@ final class MomoWatchAppModel {
     /// persist (the store already matches: fresh, wiped, or unrecoverable —
     /// and re-wiping on nil would be a state-changing write the transition
     /// leg does not own). Foreground transitions are renders-from-memory,
-    /// not writes.
+    /// not writes — except for the ONE foreground recompute (TASK-043 R1's
+    /// activation leg): returning to the active scene re-cascades the quest
+    /// line under the CURRENT local hour, so raise-to-wake tracks the hours
+    /// that elapsed in the background without any timer (§4.2).
     func scenePhaseChanged(to phase: ScenePhase) {
+        // The activation recompute leg (the fourth and last; TASK-043 R1):
+        // background→foreground re-derives the line before the render.
+        if phase == .active {
+            recomputeQuestLine()
+            return
+        }
         guard phase == .background, let snapshot else { return }
         Task { await persister.persist(directory: storeDirectory, snapshot: snapshot) }
     }
@@ -390,7 +453,8 @@ final class MomoWatchAppModel {
     /// R10 pattern's Watch twin): seeds a FIXTURE snapshot through the REAL
     /// store before the launch read, so the restore test drives the
     /// genuine persistence + read path with deterministic bytes. DEBUG-only;
-    /// production launches never seed.
+    /// production launches never seed. Kinds: `w1` (the standard rendered
+    /// glance, TASK-041), `alldone` and `stale` (TASK-043's cascade flows).
     ///
     /// The seed MUST land before the synchronous launch read below it in
     /// `init` (the whole point — the read then restores what the real
@@ -408,17 +472,28 @@ final class MomoWatchAppModel {
         else { return }
         switch arguments[index + 1] {
         case "w1":
-            let snapshot = w1FixtureSnapshot()
-            let store = WatchSnapshotStore(directory: directory)
-            let seeded = DispatchSemaphore(value: 0)
-            Task.detached(priority: .userInitiated) {
-                await store.save(snapshot)
-                seeded.signal()
-            }
-            seeded.wait()
+            seedFixture(w1FixtureSnapshot(), to: directory)
+        case "alldone":
+            seedFixture(allDoneFixtureSnapshot(), to: directory)
+        case "stale":
+            seedFixture(staleFixtureSnapshot(), to: directory)
         default:
             assertionFailure("MomoWatchAppModel: unknown -momo-watch-fixture kind '\(arguments[index + 1])'")
         }
+        #endif
+    }
+
+    /// The one semaphore bridge shared by every fixture kind (the save is
+    /// actor-isolated; the launch is sync — see `seedFixtureIfRequested`).
+    private static func seedFixture(_ snapshot: WatchSnapshot, to directory: URL) {
+        #if DEBUG
+        let store = WatchSnapshotStore(directory: directory)
+        let seeded = DispatchSemaphore(value: 0)
+        Task.detached(priority: .userInitiated) {
+            await store.save(snapshot)
+            seeded.signal()
+        }
+        seeded.wait()
         #endif
     }
 
@@ -426,7 +501,67 @@ final class MomoWatchAppModel {
     /// content, energy energetic, playing while recently fed, stage
     /// Getting Close, quest Q7 (the pat-completable wish) — whose character
     /// DTO carries all four fields so the rig renders a real pose.
+    ///
+    /// The carried `questInputs` are the display line's PROVENANCE (the
+    /// TASK-043 R3 property at fixture scale): [Q1 ✓, Q2 ✓, Q7 in progress]
+    /// cascades to `.wish(.q7)` at EVERY local hour, so the frozen line and
+    /// the live re-cascade agree all day — the fixture stays self-consistent
+    /// under the live line (the empty set the pre-TASK-043 seed carried
+    /// would cascade to `.allDone` and contradict its own display).
     private static func w1FixtureSnapshot() -> WatchSnapshot {
+        fixtureSnapshot(
+            questLine: .wish(.q7),
+            questInputs: [
+                QuestProgress(questID: .q1, progress: 1, completed: true),
+                QuestProgress(questID: .q2, progress: 1, completed: true),
+                QuestProgress(questID: .q7, progress: 0, completed: false),
+            ].compactMap { $0 }
+        )
+    }
+
+    /// The `alldone` fixture (DEBUG-only, TASK-043 R2/R6): the day's set
+    /// fully completed — the live cascade yields `.allDone` at every local
+    /// hour, so W1 renders the all-done line (`HomeCopyKeys.allDoneLineKey`
+    /// → "Momo had a lovely day.") in the UI flow.
+    private static func allDoneFixtureSnapshot() -> WatchSnapshot {
+        fixtureSnapshot(
+            questLine: .allDone,
+            questInputs: [
+                QuestProgress(questID: .q1, progress: 1, completed: true),
+                QuestProgress(questID: .q2, progress: 1, completed: true),
+                QuestProgress(questID: .q7, progress: 3, completed: true),
+            ].compactMap { $0 }
+        )
+    }
+
+    /// The `stale` fixture (DEBUG-only, TASK-043 R6's §10.4 stale-data
+    /// share): a snapshot whose FROZEN line says all-done (the push instant's
+    /// day had finished) over a CARRIED set of a fresh, untouched day — the
+    /// shape after a midnight day-roll the next push has not refreshed. The
+    /// live re-cascade under the Watch's own local hour renders the new
+    /// day's actual wish (Q6 from 20:00 ∨ before 07:00, Q1 before noon, Q2
+    /// otherwise — never all-done while an in-window rule holds), proving
+    /// stale bytes render sanely, with no error surface (§10.4's stale-data
+    /// row).
+    private static func staleFixtureSnapshot() -> WatchSnapshot {
+        fixtureSnapshot(
+            questLine: .allDone,
+            questInputs: [
+                QuestProgress(questID: .q1, progress: 0, completed: false),
+                QuestProgress(questID: .q2, progress: 0, completed: false),
+                QuestProgress(questID: .q6, progress: 0, completed: false),
+            ].compactMap { $0 }
+        )
+    }
+
+    /// The fixtures' shared body: the same populated display + character
+    /// DTO across kinds; only the quest line and its provenance inputs vary
+    /// (the fields under TASK-043's test). `hapticsEnabled: true` — the pat
+    /// flows' toggle-honoring seam stays exercised.
+    private static func fixtureSnapshot(
+        questLine: QuestGeneration.QuestLine,
+        questInputs: [QuestProgress]
+    ) -> WatchSnapshot {
         let stage = BondStage.gettingClose
         let display = DisplayState(
             petName: "Momo",
@@ -434,14 +569,14 @@ final class MomoWatchAppModel {
             energyPhraseKey: VocabularyKeys.energyPhraseKey(for: .energetic),
             bondStage: stage,
             bondDescriptorKey: VocabularyKeys.bondDescriptorKey(for: stage),
-            questLine: .wish(.q7),
+            questLine: questLine,
             wakefulness: .awake,
             greeting: nil
         )
         return WatchSnapshot(
             snapshotSeq: 1,
             display: display,
-            questInputs: [],
+            questInputs: questInputs,
             hapticsEnabled: true,
             lastAppliedIntentSeq: 0,
             lastAppliedEpoch: StoreRules.zeroWatchSyncEpoch,
