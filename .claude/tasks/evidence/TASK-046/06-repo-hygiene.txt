@@ -1,0 +1,22 @@
+TASK-046 evidence 06 — §19/R5: repo hygiene at session end (recorded 2026-09-12)
+
+Command:  git status --porcelain
+Result:
+ M .claude/tasks/active/TASK-046-edge-matrix.md
+?? .claude/tasks/evidence/TASK-046/
+
+→ EXACTLY the expected task-doc entries: the modified task file (Implementation Notes +
+  Gates + Completion Evidence + Status fills by this session) and the new evidence
+  directory (00…06, text-only). ZERO production-source changes (Sources/**, Apps/**,
+  Momo.xcodeproj/ all diff-EMPTY — R4 honored); ZERO test-target changes (Tests/**,
+  MomoUITests/, MomoWatchUITests/ untouched — zero-new-tests outcome).
+
+Command:  git stash list
+Result:   (empty — zero stashes)
+
+Branch:   feature/EPIC-009-release-readiness (unchanged; NO commit, NO add, NO branch
+  change performed by this session per §9 — the orchestrator owns the commit)
+
+Disk at session end: 95 GiB free on / (the critical pressure disclosed at contract time
+  eased mid-session; recorded in 00-environment.txt at 755 MiB start → 496-509 MiB during
+  the app UI leg → eased; the 200 MiB kill floor was never breached).

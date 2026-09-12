@@ -1,0 +1,29 @@
+TASK-046 evidence 03 — §19/R5 + §10.5 rows 6/7/8: fresh app UI suite execution
+(recorded 2026-09-12; standing-baseline re-execution — NO test target touched by this task)
+
+Command:  xcodebuild test -project Momo.xcodeproj -scheme Momo \
+              -destination 'id=1F25E487-A78E-464C-95AF-0BD1A9B3E1BE' \
+              -only-testing:MomoUITests
+
+Surface:  iPhone SE (3rd generation), iOS 26.5, simulator 1F25E487-A78E-464C-95AF-0BD1A9B3E1BE (pinned; Booted)
+
+Result:   Test Suite 'All tests' passed at 2026-09-12 06:38:11.721
+          Executed 35 tests, with 0 failures (0 unexpected) in 574.831 (574.864) seconds
+          ** TEST SUCCEEDED **   — exit code 0
+          → digit-for-digit match with the 35/35 standing baseline.
+
+This run is the fresh UI execution pointer for:
+- §10.5 row 6 (Watch unavailable): the whole suite ran in THIS sim environment, where the WC
+  paired link does not deliver (WC 7006-class, TASK-045 R9 verbatim census) — full iPhone
+  functionality with a non-delivering Watch link. Sharpest named pin inside the suite:
+  MomoHomeUITests.swift:438-463 testFirstPatCompletesTheMorningWish — full core loop
+  (quest pending → pat → quest completes in words → Home intact) ending in the explicit
+  zero-error-surface pin `XCTAssertEqual(app.alerts.count, 0, ...)` at :462.
+- §10.5 row 7 (Offline device, iPhone leg): loop completions at the glass with every outbound
+  channel the app has non-delivering (see 02-row6-7-offline-census.txt for the structural census).
+- §10.5 row 8 (Fresh installation, UI leg): the onboarding suite legs executed green —
+  MomoOnboardingUITests.swift:19 testFreshStoreFlowsThroughThreeStepsToHome,
+  :70 testKillBeforeEnterRestartsOnboardingFromS1,
+  :87 testCompletedStoreLaunchesStraightToHome (Enter write survives process death).
+
+Raw tail retained in the session log; the counts lines above are the record.

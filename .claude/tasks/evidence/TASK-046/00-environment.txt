@@ -1,0 +1,24 @@
+TASK-046 evidence 00 — environment (recorded 2026-09-12, implementer session)
+
+Host
+- macOS 26.5.2 (BuildVersion 25F84); Xcode 26.6 (Build 17F113)
+- Disk at session start: 755 MiB available on / (96% capacity) — CONTRACT-DISCLOSED critical-pressure environment; kept evidence text-only; no traces/bundles committed
+- Disk at evidence time: see the live df line below (re-read at each leg)
+
+Surface labels (pinned sims, xcrun simctl list devices available)
+- iPhone SE (3rd generation) 1F25E487-A78E-464C-95AF-0BD1A9B3E1BE — iOS 26.5 (Booted) — primary iPhone leg
+- Apple Watch SE 3 (44mm)          8A854895-225C-411B-89C1-B03337BFE957 — watchOS 26.5 (Booted) — Watch leg
+- EPIC-009 matrix extras present and Booted: Watch SE 3 40mm F0A75761-CB62-4812-A1C4-8E682A3F02FB; Watch Series 11 42mm EB5715E3-E528-4139-B768-2898AF583EC5; iPhone 17 Pro 8E57D4E0-FAA2-499F-8FC6-E0B50AE855BA
+- Nothing device-claimed anywhere in this task: every leg this session is SIMULATOR (§25)
+
+ENVIRONMENT DELTA vs the contract note — DISCLOSED (§25 honesty)
+- The contract (TASK-046-edge-matrix.md Context) says "The pinned iPhone sims are UNPAIRED". At this session's environment check that is STALE: `xcrun simctl list pairs` reports ONE active pair —
+    9DC3AD8E-1237-44F8-99D3-7DCF7478853C (active, connected)
+      Watch: Apple Watch SE 3 (44mm) (8A854895-225C-411B-89C1-B03337BFE957) (Booted)
+      Phone: iPhone SE (3rd generation) (1F25E487-A78E-464C-95AF-0BD1A9B3E1BE) (Booted)
+  The pairing was created during the EPIC-008/EPIC-009 device-matrix work (TASK-045 R9's sync-cadence census ran ON this pair — see .claude/tasks/status.md, TASK-045 R9 "live paired-sim log census").
+- Decision: the pair was NOT unpaired (unpair/re-pair would churn shared simulator state that other tasks' evidence references — TASK-045 F-8 already records benign sim-pair-line drift). The §10.5 row-6 "Watch unavailable" substance does not depend on the pairing flag: in THIS simulator environment WC delivery fails regardless of pairing (WC 7006 "not installed" — recorded verbatim at TASK-045 R9 while the app stayed fully functional), so every UI execution below still runs the iPhone's full loop against a non-delivering sync link. Recorded honestly rather than staged.
+- Row-7 "offline": see 02-row6-7-offline-census.txt — the census proves zero network-capable code paths; the apps' only outbound channel (05 §11.2: the WC paired link) is non-delivering in this environment; no host-level network cut was performed (none is needed — no code consults the network — and the host is shared); nothing faked.
+
+Toolchain gates context
+- swift test baseline this session (BEFORE any changes): 1161 tests in 113 suites passed, exit 0 — matches the standing baseline digit-for-digit

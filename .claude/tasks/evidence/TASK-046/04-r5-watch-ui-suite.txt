@@ -1,0 +1,22 @@
+TASK-046 evidence 04 — §19/R5 + §10.5 row 7 (Watch leg): fresh Watch UI suite execution
+(recorded 2026-09-12; standing-baseline re-execution — MomoWatchUITests NOT touched by this task)
+
+Command:  xcodebuild test -project Momo.xcodeproj -scheme MomoWatch \
+              -destination 'id=8A854895-225C-411B-89C1-B03337BFE957' \
+              -only-testing:MomoWatchUITests
+
+Surface:  Apple Watch SE 3 (44mm), watchOS 26.5, simulator 8A854895-225C-411B-89C1-B03337BFE957 (pinned; Booted)
+
+Result:   Test Suite 'All tests' passed at 2026-09-12 09:08:53.326
+          Executed 9 tests, with 0 failures (0 unexpected) in 61.139 (61.145) seconds
+          ** TEST SUCCEEDED **   — exit code 0
+          (xcresult: Test-MomoWatch-2026.09.12_09-07-27-+0100.xcresult)
+          → digit-for-digit match with the 9/9 standing baseline.
+
+This run is the fresh Watch-leg execution pointer for §10.5 row 7 (Offline device — both devices):
+the whole suite ran with the WC paired link non-delivering in this sim environment (see
+02-row6-7-offline-census.txt), and every Watch loop completed at the glass — including
+testPatPillTapKeepsTheGlanceRendered (the offline-first pat flow completing with the glance
+rendered) and testFreshLaunchShowsTheSettlingInLineOnly (fresh-launch loop completing).
+
+Raw tail retained in the session log; the counts lines above are the record.
