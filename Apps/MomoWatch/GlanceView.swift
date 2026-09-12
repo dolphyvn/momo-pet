@@ -18,15 +18,18 @@ import MomoCharacter
 ///
 /// **States.** A renderable snapshot shows the four slots; nil (fresh
 /// install, post-wipe, unrecoverable store) shows ONLY the settling-in line
-/// — calm, no error, no retry affordance (UX §9). A nil assembled character
-/// (cross-version skew, ADR-014's degraded shape) keeps the words + quest
-/// line and holds the canvas slot with the palette blanket — never a crash,
-/// never a layout jump.
+/// — calm, no error, no retry affordance (UX §9) — and structurally exposes
+/// NO pat targets. A nil assembled character (cross-version skew, ADR-014's
+/// degraded shape) keeps the words + quest line and holds the canvas slot
+/// with the palette blanket — never a crash, never a layout jump.
 ///
-/// **The pat targets are INERT this task (disclosed, the placeholder
-/// precedent):** the pill and the canvas are labeled and ≥ 44 pt, shaped for
-/// TASK-042's capture — no gesture, no button trait yet, so VoiceOver never
-/// promises an action that does not exist.
+/// **The pat capture (TASK-042).** Both targets — the canvas by touch, the
+/// pill as a real button — land in `MomoWatchAppModel.pat()`: an immediate
+/// local micro-reaction (the `.tap`/`.stir` clip per the CURRENT snapshot's
+/// wakefulness, ADR-015 D1) + the toggle-honoring haptic (UX §6.3 exact),
+/// fully offline. VoiceOver acts through the pill; the canvas tap is a
+/// touch-only affordance inside the composite element (no duplicate a11y
+/// action — the composite's contract is UX §10's exact wording).
 ///
 /// **AOD (R7).** Foreground binds the `.glance` tier through
 /// `RigLOD.tier(for: .watchForeground)`; the luminance-reduced environment
@@ -57,17 +60,25 @@ struct GlanceView: View {
     // MARK: The four slots (UX §6.1)
 
     private func glance(for snapshot: WatchSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: MomoSpacing.small) {
+        // The quest line's LIVE value (TASK-043 R1): the app model's stored
+        // re-cascade — recomputed at init, receive, and scene activation,
+        // never on a timer. The fallback reads the FROZEN push-time output
+        // and exists only as belt-and-braces for the never-expected window
+        // where the stored line is nil beside a snapshot; the app model sets
+        // and clears both together at every leg, so the single read here is
+        // the whole view-side story (the scan census pins it).
+        let questLine = model.liveQuestLine ?? snapshot.display.questLine
+        return VStack(alignment: .leading, spacing: MomoSpacing.small) {
             // The composite VoiceOver element: status + canvas + quest
             // announce as ONE, in UX §10's exact W1 wording; the pill stays
             // its own element below.
             Group {
                 statusSlot(for: snapshot.display)
                 petCanvas
-                questSlot(for: snapshot.display)
+                questSlot(for: questLine)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(compositeLabel(for: snapshot))
+            .accessibilityLabel(compositeLabel(for: snapshot, questLine: questLine))
             .accessibilityIdentifier("watch.glance")
             patPill
         }
@@ -91,17 +102,37 @@ struct GlanceView: View {
     /// tier. The fixed slot height IS the placeholder's deterministic-height
     /// lesson; the rig centers inside it, so the AOD tier's smaller stage
     /// never moves the layout. A nil character (ADR-014's degraded shape)
-    /// holds the slot with the palette blanket. The slot is a labeled pat
-    /// TARGET — inert this task (TASK-042 captures), ≥ 44 pt by its height.
+    /// holds the slot with the palette blanket. A tap anywhere on the slot
+    /// captures ONE pat (TASK-042 R9; UX §6.2's "tap anywhere on the Watch
+    /// stage") — by touch only: the slot stays INSIDE the composite a11y
+    /// element (children ignored), so VoiceOver users act through the pill
+    /// below and no duplicate a11y action exists.
     private var petCanvas: some View {
         ZStack {
             if let character = model.characterDisplay {
-                MomoRigView(
-                    displayState: character,
-                    tier: tier,
-                    clock: model.canvasClock,
-                    stageSide: stageSide
-                )
+                if tier == .glyph {
+                    // AOD/glyph binds NO sampler (R5; 04 §6.4 "AOD: no
+                    // reaction") — the parameter's `.identity` default IS
+                    // the stillness posture; the rig call keeps TASK-041's
+                    // exact shape.
+                    MomoRigView(
+                        displayState: character,
+                        tier: tier,
+                        clock: model.canvasClock,
+                        stageSide: stageSide
+                    )
+                } else {
+                    // Foreground: the pat reaction rides the rig's existing
+                    // sampler seam (ADR-015 D1 — the ONLY MomoCharacter
+                    // touch, and it is additive at this call site).
+                    MomoRigView(
+                        displayState: character,
+                        tier: tier,
+                        clock: model.canvasClock,
+                        stageSide: stageSide,
+                        reactionMotion: model.reactionMotion()
+                    )
+                }
             } else {
                 RoundedRectangle(cornerRadius: MomoRadius.medium)
                     .fill(MomoCharacterPalette.blanket.resolve(colorScheme))
@@ -109,33 +140,43 @@ struct GlanceView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: GlanceLayout.canvasHeight)
+        .contentShape(Rectangle())
+        .onTapGesture { model.pat() }
         .accessibilityLabel(MomoCopyText.render(WatchCopyKeys.patLabelKey))
         .accessibilityIdentifier("watch.canvas")
     }
 
-    /// The quest line: the snapshot's cascade OUTPUT, display-only (the
-    /// Watch-side re-cascade is TASK-043's) — the wish key or the all-done
-    /// key through the SHARED `HomeCopyKeys` lookups.
-    private func questSlot(for display: DisplayState) -> some View {
-        Text(MomoCopyText.render(questLineKey(for: display.questLine)))
+    /// The quest line: the LIVE cascade output (TASK-043 R1 — the Watch
+    /// re-runs the shared derivation over the carried inputs under its own
+    /// local hour), display-only by construction: a `Text`, no action
+    /// affordance — the pat canvas and Pat pill below are the ONLY
+    /// tappables (UX §6.1). The wish key or the all-done key through the
+    /// SHARED `HomeCopyKeys` lookups.
+    private func questSlot(for questLine: QuestGeneration.QuestLine) -> some View {
+        Text(MomoCopyText.render(questLineKey(for: questLine)))
             .font(MomoTypography.caption)
             .foregroundStyle(MomoUIColors.textSecondary.resolve(colorScheme))
             .lineLimit(2)
     }
 
-    /// The Pat pill: full-width, ≥ 44 pt, labeled — the same action the
-    /// canvas offers (UX-11). Inert this task (disclosed above); the label
-    /// exists from W1's first frame.
+    /// The Pat pill: a REAL button (TASK-042 R9) — full-width, ≥ 44 pt,
+    /// button trait from the `Button`, its TASK-041 label unchanged (the
+    /// composite above still pre-announces "Pat button."), the same action
+    /// the canvas offers (UX-11). `.plain` keeps the pill's own capsule
+    /// surface and text colors (the default bordered style would tint them).
     private var patPill: some View {
-        Text(MomoCopyText.render(WatchCopyKeys.patLabelKey))
-            .font(MomoTypography.body.weight(.medium))
-            .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: GlanceLayout.minimumTargetSide)
-            .padding(.vertical, MomoSpacing.small)
-            .background(MomoUIColors.surface.resolve(colorScheme), in: Capsule())
-            .accessibilityLabel(MomoCopyText.render(WatchCopyKeys.patLabelKey))
-            .accessibilityIdentifier("watch.patPill")
+        Button(action: { model.pat() }) {
+            Text(MomoCopyText.render(WatchCopyKeys.patLabelKey))
+                .font(MomoTypography.body.weight(.medium))
+                .foregroundStyle(MomoUIColors.textPrimary.resolve(colorScheme))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: GlanceLayout.minimumTargetSide)
+                .padding(.vertical, MomoSpacing.small)
+                .background(MomoUIColors.surface.resolve(colorScheme), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(MomoCopyText.render(WatchCopyKeys.patLabelKey))
+        .accessibilityIdentifier("watch.patPill")
     }
 
     // MARK: The settling-in state (UX §9)
@@ -190,9 +231,14 @@ struct GlanceView: View {
     /// "{name} feels {mood} and {energy}. {Stage}. Today's wish: {wish}.
     /// Pat button." — resolved over the SHIPPED strings through the catalog
     /// template's five positional placeholders (the `moment.01` formatting
-    /// precedent). The trailing "Pat button." pre-announces the pill element
-    /// that follows the composite.
-    private func compositeLabel(for snapshot: WatchSnapshot) -> String {
+    /// precedent). The quest placeholder is the SAME live line the visual
+    /// slot renders (TASK-043 R1 — one value, both surfaces). The trailing
+    /// "Pat button." pre-announces the pill element that follows the
+    /// composite.
+    private func compositeLabel(
+        for snapshot: WatchSnapshot,
+        questLine: QuestGeneration.QuestLine
+    ) -> String {
         let display = snapshot.display
         return String(
             format: MomoCopyText.render(WatchCopyKeys.glanceAccessibilityTemplateKey),
@@ -200,7 +246,7 @@ struct GlanceView: View {
             MomoCopyText.render(display.moodWordKey),
             MomoCopyText.render(display.energyPhraseKey),
             MomoCopyText.render(HomeCopyKeys.stageNameKey(for: display.bondStage)),
-            MomoCopyText.render(questLineKey(for: display.questLine))
+            MomoCopyText.render(questLineKey(for: questLine))
         )
     }
 }
