@@ -78,4 +78,4 @@ Execution order follows the dependency graph (06 §4.1): 045/046/047/048 are par
 
 ## Status
 
-**IN PROGRESS (0/6)** — epic authored 2026-09-12; TASK-045 contract READY; dispatch pending.
+**IN PROGRESS (1/6)** — TASK-045 DONE (2026-09-12; review APPROVED_WITH_MINOR_NOTES, 8 findings dispositioned — F-1 fixed at closeout; atomic commit `c43c92b`, pushed `2996fa1..c43c92b`; device legs BLOCKED per §25 → owner device-pass backlog). Next: TASK-046 (§10.5 edge-case matrix execution).
