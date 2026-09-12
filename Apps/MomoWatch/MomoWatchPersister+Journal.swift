@@ -114,4 +114,15 @@ extension MomoWatchSnapshotPersister {
     func pendingPatCount(directory: URL, epoch: UUID) -> Int {
         WatchPatPlan.pendingPatCount(in: IntentJournal(directory: directory).events(), epoch: epoch)
     }
+
+    /// The launch sweep's full-journal read (TASK-044 R1): every journaled
+    /// event, in file order, ALL epochs — `WatchSweepPlan.drainableEvents`
+    /// does the epoch filtering, so the mailbox hands over the bytes
+    /// verbatim and decides nothing. Routed through the mailbox like every
+    /// journal touch (the census guard's premise), and serialized against
+    /// appends/prunes/wipes so the sweep can never read a torn or
+    /// half-pruned queue.
+    func pendingEvents(directory: URL) -> [IntentEvent] {
+        IntentJournal(directory: directory).events()
+    }
 }

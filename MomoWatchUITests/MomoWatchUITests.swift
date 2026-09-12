@@ -12,10 +12,15 @@ import XCTest
 /// temporary directory, so two launches of the same app instance share it
 /// while tests stay isolated from one another and from production — the
 /// iPhone R13 pattern's Watch twin). `-momo-watch-fixture <kind>` (`w1`,
-/// `alldone`, `stale` — the TASK-043 kinds) seeds a deterministic snapshot
-/// through the REAL `WatchSnapshotStore.save` before the launch read, so
-/// every assertion below exercises the genuine persistence + read path (the
-/// MomoApp R10 pattern's Watch twin).
+/// `alldone`, `stale` — the TASK-043 kinds; `reset` and `resethold` —
+/// TASK-044 R2's erase pair) seeds a deterministic snapshot through the
+/// REAL `WatchSnapshotStore.save` before the launch read, so every
+/// assertion below exercises the genuine persistence + read path (the
+/// MomoApp R10 pattern's Watch twin). The `reset` kind additionally returns
+/// a pending marker frame that the launch delivers through the production
+/// `receiveContext` — the §6.6 consumption decision runs unmocked; release
+/// builds never seed and never deliver (`seedFixtureIfRequested` returns
+/// nil there), so the whole leg is release-inert.
 ///
 /// **Restore-measurement semantics (honest by construction).** The restore
 /// launch's clock starts immediately before `app.launch()` and stops when
@@ -241,6 +246,76 @@ final class MomoWatchUITests: XCTestCase {
         )
     }
 
+    // MARK: TASK-044 R2 — the erase reset marker consumes to the settling-in line
+
+    /// The §6.6 erase E2E over the REAL consumption path: the `reset` seam
+    /// seeds CLEAN w1 bytes and returns a pending marker frame
+    /// (`resetMarkerEraseCount` 1 carrying the pre-erase state) that the
+    /// launch delivers through the production `receiveContext` — the same
+    /// entry a WC delivery lands in, with `WatchResetConsumption.decide`
+    /// never mocked. The decision is `.consume`: the fused `consumeWipe`
+    /// clears the store and the glance yields to the settling-in line.
+    ///
+    /// Phase 1 asserts the settle endpoint — a seeded store's ONLY route
+    /// back to the settling-in line is the wipe, since the bytes render the
+    /// glance first. Phase 2 relaunches over the SAME store with no
+    /// fixture: the settling line PERSISTS and no glance returns — the
+    /// disk discriminator proving the seeded bytes are genuinely gone (a
+    /// decision that skipped the wipe would restore them).
+    func testResetMarkerFixtureConsumesToTheSettlingInLine() {
+        let store = "momo-watch-uitest-reset-\(UUID().uuidString)"
+
+        // Phase 1 — the marker enters through the real receive path.
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-momo-store-directory", store,
+            "-momo-watch-fixture", "reset",
+        ]
+        app.launch()
+        XCTAssertTrue(
+            watchElement(app, "watch.settlingLine").waitForExistence(timeout: 10),
+            "the marker's consumption must return the app to the settling-in line"
+        )
+        XCTAssertFalse(
+            watchElement(app, "watch.glance").exists,
+            "the settling-in state must be the whole state after the wipe"
+        )
+        app.terminate()
+
+        // Phase 2 — the wipe must be durable across a relaunch.
+        let relaunched = XCUIApplication()
+        relaunched.launchArguments = ["-momo-store-directory", store]
+        relaunched.launch()
+        XCTAssertTrue(
+            watchElement(relaunched, "watch.settlingLine").waitForExistence(timeout: 10),
+            "the consumed store must stay empty across a relaunch"
+        )
+        XCTAssertFalse(
+            watchElement(relaunched, "watch.glance").exists,
+            "the seeded bytes must be gone — no glance may return from a wiped store"
+        )
+    }
+
+    // MARK: TASK-044 R2 — the control: same seed, no marker frame
+
+    /// The red-direction control for the flow above: `resethold` seeds the
+    /// SAME clean bytes and returns NO frame, so nothing consumes — the
+    /// glance renders and the settling line never appears. The difference
+    /// between the two launches is exactly the marker frame, so the settle
+    /// endpoint above is attributable to the marker's consumption, not to
+    /// the seeding.
+    func testResetHoldFixtureKeepsTheGlanceRendered() {
+        let app = seededApp(store: "momo-watch-uitest-resethold-\(UUID().uuidString)", fixture: "resethold")
+        XCTAssertTrue(
+            watchElement(app, "watch.glance").exists,
+            "without the marker frame the seeded glance must survive"
+        )
+        XCTAssertFalse(
+            watchElement(app, "watch.settlingLine").exists,
+            "no marker means no consumption — the settling-in line must not appear"
+        )
+    }
+
     // MARK: - Helpers
 
     /// The house element query (the `MomoUITestSupport.homeElement` pattern,
@@ -254,7 +329,10 @@ final class MomoWatchUITests: XCTestCase {
     /// store directory and waits for the glance (both DEBUG seams; see
     /// header). Kinds: `w1` (the standard rendered glance), `alldone` (the
     /// day's set fully complete — TASK-043), `stale` (a frozen all-done line
-    /// over a fresh day's incomplete set — TASK-043).
+    /// over a fresh day's incomplete set — TASK-043), `resethold` (the same
+    /// bytes with no marker frame — TASK-044 R2's control; the `reset` kind
+    /// is NOT here because its endpoint is the settling line, not the
+    /// glance).
     private func seededApp(store: String, fixture: String = "w1") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [

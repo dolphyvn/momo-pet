@@ -79,7 +79,22 @@ struct MomoWatchQuestScanTests {
         let findings = WatchQuestScan.questSlotViolations(files: [Self.glanceFile(glance)])
         #expect(findings.count == 2, "\(findings)")
         #expect(findings.contains { $0.detail.contains("model.liveQuestLine") }, "\(findings)")
-        #expect(findings.contains { $0.detail.contains(".display.questLine read") }, "\(findings)")
+        #expect(findings.contains { $0.detail.contains("display.questLine read") }, "\(findings)")
+    }
+
+    @Test("stub direction: a second frozen read via a local display alias fails the widened census alone (TASK-044 R3)")
+    func aliasedSecondReadFailsValueCensus() {
+        // The alias spelling carries no `.display.` prefix — the pre-R3
+        // dotted token would miss it entirely. The live read stays, so the
+        // widened frozen census is the one red leg.
+        let glance = Self.glanceGreen.replacingOccurrences(
+            of: "        return VStack {",
+            with: "        let display = snapshot.display\n        let echo = display.questLine\n        return VStack {"
+        )
+        let findings = WatchQuestScan.questSlotViolations(files: [Self.glanceFile(glance)])
+        #expect(findings.count == 1, "\(findings)")
+        #expect(findings.first?.detail.contains("display.questLine read") == true, "\(findings)")
+        #expect(findings.first?.detail.contains("found 2") == true, "\(findings)")
     }
 
     @Test("a live read cited only in a doc comment stays legal (the stripper must not mute citations)")

@@ -11,8 +11,10 @@ import Foundation
 ///    display-only rule; the pat canvas and Pat pill stay the ONLY pat
 ///    targets, pinned by the whole-file census: exactly one of each). The
 ///    line's VALUE is the app model's stored live re-cascade: exactly one
-///    `model.liveQuestLine` read and exactly one frozen
-///    `.display.questLine` read (the belt-and-braces fallback) — a revert
+///    `model.liveQuestLine` read and exactly one frozen `display.questLine`
+///    read in EITHER spelling (bare or `.display.` — the belt-and-braces
+///    fallback; the bare census token also matches the dotted one, so a
+///    second read cannot hide behind a local `display` alias) — a revert
 ///    to the frozen line, or a second unfallbacked read path, fails.
 /// 2. **The four recompute legs** — `MomoWatchAppModel` defines
 ///    `recomputeQuestLine()` once and calls it at exactly FOUR legs (init,
@@ -133,11 +135,16 @@ enum WatchQuestScan {
                 detail: "expected exactly 1 model.liveQuestLine read (the stored re-cascade), found \(liveReadCount)"
             ))
         }
-        let frozenCount = stripped.components(separatedBy: ".display.questLine").count - 1
+        // The one live read + the one frozen fallback. TASK-044 R3: the
+        // census token is the BARE spelling, so both member shapes count —
+        // `.display.questLine` (as shipped) and a local-`display` alias's
+        // `display.questLine` — and a second read cannot dodge the census
+        // by rebinding the receiver.
+        let frozenCount = stripped.components(separatedBy: "display.questLine").count - 1
         if frozenCount != 1 {
             findings.append(Finding(
                 guardName: questSlotGuard, file: glanceFileName,
-                detail: "expected exactly 1 .display.questLine read (the belt-and-braces fallback), found \(frozenCount)"
+                detail: "expected exactly 1 display.questLine read (the belt-and-braces fallback, bare or .display. spelling), found \(frozenCount)"
             ))
         }
         return findings

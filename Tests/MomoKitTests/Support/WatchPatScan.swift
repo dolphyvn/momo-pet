@@ -19,7 +19,10 @@ import Foundation
 ///    haptic "fires first"), then the append, and the send ONLY after the
 ///    append landed (a send-before-append could emit a pat the journal
 ///    never held — a crash would strand a delivered intent with no durable
-///    record). Exactly ONE send leg exists in the whole target.
+///    record). Exactly TWO send legs exist in the whole target, ENUMERATED
+///    (TASK-044 R6): the pat drain in `finishPat()` and the launch sweep's
+///    re-enqueue in `flushStrandedJournal()` — a THIRD site fails the
+///    census, and the finishPat order pins are untouched.
 /// 3. **Haptic seam (R6)** — the semantic seam protocol exists; the
 ///    platform touch (`WKInterfaceDevice.current().play(`) appears in
 ///    exactly one place, the live conformance; and the seam declares its
@@ -142,15 +145,17 @@ enum WatchPatScan {
             ))
         }
 
-        // Exactly one send leg in the whole target.
+        // Exactly the TWO enumerated send legs in the whole target (R6):
+        // the pat drain in finishPat() and the launch sweep's re-enqueue in
+        // flushStrandedJournal() — a third (or forged) site fails.
         let sendCount = files.reduce(0) { count, file in
             count + MomoKitDisciplineScan.strippingComments(from: file.contents)
                 .components(separatedBy: "transport.sendUserInfo(payload:").count - 1
         }
-        if sendCount != 1 {
+        if sendCount != 2 {
             findings.append(Finding(
                 guardName: patFlowGuard, file: patFileName,
-                detail: "expected exactly 1 transport.sendUserInfo( leg in Apps/MomoWatch, found \(sendCount)"
+                detail: "expected exactly 2 transport.sendUserInfo( legs in Apps/MomoWatch (the pat drain + the launch sweep), found \(sendCount)"
             ))
         }
         return findings

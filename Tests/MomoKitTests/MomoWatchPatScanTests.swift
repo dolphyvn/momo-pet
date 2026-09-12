@@ -5,7 +5,8 @@ import Testing
 /// the intent journal has ONE writer (the persister's journal extension —
 /// the O1 census), the pat flow is immediate locally and durable in order
 /// (reaction fold first; estimate → gate → haptic → append → send; exactly
-/// one send leg), and the haptic seam is the single platform touch behind
+/// the TWO enumerated send legs — the pat drain and, since TASK-044 R6, the
+/// launch sweep), and the haptic seam is the single platform touch behind
 /// the semantics-typed protocol. The same layered non-vacuity as
 /// `MomoWatchGlanceScanTests`: fixture self-tests prove every predicate
 /// turns red on its violation in BOTH stub directions (the load-bearing
@@ -141,13 +142,21 @@ struct MomoWatchPatScanTests {
         #expect(findings.first?.detail.contains("only journaled events drain") == true)
     }
 
-    @Test("stub direction: a second send leg anywhere in the target fails the send census alone")
-    func secondSendLegFails() {
+    @Test("stub direction: a THIRD send leg anywhere in the target fails the send census alone")
+    func thirdSendLegFails() {
         let files: [(name: String, contents: String)] = Self.patFiles()
         + [(name: "MomoWatchTransport.swift", contents: "func resend() {\n        transport.sendUserInfo(payload: payload)\n    }")]
         let findings = WatchPatScan.patFlowViolations(files: files)
         #expect(findings.count == 1, "\(findings)")
-        #expect(findings.first?.detail.contains("expected exactly 1 transport.sendUserInfo(") == true)
+        #expect(findings.first?.detail.contains("expected exactly 2 transport.sendUserInfo(") == true)
+    }
+
+    @Test("green fixture: exactly the two enumerated send legs (pat drain + launch sweep) produce no finding")
+    func twoLegitimateSendLegsPass() {
+        // patFiles() carries both legitimate sites since TASK-044 R6; the
+        // census must accept precisely that shape.
+        let findings = WatchPatScan.patFlowViolations(files: Self.patFiles())
+        #expect(findings.isEmpty, "\(findings)")
     }
 
     @Test("a send leg cited only in a doc comment cannot break the census (stripper)")
@@ -254,7 +263,13 @@ struct MomoWatchPatScanTests {
             "        transport.sendUserInfo(payload: payload)",
             "    }",
         ].joined(separator: "\n"))
-        return [(name: WatchPatScan.patFileName, contents: contents)]
+        // TASK-044 R6: the sweep's leg is the census's SECOND legitimate
+        // site — every fixture carries both so single-violation stubs stay
+        // single-violation under the send census.
+        return [
+            (name: WatchPatScan.patFileName, contents: contents),
+            (name: "MomoWatchAppModel.swift", contents: Self.sweepLegGreen),
+        ]
     }
 
     /// The green seam file skeleton, minus the given lines (stubbing by
@@ -285,6 +300,19 @@ struct MomoWatchPatScanTests {
         "    func appendPat(directory: URL) -> IntentEvent? {",
         "        let journal = IntentJournal(directory: directory)",
         "        return nil",
+        "    }",
+        "}",
+    ].joined(separator: "\n")
+
+    /// The green launch-sweep leg (TASK-044 R1/R6) — the census's SECOND
+    /// legitimate `transport.sendUserInfo(payload:` site.
+    private static let sweepLegGreen = [
+        "extension MomoWatchAppModel {",
+        "    func flushStrandedJournal() async {",
+        "        let journal = await persister.pendingEvents(directory: directory)",
+        "        for event in journal {",
+        "            transport.sendUserInfo(payload: event.encoded()!)",
+        "        }",
         "    }",
         "}",
     ].joined(separator: "\n")

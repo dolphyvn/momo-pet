@@ -35,6 +35,19 @@ protocol MomoWatchTransporting: AnyObject {
     /// the RECEIVER's skip — the sink still gets them).
     var onContextData: (@Sendable (Data) -> Void)? { get set }
 
+    /// The activation-completion sink (TASK-044 R1): invoked when
+    /// `session(_:activationDidCompleteWith:error:)` fires — the
+    /// reconnect/cold-launch moment §6.1's VERIFY-AT-BUILD record pins as
+    /// the launch-time delivery point. This is the launch sweep's ARM
+    /// signal (the executor arms, then drains after the next receive
+    /// decision — the arm-then-flush discipline), not a drain trigger
+    /// itself: activation can fire BEFORE the pending context is handed to
+    /// `didReceiveApplicationContext`, so draining here would race the very
+    /// frame that may carry a reset marker. Set ONCE at bind time with
+    /// `onContextData`, under the same set-from-main / read-from-WC-queue
+    /// argument.
+    var onActivation: (@Sendable () -> Void)? { get set }
+
     /// The up-transport send (§6.1's Watch → iPhone `transferUserInfo`; the
     /// intent journal's drain, TASK-042): one `IntentEvent`'s canonical JSON
     /// bytes under the `"payload"` key — the receive twin's unwrap, mirrored.
@@ -66,11 +79,13 @@ protocol MomoWatchTransporting: AnyObject {
 ///
 /// **Delegate surface.** watchOS requires EXACTLY ONE delegate method
 /// (pre-`@optional` on iOS but the sole requirement here):
-/// `session(_:activationDidCompleteWith:error:)` — logged only. The context
-/// delivery rides the `@optional` `didReceiveApplicationContext`. The iOS
-/// multi-watch methods (`sessionDidBecomeInactive`/`sessionDidDeactivate`)
-/// are deliberately NOT implemented — a single-watch platform never calls
-/// them, and TASK-041 ships no dead code.
+/// `session(_:activationDidCompleteWith:error:)` — logged, plus the
+/// `onActivation` sink it raises (TASK-044 R1's launch-sweep arm; still no
+/// sync semantics of its own). The context delivery rides the `@optional`
+/// `didReceiveApplicationContext`. The iOS multi-watch methods
+/// (`sessionDidBecomeInactive`/`sessionDidDeactivate`) are deliberately NOT
+/// implemented — a single-watch platform never calls them, and TASK-041
+/// ships no dead code.
 final class LiveWatchTransport: NSObject, WCSessionDelegate, MomoWatchTransporting {
 
     private static let logger = Logger(subsystem: "com.momo.app", category: "watch-transport")
@@ -81,6 +96,11 @@ final class LiveWatchTransport: NSObject, WCSessionDelegate, MomoWatchTransporti
     /// read-from-WC-queue pair has no reachable race (and the closure is
     /// `@Sendable`).
     var onContextData: (@Sendable (Data) -> Void)?
+
+    /// The activation sink — the same bind-time/set-from-main discipline as
+    /// `onContextData` (the WC queue reads it from the activation
+    /// completion, which cannot precede `activate()`).
+    var onActivation: (@Sendable () -> Void)?
 
     private let session: WCSession
 
@@ -123,6 +143,13 @@ final class LiveWatchTransport: NSObject, WCSessionDelegate, MomoWatchTransporti
         // The launch-time context delivery (§6.1 VERIFY-AT-BUILD): watchOS
         // hands the pending context to `didReceiveApplicationContext`
         // around this completion — no separate surface exists or is needed.
+        // TASK-044 R1: this callback is ALSO the launch sweep's arm signal
+        // (the executor arms here and drains only after a receive decision
+        // has landed — draining at activation itself would race the pending
+        // context that may carry a reset marker). The sink is bound before
+        // `activate()` (the sink-before-activate discipline), so it is set
+        // by the time the WC queue reaches this line.
+        onActivation?()
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
