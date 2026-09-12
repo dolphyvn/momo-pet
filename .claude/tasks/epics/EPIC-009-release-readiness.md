@@ -78,4 +78,4 @@ Execution order follows the dependency graph (06 §4.1): 045/046/047/048 are par
 
 ## Status
 
-**IN PROGRESS (1/6)** — TASK-045 DONE (2026-09-12; review APPROVED_WITH_MINOR_NOTES, 8 findings dispositioned — F-1 fixed at closeout; atomic commit `c43c92b`, pushed `2996fa1..c43c92b`; device legs BLOCKED per §25 → owner device-pass backlog). TASK-046 contract READY (`.claude/tasks/active/TASK-046-edge-matrix.md`); dispatch pending.
+**IN PROGRESS (1/6)** — TASK-045 DONE (2026-09-12; review APPROVED_WITH_MINOR_NOTES, 8 findings dispositioned — F-1 fixed at closeout; atomic commit `c43c92b`, pushed `2996fa1..c43c92b`; device legs BLOCKED per §25 → owner device-pass backlog). TASK-046 **IN PROGRESS** (contract committed `1f2d350`, pushed; fresh Jupiter implementer `task046-impl` running 2026-09-12 — R0/R1/R3 done per its tracker, §19 gates mid-run). TASK-047 contract READY (`.claude/tasks/active/TASK-047-a11y-audit.md`, authored 2026-09-12 — normative 03 §10 + 04 §3.5 re-read at source; dispatch strictly after the TASK-046 cycle closes per §9).
